@@ -3,28 +3,24 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
         <title>RDFa Editor</title>
-        <script type="text/javascript" src="SaxonceDebug/Saxonce.nocache.js"></script>
-        <script type="text/javascript">
-                
-                    var xslt2proc; // global Saxon-CE processor instance
-
-                    var onSaxonLoad = function()
-                    {
-                        xslt2proc = Saxon.run(
-                        {
-                            stylesheet: "index.xsl",
-                            initialTemplate: "main",
-                            logLevel: "FINE"
-                        });
-                     }
-                
-        </script>
+		  <script type="text/javascript" src="SaxonJS2.js"></script>
+		  <script type="text/javascript">
+				window.onload = function() {
+					   SaxonJS.transform({
+						  stylesheetLocation: "index.xsl.sef.json",
+						  initialTemplate: "main",
+						  logLevel: 10
+					   }, "async");
+					}
+		 </script>
         <style type="text/css">
+			body { font-family: "Roboto", sans-serif; }
             span { font-weight: bold; }
         </style>
     </head>
     <body>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+        <p contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
     </body>
 </html>
