@@ -24,7 +24,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
 
     <xsl:template name="main"/>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:ondbclick">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onselect">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [] )" as="item()"/>
