@@ -82,12 +82,15 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
 
     <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onfocusout">
         <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:variable name="target" select="ixsl:get(ixsl:event(), 'target')" as="element()"/>
 
-        <xsl:call-template name="show-overlay">
-            <xsl:with-param name="event" select="$event"/>
-            <xsl:with-param name="overlay-id" select="'overlay'"/>
-            <xsl:with-param name="display" select="'none'"/>
-        </xsl:call-template>
+        <xsl:if test="not($target/@id = 'overlay')">
+            <xsl:call-template name="show-overlay">
+                <xsl:with-param name="event" select="$event"/>
+                <xsl:with-param name="overlay-id" select="'overlay'"/>
+                <xsl:with-param name="display" select="'none'"/>
+            </xsl:call-template>
+        </xsl:if>
     </xsl:template>
 
     <xsl:template match="button[tokenize(@class, ' ') = 'spo-action']" mode="ixsl:onclick">
