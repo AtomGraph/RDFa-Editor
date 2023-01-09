@@ -111,7 +111,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'range')"/>
         <xsl:variable name="span" select="ixsl:call(ixsl:page(), 'createElement', [ 'span' ])" as="element()"/>
         <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $span ])[current-date() lt xs:date('2000-01-01')]"/>
-        <ixsl:set-attribute name="id" select="generate-id($span)" object="$span"/>
+        <ixsl:set-attribute name="id" select="generate-id($span)" object="$span"/> <!-- TO-DO: make unique -->
 
         <xsl:for-each select="$span">
             <xsl:if test="$subject">
@@ -135,6 +135,22 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
 <xsl:message>bold-action onclick</xsl:message>
         <xsl:for-each select="$span">
             <ixsl:set-style name="font-weight" select="'bold'"/>
+        </xsl:for-each>
+
+        <xsl:call-template name="show-overlay">
+            <xsl:with-param name="overlay-id" select="'overlay'"/>
+            <xsl:with-param name="display" select="'none'"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <xsl:template match="button[tokenize(@class, ' ') = 'italic-action']" mode="ixsl:onclick">
+        <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'range')"/>
+        <xsl:variable name="span" select="ixsl:call(ixsl:page(), 'createElement', [ 'span' ])" as="element()"/>
+        <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $span ])[current-date() lt xs:date('2000-01-01')]"/>
+        <ixsl:set-attribute name="id" select="generate-id($span)" object="$span"/>
+<xsl:message>italic-action onclick</xsl:message>
+        <xsl:for-each select="$span">
+            <ixsl:set-style name="font-style" select="'italic'"/>
         </xsl:for-each>
 
         <xsl:call-template name="show-overlay">
