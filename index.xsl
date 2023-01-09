@@ -40,8 +40,8 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
                     <div id="overlay" style="background-color: white; border: 1px solid black;">
                         <form>
                             <fieldset>
-                                <button type="button" value="bold" style="font-style: bold">B</button>
-                                <button type="button" value="italic" style="font-style: italic">I</button>
+                                <button type="button" class="bold-action" style="font-style: bold">B</button>
+                                <button type="button" class="italic-action" style="font-style: italic">I</button>
                             </fieldset>
                             <fieldset>
                                 <label>Subject</label>
@@ -110,6 +110,22 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
             </xsl:if>
             <ixsl:set-attribute name="property" select="$property"/>
             <ixsl:set-attribute name="resource" select="$object"/>
+        </xsl:for-each>
+
+        <xsl:call-template name="show-overlay">
+            <xsl:with-param name="overlay-id" select="'overlay'"/>
+            <xsl:with-param name="display" select="'none'"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <xsl:template match="button[tokenize(@class, ' ') = 'bold-action']" mode="ixsl:onclick">
+        <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'range')"/>
+        <xsl:variable name="span" select="ixsl:call(ixsl:page(), 'createElement', [ 'span' ])" as="element()"/>
+        <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $span ])[current-date() lt xs:date('2000-01-01')]"/>
+        <ixsl:set-attribute name="id" select="generate-id($span)" object="$span"/>
+
+        <xsl:for-each select="$span">
+            <ixsl:set-style name="font-weight" select="'bold'"/>
         </xsl:for-each>
 
         <xsl:call-template name="show-overlay">
