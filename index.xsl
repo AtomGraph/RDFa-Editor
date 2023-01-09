@@ -40,7 +40,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
                     <div id="overlay" style="background-color: white; border: 1px solid black;">
                         <form>
                             <fieldset>
-                                <button type="button" class="bold-action" style="font-style: bold">B</button>
+                                <button type="button" class="bold-action" style="font-weight: bold">B</button>
                                 <button type="button" class="italic-action" style="font-style: italic">I</button>
                             </fieldset>
                             <fieldset>
@@ -84,15 +84,36 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="related-target" select="ixsl:get(ixsl:event(), 'relatedTarget')" as="element()?"/>
 
-        <xsl:message>$related-target/local-name(): <xsl:value-of select="$related-target/local-name()"/>  $related-target/@id: <xsl:value-of select="$related-target/ancestor-or-self::*[@id]/@id"/></xsl:message>
+        <xsl:choose>
+            <xsl:when test="not($related-target/@id = 'overlay')">
+                <xsl:call-template name="show-overlay">
+                    <xsl:with-param name="event" select="$event"/>
+                    <xsl:with-param name="overlay-id" select="'overlay'"/>
+                    <xsl:with-param name="display" select="'none'"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:otherwise>
+                <ixsl:set-style name="font-weight" select="'bold'"/>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
 
-        <xsl:if test="not($related-target/@id = 'overlay')">
-            <xsl:call-template name="show-overlay">
-                <xsl:with-param name="event" select="$event"/>
-                <xsl:with-param name="overlay-id" select="'overlay'"/>
-                <xsl:with-param name="display" select="'none'"/>
-            </xsl:call-template>
-        </xsl:if>
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onfocusout">
+        <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:variable name="related-target" select="ixsl:get(ixsl:event(), 'relatedTarget')" as="element()?"/>
+
+        <xsl:choose>
+            <xsl:when test="not($related-target/@id = 'overlay')">
+                <xsl:call-template name="show-overlay">
+                    <xsl:with-param name="event" select="$event"/>
+                    <xsl:with-param name="overlay-id" select="'overlay'"/>
+                    <xsl:with-param name="display" select="'none'"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:otherwise>
+                <ixsl:set-style name="font-style" select="'italic'"/> 
+            </xsl:otherwise>
+        </xsl:choose>
     </xsl:template>
 
     <xsl:template match="button[tokenize(@class, ' ') = 'spo-action']" mode="ixsl:onclick">
