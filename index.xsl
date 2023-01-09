@@ -27,7 +27,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
     <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:ondblclick">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [] )" as="item()"/>
+        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])" as="item()"/>
         <xsl:message>exists($selection): <xsl:value-of select="exists($selection)"/></xsl:message>
         <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])" as="item()"/>
         <xsl:message>ixsl:get($range, 'collapsed'): <xsl:value-of select="ixsl:get($range, 'collapsed')"/></xsl:message>
@@ -77,6 +77,16 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
             <xsl:with-param name="event" select="$event"/>
             <xsl:with-param name="overlay-id" select="'overlay'"/>
             <xsl:with-param name="display" select="'block'"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onfocusout">
+        <xsl:variable name="event" select="ixsl:event()"/>
+
+        <xsl:call-template name="show-overlay">
+            <xsl:with-param name="event" select="$event"/>
+            <xsl:with-param name="overlay-id" select="'overlay'"/>
+            <xsl:with-param name="display" select="'none'"/>
         </xsl:call-template>
     </xsl:template>
 
