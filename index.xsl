@@ -85,7 +85,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         <xsl:variable name="related-target" select="ixsl:get(ixsl:event(), 'relatedTarget')" as="element()?"/>
 <xsl:message>p onfocusout</xsl:message>
         <xsl:choose>
-            <xsl:when test="not($related-target/@id = 'overlay')">
+            <xsl:when test="not($related-target/ancestor-or-self::*[@id]/@id = 'overlay')">
                 <xsl:call-template name="show-overlay">
                     <xsl:with-param name="event" select="$event"/>
                     <xsl:with-param name="overlay-id" select="'overlay'"/>
