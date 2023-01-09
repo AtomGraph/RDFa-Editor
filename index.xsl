@@ -93,25 +93,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
                 </xsl:call-template>
             </xsl:when>
             <xsl:otherwise>
-                <ixsl:set-style name="font-weight" select="'bold'"/>
-            </xsl:otherwise>
-        </xsl:choose>
-    </xsl:template>
-
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onfocusout">
-        <xsl:variable name="event" select="ixsl:event()"/>
-        <xsl:variable name="related-target" select="ixsl:get(ixsl:event(), 'relatedTarget')" as="element()?"/>
-
-        <xsl:choose>
-            <xsl:when test="not($related-target/@id = 'overlay')">
-                <xsl:call-template name="show-overlay">
-                    <xsl:with-param name="event" select="$event"/>
-                    <xsl:with-param name="overlay-id" select="'overlay'"/>
-                    <xsl:with-param name="display" select="'none'"/>
-                </xsl:call-template>
-            </xsl:when>
-            <xsl:otherwise>
-                <ixsl:set-style name="font-style" select="'italic'"/> 
+                <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:otherwise>
         </xsl:choose>
     </xsl:template>
