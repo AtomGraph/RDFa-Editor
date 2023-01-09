@@ -83,7 +83,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
     <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onfocusout">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="related-target" select="ixsl:get(ixsl:event(), 'relatedTarget')" as="element()?"/>
-
+<xsl:message>p onfocusout</xsl:message>
         <xsl:choose>
             <xsl:when test="not($related-target/@id = 'overlay')">
                 <xsl:call-template name="show-overlay">
@@ -93,6 +93,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
                 </xsl:call-template>
             </xsl:when>
             <xsl:otherwise>
+            <xsl:message>preventDefault onfocusout</xsl:message> 
                 <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:otherwise>
         </xsl:choose>
@@ -131,7 +132,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         <xsl:variable name="span" select="ixsl:call(ixsl:page(), 'createElement', [ 'span' ])" as="element()"/>
         <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $span ])[current-date() lt xs:date('2000-01-01')]"/>
         <ixsl:set-attribute name="id" select="generate-id($span)" object="$span"/>
-
+<xsl:message>bold-action onclick</xsl:message>
         <xsl:for-each select="$span">
             <ixsl:set-style name="font-weight" select="'bold'"/>
         </xsl:for-each>
