@@ -83,6 +83,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
     <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onfocusout">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="target" select="ixsl:get(ixsl:event(), 'target')" as="element()"/>
+<xsl:message>$target/@id: <xsl:value-of select="$target/@id"/></xsl:message>
 
         <xsl:if test="not($target/@id = 'overlay')">
             <xsl:call-template name="show-overlay">
