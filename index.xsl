@@ -84,16 +84,14 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="related-target" select="ixsl:get(ixsl:event(), 'relatedTarget')" as="element()?"/>
 
-        <xsl:if test="$related-target">
-            <xsl:message>$related-target/local-name(): <xsl:value-of select="$related-target/local-name()"/>  $related-target/@id: <xsl:value-of select="$related-target/ancestor-or-self::*[@id]/@id"/></xsl:message>
+        <xsl:message>$related-target/local-name(): <xsl:value-of select="$related-target/local-name()"/>  $related-target/@id: <xsl:value-of select="$related-target/ancestor-or-self::*[@id]/@id"/></xsl:message>
 
-            <xsl:if test="not($related-target/@id = 'overlay')">
-                <xsl:call-template name="show-overlay">
-                    <xsl:with-param name="event" select="$event"/>
-                    <xsl:with-param name="overlay-id" select="'overlay'"/>
-                    <xsl:with-param name="display" select="'none'"/>
-                </xsl:call-template>
-            </xsl:if>
+        <xsl:if test="not($related-target/@id = 'overlay')">
+            <xsl:call-template name="show-overlay">
+                <xsl:with-param name="event" select="$event"/>
+                <xsl:with-param name="overlay-id" select="'overlay'"/>
+                <xsl:with-param name="display" select="'none'"/>
+            </xsl:call-template>
         </xsl:if>
     </xsl:template>
 
