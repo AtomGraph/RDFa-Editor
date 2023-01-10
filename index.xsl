@@ -24,7 +24,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
 
     <xsl:template name="main"/>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onmouseup">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true'][not(ixsl:get(ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []), 'getRangeAt', [ 0 ]), 'collapsed'))]" mode="ixsl:onmouseup">
         <xsl:message>WTF? ixsl:onmouseup</xsl:message>
 
         <xsl:apply-templates select="." mode="ixsl:onselectstart">
@@ -32,7 +32,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         </xsl:apply-templates>
     </xsl:template>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onkeyup">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true'][not(ixsl:get(ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []), 'getRangeAt', [ 0 ]), 'collapsed'))]" mode="ixsl:onkeyup">
         <xsl:message>WTF? ixsl:onkeyup</xsl:message>
 
         <xsl:apply-templates select="." mode="ixsl:onselectstart">
@@ -40,7 +40,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         </xsl:apply-templates>
     </xsl:template>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onselectionchange">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true'][not(ixsl:get(ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []), 'getRangeAt', [ 0 ]), 'collapsed'))]" mode="ixsl:onselectionchange">
         <xsl:message>WTF? ixsl:onselectionchange</xsl:message>
 
         <xsl:apply-templates select="." mode="ixsl:onselectstart">
@@ -48,13 +48,12 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         </xsl:apply-templates>
     </xsl:template>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onselectstart">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true'][not(ixsl:get(ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []), 'getRangeAt', [ 0 ]), 'collapsed'))]" mode="ixsl:onselectstart">
         <xsl:param name="event" select="ixsl:event()"/>
         <xsl:message>WTF? ixsl:onselectstart</xsl:message>
 
         <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])" as="item()"/>
-        <xsl:message>exists($selection): <xsl:value-of select="exists($selection)"/></xsl:message>
         <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])" as="item()"/>
         <xsl:message>ixsl:get($range, 'collapsed'): <xsl:value-of select="ixsl:get($range, 'collapsed')"/></xsl:message>
 
