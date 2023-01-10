@@ -32,7 +32,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         </xsl:apply-templates>
     </xsl:template>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onkeyup">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true'][ixsl:call(ixsl:window(), 'getSelection', [])]" mode="ixsl:onkeyup">
         <xsl:message>WTF? ixsl:onkeyup</xsl:message>
 
         <xsl:apply-templates select="." mode="ixsl:onselectstart">
@@ -40,7 +40,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         </xsl:apply-templates>
     </xsl:template>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onselectionchange">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true'][ixsl:call(ixsl:window(), 'getSelection', [])]" mode="ixsl:onselectionchange">
         <xsl:message>WTF? ixsl:onselectionchange</xsl:message>
 
         <xsl:apply-templates select="." mode="ixsl:onselectstart">
@@ -48,7 +48,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
         </xsl:apply-templates>
     </xsl:template>
 
-    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onselectstart">
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true'][ixsl:call(ixsl:window(), 'getSelection', [])]" mode="ixsl:onselectstart">
         <xsl:param name="event" select="ixsl:event()"/>
         <xsl:message>WTF? ixsl:onselectstart</xsl:message>
 
