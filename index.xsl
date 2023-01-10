@@ -24,6 +24,14 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
 
     <xsl:template name="main"/>
 
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onmouseup">
+        <xsl:message>WTF? ixsl:onmouseup</xsl:message>
+    </xsl:template>
+
+    <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onkeyup">
+        <xsl:message>WTF? ixsl:onkeyup</xsl:message>
+    </xsl:template>
+
     <xsl:template match="p[ixsl:get(., 'contentEditable') = 'true']" mode="ixsl:onselectionchange">
         <xsl:message>WTF? ixsl:onselectionchange</xsl:message>
     </xsl:template>
