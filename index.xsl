@@ -70,12 +70,12 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
                             </fieldset>
                             <fieldset>
                                 <label>Subject</label>
-                                <input type="text" name="subject"/>
+                                <input type="text" name="subject" style="float: right;"/>
                             </fieldset>
                             <fieldset>
                                 <label>Property</label>
                                 <!-- <input type="text" name="property"/> -->
-                                <select name="property">
+                                <select name="property" style="float: right;">
                                     <xsl:for-each select="document('vocabs/foaf.rdf')/rdf:RDF/rdf:Property">
                                         <xsl:sort select="@rdfs:label"/>
 
@@ -87,7 +87,7 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
                             </fieldset>
                             <fieldset>
                                 <label>Object</label>
-                                <input type="text" name="object"/>
+                                <input type="text" name="object" style="float: right;"/>
                             </fieldset>
                             <p>
                                 <button type="button" class="spo-action">OK</button>
