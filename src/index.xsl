@@ -20,7 +20,7 @@ version="2.0"
 xpath-default-namespace="http://www.w3.org/1999/xhtml"
 >
 
-    <xsl:include href="RDFa2RDFXML.xsl.c14n"/>
+    <xsl:include href="RDFa2RDFXML.xsl"/>
 
     <xsl:template name="main"/>
 

@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>RDFa Editor - Annotation UI Mockup</title>
+    <style type="text/css">
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f5f5f5;
+        }
+
+        /* Top Toolbar */
+        .toolbar {
+            background: #2c3e50;
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .toolbar-brand {
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: 20px;
+        }
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toolbar select, .toolbar button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            background: #34495e;
+            color: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .toolbar button:hover {
+            background: #415a77;
+        }
+        .toolbar .btn-primary {
+            background: #3498db;
+        }
+        .toolbar .spacer {
+            flex-grow: 1;
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Left Sidebar */
+        .sidebar-left {
+            width: 250px;
+            background: white;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .sidebar-header {
+            padding: 12px 15px;
+            background: #ecf0f1;
+            font-weight: 600;
+            border-bottom: 1px solid #ddd;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: #555;
+        }
+
+        /* Editor Area */
+        .editor-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            overflow: hidden;
+            position: relative;
+        }
+        .editor-toolbar {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 5px;
+            background: #fafafa;
+        }
+        .editor-toolbar button {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .editor-toolbar button:hover {
+            background: #ecf0f1;
+        }
+        .editor-toolbar .separator {
+            width: 1px;
+            background: #ddd;
+            margin: 0 5px;
+        }
+        .editor-content {
+            flex: 1;
+            padding: 40px 60px;
+            overflow-y: auto;
+            line-height: 1.6;
+        }
+        .editor-content h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        .editor-content p {
+            margin-bottom: 15px;
+        }
+
+        /* Selection highlight */
+        .selected-text {
+            background: rgba(52, 152, 219, 0.3);
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        /* Annotation Modal */
+        .annotation-modal {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+        }
+        .modal-close:hover {
+            color: #333;
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #ddd;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #fafafa;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+        .form-label .optional {
+            font-weight: normal;
+            color: #999;
+            font-size: 12px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        .form-help {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* Autocomplete Dropdown */
+        .autocomplete-container {
+            position: relative;
+        }
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #ddd;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 10;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .autocomplete-item:hover, .autocomplete-item.selected {
+            background: #ecf0f1;
+        }
+        .autocomplete-item-main {
+            flex: 1;
+        }
+        .autocomplete-item-name {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+        .autocomplete-item-desc {
+            font-size: 12px;
+            color: #666;
+        }
+        .autocomplete-item-uri {
+            font-size: 11px;
+            color: #999;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+
+        /* Radio Group */
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .radio-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .radio-option:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.05);
+        }
+        .radio-option.selected {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+        .radio-option input[type="radio"] {
+            margin-top: 2px;
+        }
+        .radio-label {
+            flex: 1;
+        }
+        .radio-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .radio-desc {
+            font-size: 13px;
+            color: #666;
+        }
+
+        /* Preview Box */
+        .preview-box {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+        .preview-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 13px;
+            color: #555;
+            text-transform: uppercase;
+        }
+        .triple-preview {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        .triple-subject { color: #3498db; font-weight: bold; }
+        .triple-predicate { color: #e67e22; }
+        .triple-object { color: #2ecc71; }
+        .triple-type { color: #9b59b6; }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        .btn-secondary {
+            background: #ecf0f1;
+            color: #333;
+        }
+        .btn-secondary:hover {
+            background: #ddd;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            font-weight: 500;
+            color: #666;
+        }
+        .tab:hover {
+            color: #333;
+        }
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        /* Type Modal */
+        .type-modal {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        /* Right sidebar minimal for this mockup */
+        .sidebar-right {
+            width: 280px;
+            background: white;
+            border-left: 1px solid #ddd;
+        }
+
+        /* Selection toolbar */
+        .selection-toolbar {
+            position: absolute;
+            background: #2c3e50;
+            border-radius: 6px;
+            padding: 6px;
+            display: flex;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 100;
+            top: 180px;
+            left: 320px;
+        }
+        .selection-toolbar button {
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .selection-toolbar button:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .selection-toolbar .separator {
+            width: 1px;
+            background: rgba(255,255,255,0.2);
+            margin: 0 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Toolbar -->
+    <div class="toolbar">
+        <div class="toolbar-brand">⚡ RDFa Editor</div>
+        <div class="toolbar-group">
+            <label style="font-size: 12px;">Vocabulary:</label>
+            <select>
+                <option>Schema.org</option>
+                <option>FOAF</option>
+                <option>Dublin Core</option>
+            </select>
+        </div>
+        <div class="spacer"></div>
+        <div class="toolbar-group">
+            <button class="btn-primary">💾 Export</button>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Left Sidebar -->
+        <div class="sidebar-left">
+            <div class="sidebar-header">Document Outline</div>
+        </div>
+
+        <!-- Editor Area -->
+        <div class="editor-container">
+            <!-- Editor Toolbar -->
+            <div class="editor-toolbar">
+                <button><b>B</b></button>
+                <button><i>I</i></button>
+                <button><u>U</u></button>
+                <div class="separator"></div>
+                <button>H1</button>
+                <button>H2</button>
+                <div class="separator"></div>
+                <button>📝 Annotate</button>
+                <button>🏷️ Add Type</button>
+            </div>
+
+            <!-- Selection Toolbar (floating) -->
+            <div class="selection-toolbar">
+                <button><b>B</b></button>
+                <button><i>I</i></button>
+                <div class="separator"></div>
+                <button>📝 Property</button>
+                <button>🏷️ Type</button>
+                <button>🔗 Resource</button>
+            </div>
+
+            <!-- Editor Content -->
+            <div class="editor-content">
+                <h1>How to Build a Knowledge Graph with RDFa</h1>
+
+                <p>
+                    By <span class="selected-text">Alice Johnson</span> | Published January 15, 2025
+                </p>
+
+                <p>
+                    Knowledge graphs are becoming increasingly important for organizing and connecting information on the web.
+                    In this article, I'll show you how to use RDFa to add semantic annotations to your HTML content.
+                </p>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="sidebar-right">
+            <div class="sidebar-header">Selection Info</div>
+            <div style="padding: 15px; font-size: 13px; color: #666;">
+                <p><strong>Selected:</strong> "Alice Johnson"</p>
+                <p style="margin-top: 10px;"><strong>Length:</strong> 13 characters</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay">
+        <!-- Property Annotation Modal -->
+        <div class="annotation-modal">
+            <div class="modal-header">
+                <div class="modal-title">📝 Annotate Property</div>
+                <button class="modal-close">×</button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Tabs -->
+                <div class="tabs">
+                    <div class="tab active">Property</div>
+                    <div class="tab">Type</div>
+                    <div class="tab">Resource</div>
+                </div>
+
+                <!-- Selected Text Display -->
+                <div class="form-group">
+                    <div class="form-label">Selected Text</div>
+                    <div style="background: rgba(52, 152, 219, 0.1); padding: 12px; border-radius: 4px; border-left: 3px solid #3498db;">
+                        <strong>Alice Johnson</strong>
+                    </div>
+                </div>
+
+                <!-- Subject Selection -->
+                <div class="form-group">
+                    <label class="form-label">Subject (optional)</label>
+                    <select class="form-input">
+                        <option>Current resource (?this)</option>
+                        <option value="custom">Custom URI...</option>
+                        <option value="blank">New blank node</option>
+                    </select>
+                    <div class="form-help">The resource this property describes. Defaults to current context.</div>
+                </div>
+
+                <!-- Property Selection with Autocomplete -->
+                <div class="form-group">
+                    <label class="form-label">Property *</label>
+                    <div class="autocomplete-container">
+                        <input type="text" class="form-input" placeholder="Search for a property..." value="author" />
+                        <div class="autocomplete-dropdown">
+                            <div class="autocomplete-item selected">
+                                <div class="autocomplete-item-main">
+                                    <div class="autocomplete-item-name">author</div>
+                                    <div class="autocomplete-item-desc">The author of this content</div>
+                                    <div class="autocomplete-item-uri">schema:author</div>
+                                </div>
+                            </div>
+                            <div class="autocomplete-item">
+                                <div class="autocomplete-item-main">
+                                    <div class="autocomplete-item-name">creator</div>
+                                    <div class="autocomplete-item-desc">An entity primarily responsible for making the resource</div>
+                                    <div class="autocomplete-item-uri">dc:creator</div>
+                                </div>
+                            </div>
+                            <div class="autocomplete-item">
+                                <div class="autocomplete-item-main">
+                                    <div class="autocomplete-item-name">name</div>
+                                    <div class="autocomplete-item-desc">The name of the item</div>
+                                    <div class="autocomplete-item-uri">schema:name</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-help">Start typing to search Schema.org, FOAF, Dublin Core properties</div>
+                </div>
+
+                <!-- Object Type -->
+                <div class="form-group">
+                    <label class="form-label">Object Type</label>
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="object-type" value="literal" />
+                            <div class="radio-label">
+                                <div class="radio-title">📄 Literal (Text)</div>
+                                <div class="radio-desc">Use the selected text as the value</div>
+                            </div>
+                        </label>
+                        <label class="radio-option selected">
+                            <input type="radio" name="object-type" value="resource" checked />
+                            <div class="radio-label">
+                                <div class="radio-title">🔗 Resource (URI)</div>
+                                <div class="radio-desc">Link to another resource</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Resource URI (shown when Resource is selected) -->
+                <div class="form-group">
+                    <label class="form-label">Resource URI</label>
+                    <select class="form-input">
+                        <option value="new">Create new resource: #alice</option>
+                        <option>Existing resource...</option>
+                    </select>
+                    <div class="form-help">The URI that identifies this person</div>
+                </div>
+
+                <!-- Content Override -->
+                <div class="form-group">
+                    <label class="form-label">Content Override <span class="optional">(optional)</span></label>
+                    <input type="text" class="form-input" placeholder="Machine-readable value" />
+                    <div class="form-help">Override displayed text with different machine-readable value using content attribute</div>
+                </div>
+
+                <!-- Preview -->
+                <div class="preview-box">
+                    <div class="preview-title">Preview Triple</div>
+                    <div class="triple-preview">
+                        <div><span class="triple-subject">?this</span> <span class="triple-predicate">schema:author</span> <span class="triple-object">#alice</span> .</div>
+                    </div>
+                </div>
+
+                <!-- RDFa Markup Preview -->
+                <div class="preview-box" style="margin-top: 10px;">
+                    <div class="preview-title">Generated RDFa</div>
+                    <div style="font-family: 'Monaco', 'Courier New', monospace; font-size: 12px; background: white; padding: 10px; border-radius: 4px;">
+                        &lt;span <span style="color: #e67e22;">property</span>=<span style="color: #2ecc71;">"schema:author"</span> <span style="color: #e67e22;">resource</span>=<span style="color: #2ecc71;">"#alice"</span>&gt;Alice Johnson&lt;/span&gt;
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary">Cancel</button>
+                <button class="btn btn-primary">Apply Annotation</button>
+            </div>
+        </div>
+
+        <!-- Type Annotation Modal (Alternative view - not shown, but available) -->
+        <!--
+        <div class="type-modal">
+            <div class="modal-header">
+                <div class="modal-title">🏷️ Add Type Declaration</div>
+                <button class="modal-close">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Type *</label>
+                    <div class="autocomplete-container">
+                        <input type="text" class="form-input" placeholder="Search for a type..." value="Person" />
+                        <div class="autocomplete-dropdown">
+                            <div class="autocomplete-item selected">
+                                <div class="autocomplete-item-main">
+                                    <div class="autocomplete-item-name">Person</div>
+                                    <div class="autocomplete-item-desc">A person (alive, dead, undead, or fictional)</div>
+                                    <div class="autocomplete-item-uri">schema:Person</div>
+                                </div>
+                            </div>
+                            <div class="autocomplete-item">
+                                <div class="autocomplete-item-main">
+                                    <div class="autocomplete-item-name">Person</div>
+                                    <div class="autocomplete-item-desc">The Person class represents people</div>
+                                    <div class="autocomplete-item-uri">foaf:Person</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Resource URI</label>
+                    <input type="text" class="form-input" value="#alice" />
+                </div>
+                <div class="preview-box">
+                    <div class="preview-title">Preview Triple</div>
+                    <div class="triple-preview">
+                        <div><span class="triple-subject">#alice</span> <span class="triple-predicate">rdf:type</span> <span class="triple-type">schema:Person</span> .</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary">Cancel</button>
+                <button class="btn btn-primary">Apply Type</button>
+            </div>
+        </div>
+        -->
+    </div>
+
+</body>
+</html>
