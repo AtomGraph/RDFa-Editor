@@ -165,15 +165,17 @@ version="3.0">
         <xsl:call-template name="local:hide-overlay"/>
     </xsl:template>
 
-    <!-- brief red flash over an invalid selection -->
+    <!-- brief red flash over an invalid selection, in page coordinates so it scrolls with the text -->
     <xsl:template name="local:show-flash">
         <xsl:param name="range"/>
 
         <xsl:variable name="rect" select="ixsl:call($range, 'getBoundingClientRect', [])"/>
+        <xsl:variable name="scroll-x" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollX')"/>
+        <xsl:variable name="scroll-y" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollY')"/>
         <xsl:for-each select="ixsl:page()//body">
             <xsl:result-document href="?." method="ixsl:append-content">
                 <div id="selection-flash" class="invalid-selection-flash"
-                    style="position: fixed; pointer-events: none; z-index: 9999; left: {ixsl:get($rect, 'left')}px; top: {ixsl:get($rect, 'top')}px; width: {ixsl:get($rect, 'width')}px; height: {ixsl:get($rect, 'height')}px;"/>
+                    style="position: absolute; pointer-events: none; z-index: 9999; left: {ixsl:get($rect, 'left') + $scroll-x}px; top: {ixsl:get($rect, 'top') + $scroll-y}px; width: {ixsl:get($rect, 'width')}px; height: {ixsl:get($rect, 'height')}px;"/>
             </xsl:result-document>
         </xsl:for-each>
         <ixsl:schedule-action wait="1200">

@@ -243,7 +243,9 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <!-- show at the event position, clamped to the viewport with 10px padding -->
+    <!-- show at the event position, clamped to the viewport with 10px padding.
+         Positioned absolutely in page coordinates (client + scroll offset) so the
+         overlay scrolls with the annotated content -->
     <xsl:template name="local:show-overlay">
         <xsl:param name="event"/>
         <xsl:param name="selected-text" as="xs:string?" select="()"/>
@@ -251,19 +253,21 @@ version="3.0">
 
         <xsl:for-each select="id('overlay', ixsl:page())">
             <ixsl:set-style name="display" select="'block'"/>
-            <ixsl:set-style name="position" select="'fixed'"/>
+            <ixsl:set-style name="position" select="'absolute'"/>
 
             <xsl:variable name="client-x" as="xs:double" select="ixsl:get($event, 'clientX')"/>
             <xsl:variable name="client-y" as="xs:double" select="ixsl:get($event, 'clientY')"/>
+            <xsl:variable name="scroll-x" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollX')"/>
+            <xsl:variable name="scroll-y" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollY')"/>
             <xsl:variable name="viewport-width" as="xs:double" select="ixsl:get(ixsl:window(), 'innerWidth')"/>
             <xsl:variable name="viewport-height" as="xs:double" select="ixsl:get(ixsl:window(), 'innerHeight')"/>
             <xsl:variable name="overlay-width" as="xs:double" select="ixsl:get(., 'offsetWidth')"/>
             <xsl:variable name="overlay-height" as="xs:double" select="ixsl:get(., 'offsetHeight')"/>
 
-            <ixsl:set-style name="left" select="(if ($client-x + $overlay-width + 10 gt $viewport-width)
-                then max(($viewport-width - $overlay-width - 10, 10)) else $client-x) || 'px'"/>
-            <ixsl:set-style name="top" select="(if ($client-y + $overlay-height + 10 gt $viewport-height)
-                then max(($viewport-height - $overlay-height - 10, 10)) else $client-y) || 'px'"/>
+            <ixsl:set-style name="left" select="((if ($client-x + $overlay-width + 10 gt $viewport-width)
+                then max(($viewport-width - $overlay-width - 10, 10)) else $client-x) + $scroll-x) || 'px'"/>
+            <ixsl:set-style name="top" select="((if ($client-y + $overlay-height + 10 gt $viewport-height)
+                then max(($viewport-height - $overlay-height - 10, 10)) else $client-y) + $scroll-y) || 'px'"/>
         </xsl:for-each>
 
         <xsl:for-each select="id('selected-text-preview', ixsl:page())">
