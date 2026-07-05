@@ -1,0 +1,12 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dct="http://purl.org/dc/terms/"
+         xmlns:schema="http://schema.org/">
+    <rdf:Description rdf:about="http://example.org/dir/doc#chart">
+        <rdf:type rdf:resource="http://schema.org/Dataset"/>
+        <dct:title>Sales</dct:title>
+        <schema:encodingFormat>image/svg+xml</schema:encodingFormat>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <schema:caption>Visible text</schema:caption>
+    </rdf:Description>
+</rdf:RDF>

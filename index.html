@@ -19,7 +19,6 @@
                 font-family: "Roboto", sans-serif;
                 padding-top: 70px; /* Account for fixed navbar */
             }
-            span { font-weight: bold; }
 
             /* Fixed Top Navbar */
             nav {
@@ -326,7 +325,8 @@
             }
 
             .btn-primary,
-            .btn-secondary {
+            .btn-secondary,
+            .btn-danger {
                 padding: 10px 24px;
                 border: none;
                 border-radius: 4px;
@@ -355,6 +355,22 @@
 
             .btn-secondary:hover {
                 background: #e0e0e0;
+            }
+
+            .btn-danger {
+                background: #f44336;
+                color: white;
+                margin-right: auto;
+            }
+
+            .btn-danger:hover {
+                background: #d32f2f;
+                box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+            }
+
+            #overlay input[name="custom-property"],
+            #overlay input[name="custom-type"] {
+                margin-top: 8px;
             }
 
             /* Modal Dialog */
@@ -430,7 +446,8 @@
 
         <div class="test-section">
             <h2>Instructions</h2>
-            <p><strong>Right-click</strong> on any text in the editable sections below to annotate it with RDFa properties.</p>
+            <p><strong>Right-click</strong> a text selection in the editable sections below to annotate it with RDFa.
+               <strong>Right-click an existing annotation</strong> to edit or remove it. Plain clicks stay free for text editing.</p>
             <p><strong>Note:</strong> Selections must respect HTML element boundaries. Select either:</p>
             <ul>
                 <li>Text <em>within</em> an element (e.g., just "John Doe" inside the &lt;strong&gt; tags)</li>

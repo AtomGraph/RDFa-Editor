@@ -1,0 +1,11 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:ex1="http://example.com/ns#"
+         xmlns:ex2="http://other.example/ns#"
+         xmlns:wot="http://xmlns.com/wot/0.1/">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <ex1:note>First</ex1:note>
+        <ex2:note>Redefined</ex2:note>
+        <ex2:link rdf:resource="http://other.example/ns#thing"/>
+        <wot:assurance rdf:resource="http://example.org/sig"/>
+    </rdf:Description>
+</rdf:RDF>

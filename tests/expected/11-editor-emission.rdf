@@ -1,0 +1,17 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dct="http://purl.org/dc/terms/"
+         xmlns:schema="http://schema.org/"
+         xmlns:foaf="http://xmlns.com/foaf/0.1/">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <foaf:name>John Doe</foaf:name>
+        <dct:created>2024-06-01</dct:created>
+        <schema:author rdf:nodeID="b1.1.1.3"/>
+    </rdf:Description>
+    <rdf:Description rdf:nodeID="b1.1.1.3">
+        <rdf:type rdf:resource="http://schema.org/Person"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/jane">
+        <foaf:name>Jane</foaf:name>
+        <foaf:knows rdf:resource="http://example.org/john"/>
+    </rdf:Description>
+</rdf:RDF>

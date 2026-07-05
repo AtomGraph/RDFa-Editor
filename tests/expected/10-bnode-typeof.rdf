@@ -1,0 +1,13 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:schema="http://schema.org/"
+         xmlns:foaf="http://xmlns.com/foaf/0.1/">
+    <rdf:Description rdf:nodeID="b1.1.1">
+        <rdf:type rdf:resource="http://schema.org/Person"/>
+        <rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person"/>
+        <schema:name>Jane</schema:name>
+        <foaf:name>Jane</foaf:name>
+    </rdf:Description>
+    <rdf:Description rdf:nodeID="manual">
+        <schema:name>Explicit bnode</schema:name>
+    </rdf:Description>
+</rdf:RDF>

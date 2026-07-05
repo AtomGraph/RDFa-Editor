@@ -10,337 +10,345 @@
     version="3.0">
 
 <!--
-    XSLT 3.0 RDFa to RDF/XML Extraction
+    RDFa 1.1 (Lite) to RDF/XML extraction. Pure XSLT 3.0 - no ixsl: dependencies,
+    so it runs headless via xslt3 for testing (see tests/run-tests.sh).
 
-    Pragmatic implementation targeting 80% common RDFa use cases:
-    - Schema.org microdata patterns
-    - Basic FOAF (Friend of a Friend)
-    - Simple Dublin Core
+    Supported: @about, @typeof, @property, @content, @datatype, @resource, @href,
+    @src, @prefix (and xmlns:*), @vocab with bare-term resolution, @lang/@xml:lang
+    inheritance, base-URI resolution (about="" = the document).
 
-    Supported RDFa 1.1 attributes:
-    - @property (literal properties)
-    - @typeof (type declarations)
-    - @about (explicit subjects)
-    - @content (machine-readable values)
-    - @resource, @href (object URIs)
-    - @prefix (namespace declarations)
-    - @datatype (basic XSD types)
-    - @xml:lang (language tags)
+    Semantics follow the RDFa 1.1 processing rules strictly - no profile deviations.
+    Note for LinkedDataHub v6 alignment: the conformant containment idiom is
+    <article property="https://schema.org/hasPart" resource="#part" typeof="...">
+    (object chaining via @resource); @about + @property without @content/@resource
+    is, per spec, a text literal on the @about subject.
 
-    Uses XSLT 3.0 features:
-    - xsl:map for prefix mappings
-    - xsl:function for CURIE resolution
-    - xsl:accumulator for context inheritance
+    Subtrees under @data-role='rendering' (LDH v6 hydrated output), head, script
+    and style are excluded - both from traversal and from literal values.
+
+    Future work (out of scope): @rel/@rev, @inlist, safe CURIEs, @datetime/<time>,
+    xml:base.
 -->
+
+    <xsl:mode name="rdfa:extract" on-no-match="deep-skip"/>
 
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
 
-    <!-- Common namespace prefixes (default mappings) -->
-    <xsl:variable name="default-prefixes" as="map(xs:string, xs:string)">
-        <xsl:map>
-            <xsl:map-entry key="'rdf'" select="'http://www.w3.org/1999/02/22-rdf-syntax-ns#'"/>
-            <xsl:map-entry key="'rdfs'" select="'http://www.w3.org/2000/01/rdf-schema#'"/>
-            <xsl:map-entry key="'xsd'" select="'http://www.w3.org/2001/XMLSchema#'"/>
-            <xsl:map-entry key="'schema'" select="'http://schema.org/'"/>
-            <xsl:map-entry key="'foaf'" select="'http://xmlns.com/foaf/0.1/'"/>
-            <xsl:map-entry key="'dc'" select="'http://purl.org/dc/terms/'"/>
-        </xsl:map>
-    </xsl:variable>
+    <!-- overrides base-uri($doc): required when the input's static base URI is meaningless (CLI fixtures) -->
+    <xsl:param name="base-uri" as="xs:string?" select="()"/>
 
-    <!--
-        Context Accumulator
-        Tracks the current subject URI as we traverse the DOM tree.
-        Enables subject inheritance from parent to child elements.
-    -->
-    <xsl:accumulator name="subject-context" as="xs:string?" initial-value="()">
-        <xsl:accumulator-rule match="*[@about or @typeof]">
-            <xsl:variable name="prefixes" select="rdfa:collect-prefixes(.)"/>
-            <xsl:sequence select="rdfa:determine-subject(., $prefixes, $value)"/>
-        </xsl:accumulator-rule>
-    </xsl:accumulator>
+    <!-- RDFa 1.1 initial context (subset) -->
+    <xsl:variable name="rdfa:default-prefixes" as="map(xs:string, xs:string)" select="map{
+        'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+        'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
+        'xsd': 'http://www.w3.org/2001/XMLSchema#',
+        'schema': 'http://schema.org/',
+        'foaf': 'http://xmlns.com/foaf/0.1/',
+        'dc': 'http://purl.org/dc/terms/',
+        'dct': 'http://purl.org/dc/terms/'
+    }"/>
 
-    <!-- Entry point -->
     <xsl:template match="/" name="extract-rdfa">
+        <xsl:param name="doc" as="document-node()" select="."/>
+        <xsl:param name="base" as="xs:string" select="($base-uri, string(base-uri($doc)))[1]"/>
+        <xsl:variable name="effective-base" as="xs:string"
+            select="if ($doc//base/@href) then string(resolve-uri(($doc//base/@href)[1], $base)) else $base"/>
+
         <rdf:RDF>
-            <xsl:apply-templates select="//body" mode="rdfa-extract"/>
+            <xsl:apply-templates select="$doc/*" mode="rdfa:extract">
+                <!-- RDFa initializes the parent object to the base URI -->
+                <xsl:with-param name="subject" select="$effective-base"/>
+                <xsl:with-param name="base" select="$effective-base" tunnel="yes"/>
+            </xsl:apply-templates>
         </rdf:RDF>
     </xsl:template>
 
-    <!-- Main RDFa extraction mode -->
-    <xsl:template match="*" mode="rdfa-extract">
-        <xsl:param name="parent-subject" as="xs:string?" select="()"/>
-        <xsl:param name="parent-prefixes" as="map(xs:string, xs:string)" select="$default-prefixes"/>
+    <xsl:template match="head | script | style | *[@data-role = 'rendering']" mode="rdfa:extract"/>
 
-        <!-- Collect prefixes from this element -->
-        <xsl:variable name="prefixes" as="map(xs:string, xs:string)">
-            <xsl:sequence select="rdfa:merge-prefixes(($parent-prefixes, rdfa:parse-prefix-attr(@prefix), rdfa:parse-xmlns-prefixes(.)))"/>
+    <xsl:template match="*" mode="rdfa:extract">
+        <xsl:param name="subject" as="xs:string?" select="()"/>
+        <xsl:param name="prefixes" as="map(xs:string, xs:string)" select="$rdfa:default-prefixes"/>
+        <xsl:param name="vocab" as="xs:string?" select="()"/>
+        <xsl:param name="lang" as="xs:string?" select="()"/>
+        <xsl:param name="base" as="xs:string" tunnel="yes"/>
+
+        <!-- evaluation context updates. Empty @vocab/@lang reset; @xml:lang wins over @lang -->
+        <xsl:variable name="prefixes" as="map(xs:string, xs:string)"
+            select="map:merge(($prefixes, rdfa:in-scope-namespaces(.), rdfa:parse-prefix-attr(@prefix)), map{ 'duplicates': 'use-last' })"/>
+        <xsl:variable name="vocab" as="xs:string?"
+            select="if (exists(@vocab)) then @vocab[. ne ''] else $vocab"/>
+        <xsl:variable name="lang" as="xs:string?"
+            select="if (exists((@xml:lang, @lang))) then string((@xml:lang, @lang)[1])[. ne ''] else $lang"/>
+
+        <xsl:variable name="new-subject" as="xs:string?" select="rdfa:new-subject(., $prefixes, $base)"/>
+
+        <!-- section 7.5 step 2: @vocab asserts (base, rdfa:usesVocabulary, vocab IRI) -->
+        <xsl:for-each select="@vocab[. ne '']">
+            <rdf:Description rdf:about="{$base}">
+                <xsl:element name="usesVocabulary" namespace="http://www.w3.org/ns/rdfa#">
+                    <xsl:attribute name="rdf:resource" select="resolve-uri(., $base)"/>
+                </xsl:element>
+            </rdf:Description>
+        </xsl:for-each>
+
+        <!-- @typeof: one rdf:type triple per token; the typed node is the new subject -->
+        <xsl:for-each select="@typeof ! tokenize(.) ! rdfa:resolve-term-or-curie(., $prefixes, $vocab)">
+            <rdf:Description>
+                <xsl:sequence select="rdfa:subject-attribute($new-subject)"/>
+                <rdf:type rdf:resource="{.}"/>
+            </rdf:Description>
+        </xsl:for-each>
+
+        <!-- @property: determine subject/object once, emit one triple per token -->
+        <xsl:variable name="statement" as="map(*)?">
+            <xsl:choose>
+                <xsl:when test="not(@property)"/>
+                <!-- literal object: @content overrides text content; @datatype forces a literal reading.
+                     Subject establishment follows rule 5.2, so @resource/@href/@src set it (via new-subject) -->
+                <xsl:when test="@content or @datatype">
+                    <xsl:sequence select="map{
+                        'subject': ($new-subject, $subject)[1],
+                        'literal': string((@content, rdfa:literal-value(.))[1]),
+                        'datatype': @datatype ! rdfa:resolve-term-or-curie(., $prefixes, $vocab),
+                        'lang': $lang
+                    }"/>
+                </xsl:when>
+                <!-- IRI object from @resource/@href/@src (rule 5.1 + step 11) -->
+                <xsl:when test="@resource or @href or @src">
+                    <xsl:sequence select="map{
+                        'subject': (@about ! $new-subject, $subject)[1],
+                        'object': rdfa:resolve-iri((@resource, @href, @src)[1], $prefixes, $base)
+                    }"/>
+                </xsl:when>
+                <!-- @typeof without @about: the typed node becomes the object (RDFa 1.1 chaining) -->
+                <xsl:when test="@typeof and not(@about)">
+                    <xsl:sequence select="map{ 'subject': $subject, 'object': $new-subject }"/>
+                </xsl:when>
+                <!-- plain literal from text content -->
+                <xsl:otherwise>
+                    <xsl:sequence select="map{
+                        'subject': (@about ! $new-subject, $subject)[1],
+                        'literal': rdfa:literal-value(.),
+                        'lang': $lang
+                    }"/>
+                </xsl:otherwise>
+            </xsl:choose>
         </xsl:variable>
 
-        <!-- Determine subject for this element -->
-        <xsl:variable name="current-subject" as="xs:string?"
-            select="rdfa:determine-subject(., $prefixes, $parent-subject)"/>
-
-        <!-- Process @typeof (type declaration) -->
-        <xsl:if test="@typeof and $current-subject">
-            <xsl:for-each select="tokenize(normalize-space(@typeof), '\s+')">
-                <xsl:variable name="type-uri" select="rdfa:resolve-curie(., $prefixes)"/>
-                <xsl:if test="$type-uri">
-                    <rdf:Description rdf:about="{$current-subject}">
-                        <rdf:type rdf:resource="{$type-uri}"/>
-                    </rdf:Description>
-                </xsl:if>
+        <xsl:if test="exists($statement) and exists($statement?subject)">
+            <xsl:for-each select="tokenize(@property) ! rdfa:resolve-term-or-curie(., $prefixes, $vocab)">
+                <xsl:variable name="property-parts" as="map(xs:string, xs:string)" select="rdfa:split-uri(.)"/>
+                <xsl:choose>
+                    <xsl:when test="matches($property-parts?local, '^[\i-[:]][\c-[:]]*$') and $property-parts?namespace ne ''">
+                        <rdf:Description>
+                            <xsl:sequence select="rdfa:subject-attribute($statement?subject)"/>
+                            <xsl:element name="{rdfa:prefixed-name($property-parts, $prefixes)}" namespace="{$property-parts?namespace}">
+                                <xsl:choose>
+                                    <xsl:when test="exists($statement?object)">
+                                        <xsl:sequence select="rdfa:object-attribute($statement?object)"/>
+                                    </xsl:when>
+                                    <xsl:otherwise>
+                                        <xsl:choose>
+                                            <xsl:when test="exists($statement?datatype)">
+                                                <xsl:attribute name="rdf:datatype" select="$statement?datatype"/>
+                                            </xsl:when>
+                                            <xsl:when test="exists($statement?lang)">
+                                                <xsl:attribute name="xml:lang" select="$statement?lang"/>
+                                            </xsl:when>
+                                        </xsl:choose>
+                                        <xsl:value-of select="$statement?literal"/>
+                                    </xsl:otherwise>
+                                </xsl:choose>
+                            </xsl:element>
+                        </rdf:Description>
+                    </xsl:when>
+                    <xsl:otherwise>
+                        <xsl:message select="'[RDFa] Skipping property IRI not splittable into namespace/local name: ' || ."/>
+                    </xsl:otherwise>
+                </xsl:choose>
             </xsl:for-each>
         </xsl:if>
 
-        <!-- Process @property (literal or resource property) -->
-        <xsl:if test="@property and $current-subject">
-            <xsl:variable name="element" select="."/>
-            <xsl:for-each select="tokenize(normalize-space(@property), '\s+')">
-                <xsl:variable name="prop-uri" select="rdfa:resolve-curie(., $prefixes)"/>
-                <xsl:if test="$prop-uri">
-                    <xsl:variable name="prop-parts" select="rdfa:split-uri($prop-uri)"/>
-                    <rdf:Description rdf:about="{$current-subject}">
-                        <xsl:element name="{$prop-parts?local}" namespace="{$prop-parts?namespace}">
-                            <xsl:choose>
-                                <!-- Object is a resource (@resource or @href) -->
-                                <xsl:when test="$element/@resource">
-                                    <xsl:attribute name="rdf:resource"
-                                        select="rdfa:resolve-uri($element/@resource, $prefixes)"/>
-                                </xsl:when>
-                                <xsl:when test="$element/@href">
-                                    <xsl:attribute name="rdf:resource"
-                                        select="rdfa:resolve-uri($element/@href, $prefixes)"/>
-                                </xsl:when>
-                                <!-- Object is a literal value -->
-                                <xsl:otherwise>
-                                    <xsl:variable name="content"
-                                        select="if ($element/@content) then $element/@content else normalize-space($element)"/>
-
-                                    <!-- Add datatype if specified -->
-                                    <xsl:if test="$element/@datatype">
-                                        <xsl:variable name="datatype-uri"
-                                            select="rdfa:resolve-curie($element/@datatype, $prefixes)"/>
-                                        <xsl:if test="$datatype-uri">
-                                            <xsl:attribute name="rdf:datatype" select="$datatype-uri"/>
-                                        </xsl:if>
-                                    </xsl:if>
-
-                                    <!-- Add language tag if specified -->
-                                    <xsl:if test="$element/@xml:lang and not($element/@datatype)">
-                                        <xsl:attribute name="xml:lang" select="$element/@xml:lang"/>
-                                    </xsl:if>
-
-                                    <xsl:value-of select="$content"/>
-                                </xsl:otherwise>
-                            </xsl:choose>
-                        </xsl:element>
-                    </rdf:Description>
-                </xsl:if>
-            </xsl:for-each>
-        </xsl:if>
-
-        <!-- Recursively process children -->
-        <xsl:apply-templates select="*" mode="rdfa-extract">
-            <xsl:with-param name="parent-subject" select="$current-subject"/>
-            <xsl:with-param name="parent-prefixes" select="$prefixes"/>
+        <!-- descendants inherit the current object resource - set only by a typed resource
+             (@typeof without @about, rule 5.1) - else the new subject, else the current one -->
+        <xsl:variable name="chains" as="xs:boolean"
+            select="exists(@property) and not(@content) and not(@datatype) and exists(@typeof) and not(@about)"/>
+        <xsl:apply-templates select="*" mode="rdfa:extract">
+            <xsl:with-param name="subject" select="if ($chains) then $statement?object else ($new-subject, $subject)[1]"/>
+            <xsl:with-param name="prefixes" select="$prefixes"/>
+            <xsl:with-param name="vocab" select="$vocab"/>
+            <xsl:with-param name="lang" select="$lang"/>
         </xsl:apply-templates>
     </xsl:template>
 
     <!--
-        Function: Determine Subject
-        Determines the subject URI for the current element.
-        Priority: @about > @typeof (new blank node) > parent subject
+        New subject / typed resource of an element per RDFa 1.1 section 7.5:
+        @about always wins; under rule 5.2 (no @property, or @content/@datatype
+        present) @resource/@href/@src establish the subject; @typeof mints a node
+        identified by @resource/@href/@src or a fresh blank node; else none (inherit).
     -->
-    <xsl:function name="rdfa:determine-subject" as="xs:string?">
+    <xsl:function name="rdfa:new-subject" as="xs:string?">
         <xsl:param name="element" as="element()"/>
         <xsl:param name="prefixes" as="map(xs:string, xs:string)"/>
-        <xsl:param name="parent-subject" as="xs:string?"/>
+        <xsl:param name="base" as="xs:string"/>
 
         <xsl:choose>
-            <!-- Explicit subject via @about -->
             <xsl:when test="$element/@about">
-                <xsl:sequence select="rdfa:resolve-uri($element/@about, $prefixes)"/>
+                <xsl:sequence select="rdfa:resolve-iri($element/@about, $prefixes, $base)"/>
             </xsl:when>
-            <!-- @typeof creates a new subject (blank node or inferred) -->
+            <xsl:when test="$element/(@resource, @href, @src)
+                    and (not($element/@property) or $element/@content or $element/@datatype)">
+                <xsl:sequence select="rdfa:resolve-iri(($element/@resource, $element/@href, $element/@src)[1], $prefixes, $base)"/>
+            </xsl:when>
             <xsl:when test="$element/@typeof">
-                <xsl:choose>
-                    <!-- If has @resource or @href, use that as subject -->
-                    <xsl:when test="$element/@resource">
-                        <xsl:sequence select="rdfa:resolve-uri($element/@resource, $prefixes)"/>
-                    </xsl:when>
-                    <xsl:when test="$element/@href">
-                        <xsl:sequence select="rdfa:resolve-uri($element/@href, $prefixes)"/>
-                    </xsl:when>
-                    <xsl:when test="$element/@src">
-                        <xsl:sequence select="rdfa:resolve-uri($element/@src, $prefixes)"/>
-                    </xsl:when>
-                    <!-- Generate blank node -->
-                    <xsl:otherwise>
-                        <xsl:sequence select="concat('_:b', generate-id($element))"/>
-                    </xsl:otherwise>
-                </xsl:choose>
+                <xsl:sequence select="if ($element/(@resource, @href, @src))
+                    then rdfa:resolve-iri(($element/@resource, $element/@href, $element/@src)[1], $prefixes, $base)
+                    else '_:' || rdfa:bnode-label($element)"/>
             </xsl:when>
-            <!-- Inherit from parent -->
-            <xsl:otherwise>
-                <xsl:sequence select="$parent-subject"/>
-            </xsl:otherwise>
-        </xsl:choose>
-    </xsl:function>
-
-    <!--
-        Function: Resolve CURIE
-        Expands a CURIE (Compact URI) to a full URI using prefix mappings.
-        Examples: "schema:Person" -> "http://schema.org/Person"
-    -->
-    <xsl:function name="rdfa:resolve-curie" as="xs:string?">
-        <xsl:param name="curie" as="xs:string"/>
-        <xsl:param name="prefixes" as="map(xs:string, xs:string)"/>
-
-        <xsl:choose>
-            <!-- Absolute URI - return as-is -->
-            <xsl:when test="matches($curie, '^https?://')">
-                <xsl:sequence select="$curie"/>
-            </xsl:when>
-            <!-- CURIE with prefix -->
-            <xsl:when test="contains($curie, ':')">
-                <xsl:variable name="prefix" select="substring-before($curie, ':')"/>
-                <xsl:variable name="local" select="substring-after($curie, ':')"/>
-                <xsl:if test="map:contains($prefixes, $prefix)">
-                    <xsl:sequence select="concat(map:get($prefixes, $prefix), $local)"/>
-                </xsl:if>
-            </xsl:when>
-            <!-- No prefix - cannot resolve -->
             <xsl:otherwise>
                 <xsl:sequence select="()"/>
             </xsl:otherwise>
         </xsl:choose>
     </xsl:function>
 
-    <!--
-        Function: Resolve URI
-        Resolves a URI value, handling CURIEs, absolute URIs, and relative URIs.
-    -->
-    <xsl:function name="rdfa:resolve-uri" as="xs:string">
-        <xsl:param name="uri" as="xs:string"/>
+    <!-- the subject in scope at an element, for UI display: fold new-subject over the ancestor axis -->
+    <xsl:function name="rdfa:in-scope-subject" as="xs:string?">
+        <xsl:param name="element" as="element()"/>
+        <xsl:param name="base" as="xs:string"/>
+
+        <xsl:sequence select="fold-left($element/ancestor-or-self::*, $base,
+            function($subject, $e) { (rdfa:new-subject($e, $rdfa:default-prefixes, $base), $subject)[1] })"/>
+    </xsl:function>
+
+    <!-- IRI attribute values (@about/@resource/@href/@src): blank node, CURIE, or (relative) IRI -->
+    <xsl:function name="rdfa:resolve-iri" as="xs:string">
+        <xsl:param name="value" as="xs:string"/>
         <xsl:param name="prefixes" as="map(xs:string, xs:string)"/>
+        <xsl:param name="base" as="xs:string"/>
 
+        <xsl:variable name="value" as="xs:string" select="normalize-space($value)"/>
         <xsl:choose>
-            <!-- Try CURIE resolution first -->
-            <xsl:when test="contains($uri, ':')">
-                <xsl:variable name="resolved" select="rdfa:resolve-curie($uri, $prefixes)"/>
-                <xsl:sequence select="if ($resolved) then $resolved else $uri"/>
+            <xsl:when test="starts-with($value, '_:')">
+                <xsl:sequence select="$value"/>
             </xsl:when>
-            <!-- Fragment identifier -->
-            <xsl:when test="starts-with($uri, '#')">
-                <xsl:sequence select="$uri"/>
+            <xsl:when test="map:contains($prefixes, substring-before($value, ':')) and not(starts-with(substring-after($value, ':'), '//'))">
+                <xsl:sequence select="$prefixes(substring-before($value, ':')) || substring-after($value, ':')"/>
             </xsl:when>
-            <!-- Relative or absolute URI -->
             <xsl:otherwise>
-                <xsl:sequence select="$uri"/>
+                <xsl:sequence select="string(resolve-uri($value, $base))"/>
             </xsl:otherwise>
         </xsl:choose>
     </xsl:function>
 
-    <!--
-        Function: Parse @prefix Attribute
-        Parses the RDFa @prefix attribute into a map.
-        Format: "prefix1: http://... prefix2: http://..."
-    -->
+    <!-- @property/@typeof/@datatype values: absolute IRI, CURIE, or bare term against @vocab -->
+    <xsl:function name="rdfa:resolve-term-or-curie" as="xs:string?">
+        <xsl:param name="value" as="xs:string"/>
+        <xsl:param name="prefixes" as="map(xs:string, xs:string)"/>
+        <xsl:param name="vocab" as="xs:string?"/>
+
+        <xsl:variable name="value" as="xs:string" select="normalize-space($value)"/>
+        <xsl:choose>
+            <xsl:when test="map:contains($prefixes, substring-before($value, ':')) and not(starts-with(substring-after($value, ':'), '//'))">
+                <xsl:sequence select="$prefixes(substring-before($value, ':')) || substring-after($value, ':')"/>
+            </xsl:when>
+            <xsl:when test="matches($value, '^[a-zA-Z][a-zA-Z0-9+.-]*:')">
+                <xsl:sequence select="$value"/>
+            </xsl:when>
+            <xsl:when test="exists($vocab) and matches($value, '^[\i-[:]][\c-[:]]*$')">
+                <xsl:sequence select="$vocab || $value"/>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:message select="'[RDFa] Dropping unresolvable term ''' || $value || ''' (no in-scope vocab or prefix)'"/>
+                <xsl:sequence select="()"/>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:function>
+
+    <!-- @prefix attribute: 'prefix: IRI prefix: IRI ...' -->
     <xsl:function name="rdfa:parse-prefix-attr" as="map(xs:string, xs:string)">
-        <xsl:param name="prefix-attr" as="xs:string?"/>
+        <xsl:param name="attr" as="xs:string?"/>
+
+        <xsl:variable name="entries" as="map(xs:string, xs:string)*">
+            <xsl:analyze-string select="string($attr)" regex="([^\s:]+):\s+(\S+)">
+                <xsl:matching-substring>
+                    <xsl:sequence select="map{ regex-group(1): regex-group(2) }"/>
+                </xsl:matching-substring>
+            </xsl:analyze-string>
+        </xsl:variable>
+        <xsl:sequence select="map:merge($entries, map{ 'duplicates': 'use-last' })"/>
+    </xsl:function>
+
+    <!-- legacy xmlns:* declarations, via the namespace axis (XDM) and attribute names (HTML DOM) -->
+    <xsl:function name="rdfa:in-scope-namespaces" as="map(xs:string, xs:string)">
+        <xsl:param name="element" as="element()"/>
+
+        <xsl:variable name="entries" as="map(xs:string, xs:string)*" select="
+            in-scope-prefixes($element)[not(. = ('', 'xml'))] ! map{ . : string(namespace-uri-for-prefix(., $element)) },
+            $element/@*[starts-with(name(), 'xmlns:')] ! map{ substring-after(name(), 'xmlns:'): string(.) }"/>
+        <xsl:sequence select="map:merge($entries, map{ 'duplicates': 'use-last' })"/>
+    </xsl:function>
+
+    <!-- literal value of an element: its text content minus rendering/script/style subtrees -->
+    <xsl:function name="rdfa:literal-value" as="xs:string">
+        <xsl:param name="element" as="element()"/>
+
+        <xsl:sequence select="normalize-space(string-join(
+            $element//text()[not(ancestor::*[@data-role = 'rendering'] | ancestor::script | ancestor::style)]))"/>
+    </xsl:function>
+
+    <!-- stable across processors and runs, unlike generate-id(): position path of the element -->
+    <xsl:function name="rdfa:bnode-label" as="xs:string">
+        <xsl:param name="element" as="element()"/>
+
+        <xsl:sequence select="'b' || string-join($element/ancestor-or-self::* ! string(count(preceding-sibling::*) + 1), '.')"/>
+    </xsl:function>
+
+    <xsl:function name="rdfa:subject-attribute" as="attribute()">
+        <xsl:param name="subject" as="xs:string"/>
 
         <xsl:choose>
-            <xsl:when test="$prefix-attr">
-                <xsl:map>
-                    <xsl:for-each select="tokenize(normalize-space($prefix-attr), '\s+')">
-                        <xsl:if test="position() mod 2 = 1 and ends-with(., ':')">
-                            <xsl:variable name="prefix" select="substring(., 1, string-length(.) - 1)"/>
-                            <xsl:variable name="uri" select="subsequence(tokenize(normalize-space($prefix-attr), '\s+'), position() + 1, 1)"/>
-                            <xsl:if test="$uri">
-                                <xsl:map-entry key="$prefix" select="$uri"/>
-                            </xsl:if>
-                        </xsl:if>
-                    </xsl:for-each>
-                </xsl:map>
+            <xsl:when test="starts-with($subject, '_:')">
+                <xsl:attribute name="rdf:nodeID" select="substring-after($subject, '_:')"/>
             </xsl:when>
             <xsl:otherwise>
-                <xsl:sequence select="map{}"/>
+                <xsl:attribute name="rdf:about" select="$subject"/>
             </xsl:otherwise>
         </xsl:choose>
     </xsl:function>
 
-    <!--
-        Function: Parse xmlns: Prefix Declarations
-        Extracts namespace prefix declarations from element attributes.
-    -->
-    <xsl:function name="rdfa:parse-xmlns-prefixes" as="map(xs:string, xs:string)">
-        <xsl:param name="element" as="element()"/>
+    <xsl:function name="rdfa:object-attribute" as="attribute()">
+        <xsl:param name="object" as="xs:string"/>
 
-        <xsl:map>
-            <xsl:for-each select="$element/@*[starts-with(name(), 'xmlns:')]">
-                <xsl:variable name="prefix" select="substring-after(name(), 'xmlns:')"/>
-                <xsl:map-entry key="$prefix" select="string(.)"/>
-            </xsl:for-each>
-        </xsl:map>
+        <xsl:choose>
+            <xsl:when test="starts-with($object, '_:')">
+                <xsl:attribute name="rdf:nodeID" select="substring-after($object, '_:')"/>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:attribute name="rdf:resource" select="$object"/>
+            </xsl:otherwise>
+        </xsl:choose>
     </xsl:function>
 
-    <!--
-        Function: Merge Prefix Maps
-        Combines multiple prefix maps with later maps taking precedence.
-    -->
-    <xsl:function name="rdfa:merge-prefixes" as="map(xs:string, xs:string)">
-        <xsl:param name="maps" as="map(xs:string, xs:string)*"/>
-
-        <xsl:sequence select="
-            if (count($maps) = 0) then map{}
-            else if (count($maps) = 1) then $maps[1]
-            else map:merge($maps, map{'duplicates': 'use-last'})
-        "/>
-    </xsl:function>
-
-    <!--
-        Function: Collect Prefixes
-        Collects all prefix mappings from an element and its ancestors.
-    -->
-    <xsl:function name="rdfa:collect-prefixes" as="map(xs:string, xs:string)">
-        <xsl:param name="element" as="element()"/>
-
-        <xsl:sequence select="rdfa:merge-prefixes((
-            $default-prefixes,
-            rdfa:parse-xmlns-prefixes($element),
-            rdfa:parse-prefix-attr($element/@prefix)
-        ))"/>
-    </xsl:function>
-
-    <!--
-        Function: Split URI
-        Splits a URI into namespace and local name parts for RDF/XML element creation.
-        Splits on the last occurrence of '#' or '/' to separate namespace from local name.
-        Returns a map with 'namespace' and 'local' keys.
-    -->
+    <!-- namespace/local split on the last '#' or '/' for RDF/XML property element names -->
     <xsl:function name="rdfa:split-uri" as="map(xs:string, xs:string)">
         <xsl:param name="uri" as="xs:string"/>
 
-        <xsl:variable name="split-pos" as="xs:integer">
-            <xsl:choose>
-                <xsl:when test="contains($uri, '#')">
-                    <xsl:sequence select="string-length(substring-before($uri, concat('#', tokenize($uri, '#')[last()]))) + 1"/>
-                </xsl:when>
-                <xsl:when test="contains($uri, '/')">
-                    <xsl:sequence select="string-length(substring-before($uri, concat('/', tokenize($uri, '/')[last()]))) + 1"/>
-                </xsl:when>
-                <xsl:otherwise>
-                    <xsl:sequence select="0"/>
-                </xsl:otherwise>
-            </xsl:choose>
-        </xsl:variable>
+        <xsl:variable name="namespace" as="xs:string"
+            select="(replace($uri, '^(.*[#/])[^#/]*$', '$1')[. ne $uri], '')[1]"/>
+        <xsl:sequence select="map{
+            'namespace': $namespace,
+            'local': substring($uri, string-length($namespace) + 1)
+        }"/>
+    </xsl:function>
 
-        <xsl:map>
-            <xsl:map-entry key="'namespace'"
-                select="if ($split-pos gt 0) then substring($uri, 1, $split-pos) else $uri"/>
-            <xsl:map-entry key="'local'"
-                select="if ($split-pos gt 0) then substring($uri, $split-pos + 1) else 'value'"/>
-        </xsl:map>
+    <!-- prefer a declared prefix for readable RDF/XML output -->
+    <xsl:function name="rdfa:prefixed-name" as="xs:string">
+        <xsl:param name="parts" as="map(xs:string, xs:string)"/>
+        <xsl:param name="prefixes" as="map(xs:string, xs:string)"/>
+
+        <xsl:variable name="prefix" as="xs:string?"
+            select="map:for-each($prefixes, function($prefix, $namespace) { $prefix[$namespace eq $parts?namespace] })[1]"/>
+        <xsl:sequence select="if (exists($prefix)) then $prefix || ':' || $parts?local else $parts?local"/>
     </xsl:function>
 
 </xsl:stylesheet>

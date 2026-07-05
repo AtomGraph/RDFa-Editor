@@ -1,0 +1,16 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dct="http://purl.org/dc/terms/">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <dct:title>Doc title</dct:title>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc#section1">
+        <dct:title>Section</dct:title>
+        <dct:relation rdf:resource="http://example.org/dir/related#frag"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/other">
+        <dct:title>Other doc</dct:title>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/rooted">
+        <dct:title>Rooted</dct:title>
+    </rdf:Description>
+</rdf:RDF>

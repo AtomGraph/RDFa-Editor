@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Headless test suite for the RDFa extractor. For each fixture: extract RDF/XML,
+# canonicalize actual and expected output into sorted triple lists (normalize.xsl),
+# and compare with diff. Exit code is non-zero if any fixture fails.
+set -u
+cd "$(dirname "$0")/.."
+
+BASE=http://example.org/dir/doc
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+fail=0
+
+for fixture in tests/fixtures/*.xhtml; do
+    name=$(basename "$fixture" .xhtml)
+    if ! npx xslt3-he -xsl:src/RDFa2RDFXML-v3.xsl -s:"$fixture" -o:"$tmp/$name.rdf" base-uri="$BASE" 2>"$tmp/$name.err"; then
+        echo "FAIL $name (extraction error)"
+        cat "$tmp/$name.err"
+        fail=1
+        continue
+    fi
+    npx xslt3-he -xsl:tests/normalize.xsl -s:"$tmp/$name.rdf" -o:"$tmp/$name.actual"
+    npx xslt3-he -xsl:tests/normalize.xsl -s:"tests/expected/$name.rdf" -o:"$tmp/$name.expected"
+    if diff -u "$tmp/$name.expected" "$tmp/$name.actual" >"$tmp/$name.diff"; then
+        echo "PASS $name"
+    else
+        echo "FAIL $name"
+        cat "$tmp/$name.diff"
+        fail=1
+    fi
+done
+
+exit $fail
