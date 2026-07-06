@@ -24,6 +24,7 @@ version="3.0">
         <xsl:for-each select="ixsl:page()//body">
             <xsl:result-document href="?." method="ixsl:append-content">
                 <aside id="toc-drawer" class="rdfa-editor-ui" role="navigation" aria-label="Table of contents" style="display: none;">
+                    <button type="button" id="toc-close" class="toc-close" title="Close" aria-label="Close table of contents">&#215;</button>
                     <h2>Contents</h2>
                     <div id="toc-list"/>
                 </aside>
@@ -109,6 +110,12 @@ version="3.0">
                     <ixsl:set-style name="display" select="'none'"/>
                 </xsl:otherwise>
             </xsl:choose>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match="button[@id = 'toc-close']" mode="ixsl:onclick">
+        <xsl:for-each select="id('toc-drawer', ixsl:page())">
+            <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
     </xsl:template>
 
