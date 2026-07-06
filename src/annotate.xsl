@@ -130,36 +130,62 @@ version="3.0">
             <xsl:otherwise>
                 <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'range')"/>
                 <xsl:variable name="reference-text" as="xs:string" select="string(ixsl:call($range, 'toString', []))"/>
-                <xsl:variable name="span" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'span' ])"/>
-                <xsl:try>
-                    <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $span ])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:variable name="span" as="element()?">
+                    <xsl:call-template name="local:wrap-range">
+                        <xsl:with-param name="range" select="$range"/>
+                        <xsl:with-param name="name" select="'span'"/>
+                    </xsl:call-template>
+                </xsl:variable>
+                <xsl:for-each select="$span">
                     <xsl:call-template name="local:apply-annotation">
-                        <xsl:with-param name="target" select="$span"/>
+                        <xsl:with-param name="target" select="."/>
                         <xsl:with-param name="values" select="$values"/>
                         <xsl:with-param name="reference-text" select="$reference-text"/>
                     </xsl:call-template>
-                    <xsl:call-template name="local:hide-overlay"/>
-                    <xsl:catch errors="*">
-                        <xsl:call-template name="local:hide-overlay"/>
-                        <xsl:call-template name="local:show-flash">
-                            <xsl:with-param name="range" select="$range"/>
-                        </xsl:call-template>
-                    </xsl:catch>
-                </xsl:try>
+                </xsl:for-each>
+                <xsl:call-template name="local:hide-overlay"/>
             </xsl:otherwise>
         </xsl:choose>
     </xsl:template>
 
-    <!-- unwrap the annotated element: move its children up, drop it, merge text nodes -->
+    <!-- unwrap an element: move its children up, drop it, merge text nodes -->
+    <xsl:template name="local:unwrap-element">
+        <xsl:param name="element" as="element()"/>
+
+        <xsl:variable name="parent" select="ixsl:get($element, 'parentNode')"/>
+        <xsl:for-each select="1 to xs:integer(ixsl:get($element, 'childNodes.length'))">
+            <xsl:sequence select="ixsl:call($parent, 'insertBefore', [ ixsl:get($element, 'firstChild'), $element ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+        <xsl:sequence select="ixsl:call($parent, 'removeChild', [ $element ])[current-date() lt xs:date('2000-01-01')]"/>
+        <xsl:sequence select="ixsl:call($parent, 'normalize', [])[current-date() lt xs:date('2000-01-01')]"/>
+    </xsl:template>
+
+    <!-- wrap a range in a fresh element; on boundary-crossing selections flash and return nothing -->
+    <xsl:template name="local:wrap-range" as="element()?">
+        <xsl:param name="range"/>
+        <xsl:param name="name" as="xs:string"/>
+
+        <xsl:variable name="element" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ $name ])"/>
+        <xsl:try>
+            <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $element ])[current-date() lt xs:date('2000-01-01')]"/>
+            <!-- surroundContents leaves the selection undefined; re-select the wrapped
+                 contents so subsequent toggles resolve their target -->
+            <xsl:sequence select="ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []), 'selectAllChildren',
+                [ $element ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:sequence select="$element"/>
+            <xsl:catch errors="*">
+                <xsl:call-template name="local:show-flash">
+                    <xsl:with-param name="range" select="$range"/>
+                </xsl:call-template>
+            </xsl:catch>
+        </xsl:try>
+    </xsl:template>
+
     <xsl:template match="button[tokenize(@class) = 'remove-action']" mode="ixsl:onclick">
         <xsl:for-each select="ixsl:get(ixsl:window(), 'editingSpan')">
-            <xsl:variable name="span" select="."/>
-            <xsl:variable name="parent" select="ixsl:get($span, 'parentNode')"/>
-            <xsl:for-each select="1 to xs:integer(ixsl:get($span, 'childNodes.length'))">
-                <xsl:sequence select="ixsl:call($parent, 'insertBefore', [ ixsl:get($span, 'firstChild'), $span ])[current-date() lt xs:date('2000-01-01')]"/>
-            </xsl:for-each>
-            <xsl:sequence select="ixsl:call($parent, 'removeChild', [ $span ])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:sequence select="ixsl:call($parent, 'normalize', [])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:unwrap-element">
+                <xsl:with-param name="element" select="."/>
+            </xsl:call-template>
         </xsl:for-each>
         <xsl:call-template name="local:hide-overlay"/>
     </xsl:template>
@@ -192,6 +218,22 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
+    <!-- shared output modal (Extract RDF / View source) -->
+    <xsl:template name="local:show-output">
+        <xsl:param name="title" as="xs:string"/>
+        <xsl:param name="text" as="xs:string"/>
+
+        <xsl:for-each select="id('output-title', ixsl:page())">
+            <ixsl:set-property name="textContent" select="$title" object="."/>
+        </xsl:for-each>
+        <xsl:for-each select="id('output-content', ixsl:page())">
+            <ixsl:set-property name="textContent" select="$text" object="."/>
+        </xsl:for-each>
+        <xsl:for-each select="id('output-modal', ixsl:page())">
+            <ixsl:set-style name="display" select="'flex'"/>
+        </xsl:for-each>
+    </xsl:template>
+
     <!-- extract RDF/XML from the page and display it in the modal -->
     <xsl:template match="button[@id = 'parse-rdf']" mode="ixsl:onclick">
         <xsl:variable name="rdf">
@@ -201,23 +243,20 @@ version="3.0">
             </xsl:call-template>
         </xsl:variable>
 
-        <xsl:for-each select="id('rdf-content', ixsl:page())">
-            <ixsl:set-property name="textContent" object="."
-                select="serialize($rdf, map{ 'method': 'xml', 'indent': true() })"/>
-        </xsl:for-each>
-        <xsl:for-each select="id('rdf-modal', ixsl:page())">
-            <ixsl:set-style name="display" select="'flex'"/>
-        </xsl:for-each>
+        <xsl:call-template name="local:show-output">
+            <xsl:with-param name="title" select="'Extracted RDF/XML'"/>
+            <xsl:with-param name="text" select="serialize($rdf, map{ 'method': 'xml', 'indent': true() })"/>
+        </xsl:call-template>
     </xsl:template>
 
     <xsl:template match="span[tokenize(@class) = 'modal-close']" mode="ixsl:onclick">
-        <xsl:for-each select="id('rdf-modal', ixsl:page())">
+        <xsl:for-each select="id('output-modal', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
     </xsl:template>
 
     <!-- clicking the backdrop (not the content) closes the modal -->
-    <xsl:template match="div[@id = 'rdf-modal']" mode="ixsl:onclick">
+    <xsl:template match="div[@id = 'output-modal']" mode="ixsl:onclick">
         <xsl:if test="ixsl:call(ixsl:get(ixsl:event(), 'target'), 'isSameNode', [ . ])">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:if>

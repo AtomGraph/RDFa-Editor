@@ -29,4 +29,23 @@ for fixture in tests/fixtures/*.xhtml; do
     fi
 done
 
+for fixture in tests/fixtures/canonical/*.xhtml; do
+    name=$(basename "$fixture" .xhtml)
+    if ! npx xslt3-he -xsl:src/canonical-xhtml.xsl -s:"$fixture" -it:canonical-xhtml -o:"$tmp/c-$name.xhtml" 2>"$tmp/c-$name.err"; then
+        echo "FAIL canonical/$name (transform error)"
+        cat "$tmp/c-$name.err"
+        fail=1
+        continue
+    fi
+    npx xslt3-he -xsl:tests/normalize-xhtml.xsl -s:"$tmp/c-$name.xhtml" -o:"$tmp/c-$name.actual"
+    npx xslt3-he -xsl:tests/normalize-xhtml.xsl -s:"tests/expected/canonical/$name.xhtml" -o:"$tmp/c-$name.expected"
+    if diff -u "$tmp/c-$name.expected" "$tmp/c-$name.actual" >"$tmp/c-$name.diff"; then
+        echo "PASS canonical/$name"
+    else
+        echo "FAIL canonical/$name"
+        cat "$tmp/c-$name.diff"
+        fail=1
+    fi
+done
+
 exit $fail

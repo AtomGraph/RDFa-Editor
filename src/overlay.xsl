@@ -192,14 +192,14 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <!-- show at the event position, clamped to the viewport with 10px padding.
-         Positioned absolutely in page coordinates (client + scroll offset) so the
-         overlay scrolls with the annotated content -->
-    <xsl:template name="local:show-overlay">
+    <!-- show an element at the event position, clamped to the viewport with 10px
+         padding. Positioned absolutely in page coordinates (client + scroll offset)
+         so it scrolls with the content -->
+    <xsl:template name="local:show-at">
+        <xsl:param name="element" as="element()"/>
         <xsl:param name="event"/>
-        <xsl:param name="in-scope-subject" as="xs:string?" select="()"/>
 
-        <xsl:for-each select="id('overlay', ixsl:page())">
+        <xsl:for-each select="$element">
             <ixsl:set-style name="display" select="'block'"/>
             <ixsl:set-style name="position" select="'absolute'"/>
 
@@ -209,14 +209,24 @@ version="3.0">
             <xsl:variable name="scroll-y" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollY')"/>
             <xsl:variable name="viewport-width" as="xs:double" select="ixsl:get(ixsl:window(), 'innerWidth')"/>
             <xsl:variable name="viewport-height" as="xs:double" select="ixsl:get(ixsl:window(), 'innerHeight')"/>
-            <xsl:variable name="overlay-width" as="xs:double" select="ixsl:get(., 'offsetWidth')"/>
-            <xsl:variable name="overlay-height" as="xs:double" select="ixsl:get(., 'offsetHeight')"/>
+            <xsl:variable name="width" as="xs:double" select="ixsl:get(., 'offsetWidth')"/>
+            <xsl:variable name="height" as="xs:double" select="ixsl:get(., 'offsetHeight')"/>
 
-            <ixsl:set-style name="left" select="((if ($client-x + $overlay-width + 10 gt $viewport-width)
-                then max(($viewport-width - $overlay-width - 10, 10)) else $client-x) + $scroll-x) || 'px'"/>
-            <ixsl:set-style name="top" select="((if ($client-y + $overlay-height + 10 gt $viewport-height)
-                then max(($viewport-height - $overlay-height - 10, 10)) else $client-y) + $scroll-y) || 'px'"/>
+            <ixsl:set-style name="left" select="((if ($client-x + $width + 10 gt $viewport-width)
+                then max(($viewport-width - $width - 10, 10)) else $client-x) + $scroll-x) || 'px'"/>
+            <ixsl:set-style name="top" select="((if ($client-y + $height + 10 gt $viewport-height)
+                then max(($viewport-height - $height - 10, 10)) else $client-y) + $scroll-y) || 'px'"/>
         </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template name="local:show-overlay">
+        <xsl:param name="event"/>
+        <xsl:param name="in-scope-subject" as="xs:string?" select="()"/>
+
+        <xsl:call-template name="local:show-at">
+            <xsl:with-param name="element" select="id('overlay', ixsl:page())"/>
+            <xsl:with-param name="event" select="$event"/>
+        </xsl:call-template>
 
         <xsl:for-each select="id('stmt-subject', ixsl:page())">
             <ixsl:set-attribute name="data-inherited-subject" select="($in-scope-subject, '')[1]"/>

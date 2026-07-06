@@ -23,8 +23,9 @@
     (object chaining via @resource); @about + @property without @content/@resource
     is, per spec, a text literal on the @about subject.
 
-    Subtrees under @data-role='rendering' (LDH v6 hydrated output), head, script
-    and style are excluded - both from traversal and from literal values.
+    Subtrees carrying any @data-role (LDH v6 convention: hydrated 'rendering' output,
+    injected editor 'chrome') plus head, script and style are excluded - both from
+    traversal and from literal values.
 
     Future work (out of scope): @rel/@rev, @inlist, safe CURIEs, @datetime/<time>,
     xml:base.
@@ -63,7 +64,7 @@
         </rdf:RDF>
     </xsl:template>
 
-    <xsl:template match="head | script | style | *[@data-role = 'rendering']" mode="rdfa:extract"/>
+    <xsl:template match="head | script | style | *[@data-role]" mode="rdfa:extract"/>
 
     <xsl:template match="*" mode="rdfa:extract">
         <xsl:param name="subject" as="xs:string?" select="()"/>
@@ -293,7 +294,7 @@
         <xsl:param name="element" as="element()"/>
 
         <xsl:sequence select="normalize-space(string-join(
-            $element//text()[not(ancestor::*[@data-role = 'rendering'] | ancestor::script | ancestor::style)]))"/>
+            $element//text()[not(ancestor::*[@data-role] | ancestor::script | ancestor::style)]))"/>
     </xsl:function>
 
     <!-- stable across processors and runs, unlike generate-id(): position path of the element -->

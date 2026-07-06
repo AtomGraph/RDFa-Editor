@@ -38,76 +38,54 @@
             }
 
             /* RDFa Visual Styling - Subtle dashed borders */
-            [property] {
+            #content *[property] {
                 border: 1px dashed #4caf50;
                 padding: 1px 2px;
                 cursor: pointer;
                 transition: background-color 0.2s, border-color 0.2s;
             }
 
-            [property]:hover {
+            #content *[property]:hover {
                 background-color: rgba(76, 175, 80, 0.1);
                 border-color: #2e7d32;
             }
 
-            [typeof] {
+            #content *[typeof] {
                 border: 1px dashed #9c27b0;
                 padding: 1px 2px;
                 cursor: pointer;
                 transition: background-color 0.2s, border-color 0.2s;
             }
 
-            [typeof]:hover {
+            #content *[typeof]:hover {
                 background-color: rgba(156, 39, 176, 0.1);
                 border-color: #7b1fa2;
             }
 
-            [about] {
+            #content *[about] {
                 border: 1px dashed #2196f3;
                 padding: 1px 2px;
                 cursor: pointer;
                 transition: background-color 0.2s, border-color 0.2s;
             }
 
-            [about]:hover {
+            #content *[about]:hover {
                 background-color: rgba(33, 150, 243, 0.1);
                 border-color: #1976d2;
             }
 
-            [resource] {
+            #content *[resource] {
                 border: 1px dashed #ff9800;
                 padding: 1px 2px;
                 cursor: pointer;
                 transition: background-color 0.2s, border-color 0.2s;
             }
 
-            [resource]:hover {
+            #content *[resource]:hover {
                 background-color: rgba(255, 152, 0, 0.1);
                 border-color: #f57c00;
             }
 
-            #rdf-output {
-                margin-top: 20px;
-                padding: 15px;
-                border: 2px solid #ccc;
-                border-radius: 5px;
-                background-color: #f5f5f5;
-                max-height: 400px;
-                overflow: auto;
-            }
-
-            #rdf-output pre {
-                margin: 0;
-                font-family: 'Courier New', monospace;
-                font-size: 12px;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-            }
-
-            #rdf-output h3 {
-                margin-top: 0;
-                color: #333;
-            }
 
             /* Visual feedback animation for invalid selections */
             @keyframes shake {
@@ -151,6 +129,119 @@
             .test-section p {
                 margin: 10px 0;
                 line-height: 1.6;
+            }
+
+            /* Content blocks */
+            #content {
+                margin: 20px 0;
+                padding: 20px 20px 20px 40px;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                background: white;
+            }
+
+            #content > * {
+                position: relative;
+            }
+
+            #content figure {
+                margin: 16px 0;
+            }
+
+            #content figure img {
+                display: block;
+                max-width: 400px;
+            }
+
+            #content [contenteditable="true"]:focus {
+                outline: 2px solid rgba(33, 150, 243, 0.35);
+                outline-offset: 2px;
+            }
+
+            /* Block chrome (drag handle) - ephemeral, data-role stripped on serialization */
+            [data-role="chrome"] {
+                visibility: hidden;
+                position: absolute;
+                top: 2px;
+                left: -1.5em;
+                color: #9e9e9e;
+                font-size: 14px;
+                cursor: grab;
+                user-select: none;
+                border: none;
+            }
+
+            #content > *:hover > [data-role="chrome"] {
+                visibility: visible;
+            }
+
+            /* Drag-and-drop feedback (v6 conventions) */
+            #content > .dragging {
+                opacity: 0.4;
+            }
+
+            #content > .drop-before {
+                box-shadow: 0 -3px 0 0 #2196f3;
+            }
+
+            #content > .drop-after {
+                box-shadow: 0 3px 0 0 #2196f3;
+            }
+
+            /* Editor toolbar (injected into the navbar) */
+            #edit-toolbar {
+                order: -1;
+                margin-right: auto;
+                display: flex;
+                gap: 6px;
+                align-items: center;
+            }
+
+            #edit-toolbar select,
+            #edit-toolbar button {
+                padding: 6px 10px;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                background: white;
+                font-size: 13px;
+                font-family: "Roboto", sans-serif;
+                cursor: pointer;
+            }
+
+            #edit-toolbar button:hover {
+                background: #f5f5f5;
+            }
+
+            /* Link / figure dialogs */
+            .edit-dialog {
+                background: white;
+                border: 2px solid #2196f3;
+                border-radius: 8px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                padding: 16px;
+                min-width: 320px;
+                z-index: 10000;
+            }
+
+            .edit-dialog label {
+                display: block;
+                font-size: 13px;
+                font-weight: 500;
+                color: #424242;
+                margin: 8px 0 4px 0;
+            }
+
+            .edit-dialog input[type="text"] {
+                width: 100%;
+                padding: 8px 10px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                font-size: 14px;
+                box-sizing: border-box;
+            }
+
+            .edit-dialog .action-buttons {
+                margin-top: 14px;
             }
 
             /* Modern Overlay Styling */
@@ -413,82 +504,46 @@
             </button>
         </nav>
 
-        <h1>RDFa Editor - Boundary-Respecting Annotation</h1>
+        <h1>RDFa Editor</h1>
 
         <div class="test-section">
             <h2>Instructions</h2>
-            <p><strong>Right-click</strong> a text selection in the editable sections below to annotate it with RDFa.
-               <strong>Right-click an existing annotation</strong> to edit or remove it. Plain clicks stay free for text editing.</p>
-            <p><strong>Note:</strong> Selections must respect HTML element boundaries. Select either:</p>
+            <p><strong>Type</strong> anywhere in the document below — Enter splits a block, Backspace at the
+               start merges it with the previous one. Use the toolbar to change block types, format text,
+               insert lists, figures and links, or delete blocks.</p>
+            <p><strong>Right-click</strong> a text selection to annotate it with RDFa;
+               <strong>right-click an existing annotation</strong> to edit or remove it.</p>
+            <p><strong>Drag</strong> the ⠿ handle (appears on hover) to reorder blocks.
+               <strong>Source</strong> shows the canonical XHTML+RDFa; <strong>Extract RDF</strong> the triples.</p>
+        </div>
+
+        <div id="content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
+            <h1 property="http://purl.org/dc/terms/title">Demo document</h1>
+            <p>Our company was founded by <strong>Dr. Jane Smith</strong> in 2020. She graduated
+                from <em>MIT</em> and now leads our <strong><em>innovation team</em></strong>.</p>
+            <p>Visit our <a href="https://example.com">official website</a> or check out
+                <a href="https://blog.example.com">our blog</a> for more information.</p>
+            <p><span property="https://schema.org/name">ACME Corporation</span> will launch a new
+                product in Q4 2024.</p>
             <ul>
-                <li>Text <em>within</em> an element (e.g., just "John Doe" inside the &lt;strong&gt; tags)</li>
-                <li>An <em>entire</em> element (e.g., the whole "&lt;strong&gt;John Doe&lt;/strong&gt;")</li>
+                <li>First point</li>
+                <li>Second point with <strong>emphasis</strong></li>
             </ul>
-            <p><strong>Visual Feedback:</strong></p>
-            <ul>
-                <li>✅ <strong>Valid selection</strong> → Annotation popup appears</li>
-                <li>❌ <strong>Invalid selection</strong> (crosses element boundaries) → Selection flashes red, no popup</li>
-            </ul>
+            <blockquote>A quoted remark worth keeping.</blockquote>
+            <pre>PREFIX schema: &lt;https://schema.org/&gt;
+SELECT ?name WHERE { ?s schema:name ?name . }</pre>
+            <figure>
+                <img src="Mockup.png" alt="Editor mockup"/>
+                <figcaption>The original editor mockup</figcaption>
+            </figure>
         </div>
 
-        <div class="test-section">
-            <h2>Test Case 1: Plain Text (Always Works)</h2>
-            <p about="" contenteditable="true">This is plain text with no formatting. You can select any portion of this text and it will work perfectly.</p>
-        </div>
-
-        <div class="test-section">
-            <h2>Test Case 2: Bold and Italic Text</h2>
-            <p about="" contenteditable="true">Our company was founded by <strong>Dr. Jane Smith</strong> in 2020. She graduated from <em>MIT</em> and now leads our <strong><em>innovation team</em></strong>.</p>
-            <p style="font-size: 12px; color: #666;">
-                ✅ Try: Select "Dr. Jane Smith" (text inside &lt;strong&gt;)<br/>
-                ✅ Try: Select "MIT" (text inside &lt;em&gt;)<br/>
-                ❌ Try: Select "founded by Dr. Jane Smith" (crosses &lt;strong&gt; boundary - will shake)
-            </p>
-        </div>
-
-        <div class="test-section">
-            <h2>Test Case 3: Links</h2>
-            <p about="" contenteditable="true">Visit our <a href="https://example.com">official website</a> or check out <a href="https://blog.example.com">our blog</a> for more information.</p>
-            <p style="font-size: 12px; color: #666;">
-                ✅ Try: Select "official website" (text inside &lt;a&gt;)<br/>
-                ✅ Try: Select "our blog" (text inside &lt;a&gt;)<br/>
-                ❌ Try: Select "our official website" (crosses &lt;a&gt; boundary - will shake)
-            </p>
-        </div>
-
-        <div class="test-section">
-            <h2>Test Case 4: Nested Formatting</h2>
-            <p about="" contenteditable="true">Contact <em><strong>Dr. Alice Johnson</strong></em> at the <code>research@example.com</code> email address.</p>
-            <p style="font-size: 12px; color: #666;">
-                ✅ Try: Select "Dr. Alice Johnson" (text inside nested &lt;em&gt;&lt;strong&gt;)<br/>
-                ✅ Try: Select "research@example.com" (text inside &lt;code&gt;)<br/>
-                ❌ Try: Select "Contact Dr. Alice" (crosses &lt;em&gt; boundary - will shake)
-            </p>
-        </div>
-
-        <div class="test-section">
-            <h2>Test Case 5: Mixed Content (Complex)</h2>
-            <p about="" contenteditable="true"><strong>CEO</strong> <em>Jane Smith</em> announced that <a href="https://company.com">ACME Corporation</a> will launch a new product in <strong>Q4 2024</strong>.</p>
-            <p style="font-size: 12px; color: #666;">
-                ✅ Try: Select "CEO" (inside &lt;strong&gt;)<br/>
-                ✅ Try: Select "Jane Smith" (inside &lt;em&gt;)<br/>
-                ✅ Try: Select "ACME Corporation" (inside &lt;a&gt;)<br/>
-                ❌ Try: Select "CEO Jane Smith" (crosses multiple elements - will shake)<br/>
-                ❌ Try: Select "Jane Smith announced" (crosses &lt;em&gt; boundary - will shake)
-            </p>
-        </div>
-
-        <div class="test-section">
-            <h2>Original Lorem Ipsum</h2>
-            <p about="" contenteditable="true">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-        </div>
-
-        <!-- RDF Output Modal -->
-        <div id="rdf-modal" class="modal" style="display: none;">
+        <!-- Output Modal (Extract RDF / View source) -->
+        <div id="output-modal" class="modal" style="display: none;">
             <div class="modal-content">
-                <span class="modal-close">&times;</span>
-                <h3>Extracted RDF/XML</h3>
-                <pre id="rdf-content"></pre>
+                <span class="modal-close">&#215;</span>
+                <h3 id="output-title">Output</h3>
+                <pre id="output-content"></pre>
             </div>
         </div>
     </body>
