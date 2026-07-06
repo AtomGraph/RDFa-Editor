@@ -219,16 +219,16 @@ version="3.0">
                     style="position: absolute; pointer-events: none; z-index: 9999; left: {ixsl:get($rect, 'left') + $scroll-x}px; top: {ixsl:get($rect, 'top') + $scroll-y}px; width: {ixsl:get($rect, 'width')}px; height: {ixsl:get($rect, 'height')}px;"/>
             </xsl:result-document>
         </xsl:for-each>
-        <ixsl:schedule-action wait="1200">
-            <xsl:call-template name="local:hide-flash"/>
-        </ixsl:schedule-action>
+        <ixsl:promise select="ixsl:sleep(1200) => ixsl:then(local:hide-flash#1)"/>
     </xsl:template>
 
-    <xsl:template name="local:hide-flash">
+    <xsl:function name="local:hide-flash" as="empty-sequence()" ixsl:updating="yes">
+        <xsl:param name="ignored" as="item()?"/>
+
         <xsl:for-each select="id('selection-flash', ixsl:page())">
             <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
-    </xsl:template>
+    </xsl:function>
 
     <!-- shared output modal (Extract RDF / View source) -->
     <xsl:template name="local:show-output">

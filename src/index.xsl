@@ -4,6 +4,7 @@ xmlns="http://www.w3.org/1999/xhtml"
 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 xmlns:ixsl="http://saxonica.com/ns/interactiveXSLT"
 xmlns:xs="http://www.w3.org/2001/XMLSchema"
+xmlns:array="http://www.w3.org/2005/xpath-functions/array"
 xmlns:local="urn:rdfa-editor:functions"
 extension-element-prefixes="ixsl"
 xpath-default-namespace="http://www.w3.org/1999/xhtml"
@@ -50,17 +51,39 @@ version="3.0">
         </xsl:for-each>
         <ixsl:set-property name="lastUndoTime" select="0" object="ixsl:window()"/>
         <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
-        <!-- prefetch the vocabularies asynchronously, then render the UI -->
-        <ixsl:schedule-action document="{string-join($vocab-hrefs, ' ')}">
-            <xsl:call-template name="local:init"/>
-        </ixsl:schedule-action>
+        <!-- fetch the vocabularies asynchronously, then render the UI with them -->
+        <!-- ixsl:all takes a single XDM array of promises -->
+        <ixsl:promise select="
+            ixsl:all(array { $vocab-hrefs ! ixsl:http-request(map{
+                'method': 'GET',
+                'href': resolve-uri(., ixsl:location()),
+                'headers': map{ 'Accept': 'application/rdf+xml' }
+            }) }) =>
+                ixsl:then(local:init#1)"
+            on-failure="local:promise-failure#1"/>
     </xsl:template>
 
-    <xsl:template name="local:init">
+    <xsl:function name="local:init" as="empty-sequence()" ixsl:updating="yes">
+        <xsl:param name="responses" as="array(*)"/>
+
+        <!-- responses arrive in $vocab-hrefs order (Promise.all); parse-xml covers
+             servers that mislabel .rdf and leave the body unparsed -->
+        <xsl:variable name="vocab-docs" as="document-node()*" select="array:flatten($responses)
+            ! (let $body := ?body return
+                if ($body instance of document-node()) then $body else parse-xml(string($body)))"/>
         <xsl:call-template name="local:init-undo"/>
-        <xsl:call-template name="local:init-overlay"/>
+        <xsl:call-template name="local:init-overlay">
+            <xsl:with-param name="vocab-docs" select="$vocab-docs"/>
+        </xsl:call-template>
         <xsl:call-template name="local:init-editing"/>
         <xsl:call-template name="local:init-navigate"/>
-    </xsl:template>
+    </xsl:function>
+
+    <!-- promise rejections arrive as a map with ?message / ?code / ?name -->
+    <xsl:function name="local:promise-failure" as="empty-sequence()" ixsl:updating="yes">
+        <xsl:param name="error" as="map(*)"/>
+
+        <xsl:message select="'Initialization failed: ' || string(($error?message, $error?code, $error?name)[1])"/>
+    </xsl:function>
 
 </xsl:stylesheet>
