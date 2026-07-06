@@ -1,0 +1,36 @@
+name: Deploy to GitHub Pages
+on:
+    push:
+        branches: [master]
+    workflow_dispatch:
+# allow the job to push to the gh-pages branch via GITHUB_TOKEN
+permissions:
+    contents: write
+# never run two deploys at once; a newer push supersedes an in-flight one
+concurrency:
+    group: gh-pages
+    cancel-in-progress: true
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+            - name: Install xmlstarlet (entity expansion in generate-sef.sh)
+              run: sudo apt-get update && sudo apt-get install -y xmlstarlet
+            - name: Build SEF (fresh dist/ from src/)
+              run: bash generate-sef.sh
+            - name: Assemble static site
+              run: |
+                  mkdir -p _site
+                  cp index.html rdfa-editor.css Mockup.png _site/
+                  cp -r lib dist vocabs _site/
+            - name: Publish to gh-pages branch
+              uses: peaceiris/actions-gh-pages@v4
+              with:
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  publish_dir: ./_site
+                  publish_branch: gh-pages
+                  force_orphan: true
