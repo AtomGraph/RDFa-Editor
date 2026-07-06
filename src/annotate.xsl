@@ -93,8 +93,9 @@ version="3.0">
 
         <xsl:for-each select="$target">
             <xsl:variable name="element" select="."/>
-            <xsl:sequence select="('about', 'typeof', 'property', 'resource', 'content')
-                ! ixsl:call($element, 'removeAttribute', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:for-each select="'about', 'typeof', 'property', 'resource', 'content'">
+                <ixsl:remove-attribute name="{.}" object="$element"/>
+            </xsl:for-each>
 
             <xsl:if test="exists($values?subject)">
                 <ixsl:set-attribute name="about" select="$values?subject"/>

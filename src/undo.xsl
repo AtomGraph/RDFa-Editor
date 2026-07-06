@@ -124,7 +124,7 @@ version="3.0">
         <!-- snapshots taken mid-drag may carry transient drag state -->
         <xsl:call-template name="local:clear-drop-marks"/>
         <xsl:for-each select="local:content()/*[@draggable]">
-            <xsl:sequence select="ixsl:call(., 'removeAttribute', [ 'draggable' ])[current-date() lt xs:date('2000-01-01')]"/>
+            <ixsl:remove-attribute name="draggable"/>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
         <xsl:for-each select="(local:content()/descendant-or-self::*[@contenteditable = 'true'])[1]">
@@ -159,6 +159,9 @@ version="3.0">
                     </xsl:choose>
                 </xsl:when>
                 <xsl:otherwise>
+                    <!-- Date.now via ixsl:call is a deliberate last resort: current-dateTime()
+                         is stable across event invocations in SaxonJS (probed), so it cannot
+                         detect burst boundaries -->
                     <xsl:variable name="now" as="xs:double" select="ixsl:call(ixsl:get(ixsl:window(), 'Date'), 'now', [])"/>
                     <xsl:if test="$now - xs:double((ixsl:get(ixsl:window(), 'lastUndoTime'), 0)[1]) gt 1000
                             or not(ixsl:get(ixsl:window(), 'lastUndoHost') ! (. is current()))">

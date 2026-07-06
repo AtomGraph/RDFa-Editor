@@ -926,7 +926,7 @@ version="3.0">
 
     <xsl:template match="span[contains-token(@class, 'drag-handle')]" mode="ixsl:onmouseup">
         <xsl:for-each select="local:block-of(.)">
-            <xsl:sequence select="ixsl:call(., 'removeAttribute', [ 'draggable' ])[current-date() lt xs:date('2000-01-01')]"/>
+            <ixsl:remove-attribute name="draggable"/>
         </xsl:for-each>
     </xsl:template>
 
@@ -971,7 +971,7 @@ version="3.0">
 
     <xsl:template match="*[parent::div[@id = 'content']]" mode="ixsl:ondragend">
         <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
-        <xsl:sequence select="ixsl:call(., 'removeAttribute', [ 'draggable' ])[current-date() lt xs:date('2000-01-01')]"/>
+        <ixsl:remove-attribute name="draggable"/>
         <xsl:call-template name="local:clear-drop-marks"/>
         <ixsl:set-property name="draggedBlock" select="()" object="ixsl:window()"/>
     </xsl:template>
