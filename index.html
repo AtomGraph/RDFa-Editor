@@ -145,6 +145,17 @@
                 position: relative;
             }
 
+            /* invisible gutter strip: keeps the block hovered while the pointer
+               travels to the drag handle, which sits outside the block box */
+            #content > *::before {
+                content: '';
+                position: absolute;
+                left: -2.25em;
+                top: 0;
+                bottom: 0;
+                width: 2.25em;
+            }
+
             #content figure {
                 margin: 16px 0;
             }

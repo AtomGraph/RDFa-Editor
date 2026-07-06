@@ -69,6 +69,27 @@ version="3.0">
         <xsl:sequence select="string(ixsl:call($probe, 'toString', [])) = ''"/>
     </xsl:function>
 
+    <!-- true when nothing but a trailing placeholder follows the caret inside the host -->
+    <xsl:function name="local:at-end" as="xs:boolean">
+        <xsl:param name="host" as="element()"/>
+        <xsl:param name="range"/>
+        <xsl:variable name="probe" select="ixsl:call(ixsl:page(), 'createRange', [])"/>
+        <xsl:sequence select="ixsl:call($probe, 'setEnd', [ $host, xs:integer(ixsl:get($host, 'childNodes.length')) ])[current-date() lt xs:date('2000-01-01')],
+            ixsl:call($probe, 'setStart', [ ixsl:get($range, 'endContainer'), xs:integer(ixsl:get($range, 'endOffset')) ])[current-date() lt xs:date('2000-01-01')]"/>
+        <xsl:sequence select="string(ixsl:call($probe, 'toString', [])) = ''"/>
+    </xsl:function>
+
+    <!-- an empty editable host needs a <br> placeholder: without one it has no height
+         and no valid caret position (its only child may be non-editable chrome), so
+         clicks and typing go nowhere. Dropped again by canonical-xhtml.xsl -->
+    <xsl:template name="local:ensure-placeholder">
+        <xsl:param name="host" as="element()"/>
+        <xsl:if test="local:block-text($host) = '' and empty($host/br)">
+            <xsl:sequence select="ixsl:call($host, 'appendChild',
+                [ ixsl:call(ixsl:page(), 'createElement', [ 'br' ]) ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:if>
+    </xsl:template>
+
     <!-- outermost RDFa-attributed inline ancestor of a node, strictly below the host -->
     <xsl:function name="local:enclosing-annotation" as="element()?">
         <xsl:param name="node"/>
@@ -191,6 +212,47 @@ version="3.0">
                 </xsl:when>
                 <!-- other ctrl/meta chords stay native (copy, paste, browser find) -->
                 <xsl:when test="ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey')"/>
+                <!-- arrow keys cross block boundaries: each block is its own
+                     contenteditable island, so the browser stops at its edges -->
+                <xsl:when test="$key = ('ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft')
+                        and not(ixsl:get($event, 'shiftKey'))">
+                    <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+                    <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1 and ixsl:get($selection, 'isCollapsed')">
+                        <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                        <xsl:variable name="host" as="element()" select="."/>
+                        <xsl:variable name="hosts" as="element()*"
+                            select="local:content()//*[@contenteditable = 'true']"/>
+                        <xsl:choose>
+                            <xsl:when test="$key = ('ArrowDown', 'ArrowRight') and local:at-end($host, $range)">
+                                <xsl:for-each select="($hosts[. &gt;&gt; $host])[1]">
+                                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                                    <xsl:call-template name="local:focus">
+                                        <xsl:with-param name="element" select="."/>
+                                    </xsl:call-template>
+                                    <xsl:call-template name="local:place-caret">
+                                        <xsl:with-param name="node" select="."/>
+                                        <xsl:with-param name="offset" select="local:chrome-count(.)"/>
+                                    </xsl:call-template>
+                                </xsl:for-each>
+                            </xsl:when>
+                            <xsl:when test="$key = ('ArrowUp', 'ArrowLeft') and local:at-start($host, $range)">
+                                <xsl:for-each select="($hosts[. &lt;&lt; $host])[last()]">
+                                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                                    <xsl:call-template name="local:focus">
+                                        <xsl:with-param name="element" select="."/>
+                                    </xsl:call-template>
+                                    <!-- caret at the end, but before a trailing placeholder <br> -->
+                                    <xsl:call-template name="local:place-caret">
+                                        <xsl:with-param name="node" select="."/>
+                                        <xsl:with-param name="offset"
+                                            select="count(node()) - count(node()[last()][self::br])"/>
+                                    </xsl:call-template>
+                                </xsl:for-each>
+                            </xsl:when>
+                            <xsl:otherwise/>
+                        </xsl:choose>
+                    </xsl:if>
+                </xsl:when>
                 <xsl:when test="$key = ('Enter', 'Backspace')">
                     <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
                     <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
@@ -358,6 +420,13 @@ version="3.0">
                 <xsl:with-param name="block" select="$new"/>
             </xsl:call-template>
         </xsl:if>
+        <!-- a split at either extreme leaves one empty half -->
+        <xsl:call-template name="local:ensure-placeholder">
+            <xsl:with-param name="host" select="$host"/>
+        </xsl:call-template>
+        <xsl:call-template name="local:ensure-placeholder">
+            <xsl:with-param name="host" select="$new"/>
+        </xsl:call-template>
         <xsl:call-template name="local:focus">
             <xsl:with-param name="element" select="$new"/>
         </xsl:call-template>
