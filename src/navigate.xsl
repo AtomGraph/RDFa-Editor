@@ -116,13 +116,10 @@ version="3.0">
         <xsl:variable name="index" as="xs:integer" select="xs:integer(../@data-index)"/>
         <xsl:for-each select="(ixsl:get(ixsl:window(), 'rdfaEditorTocRoot')/(h1 | h2 | h3))[$index]">
             <xsl:sequence select="ixsl:call(., 'scrollIntoView', [ map{ 'block': 'start' } ])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:call-template name="local:focus">
-                <xsl:with-param name="element" select="."/>
-            </xsl:call-template>
-            <xsl:call-template name="local:place-caret">
-                <xsl:with-param name="node" select="."/>
-                <xsl:with-param name="offset" select="local:chrome-count(.)"/>
-            </xsl:call-template>
+            <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="."/>
+    <xsl:with-param name="offset" select="local:chrome-count(.)"/>
+</xsl:call-template>
             <xsl:call-template name="local:update-breadcrumb"/>
         </xsl:for-each>
     </xsl:template>
@@ -154,7 +151,9 @@ version="3.0">
                 and local:has-transfer-type($event, 'application/x-rdfa-editor-section')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <ixsl:set-property name="dropEffect" select="'move'" object="ixsl:get($event, 'dataTransfer')"/>
-            <xsl:call-template name="local:clear-toc-marks"/>
+            <xsl:call-template name="local:clear-drop-marks">
+            <xsl:with-param name="scope" select="id('toc-list', ixsl:page())//li"/>
+        </xsl:call-template>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'add',
                 [ if (local:drop-before($event, .)) then 'drop-before' else 'drop-after' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:if>
@@ -165,7 +164,9 @@ version="3.0">
         <xsl:variable name="item" as="element()" select="."/>
         <xsl:variable name="source" select="ixsl:get(ixsl:window(), 'rdfaEditorDraggedSectionHeading')"/>
         <xsl:variable name="before" as="xs:boolean" select="local:drop-before($event, $item)"/>
-        <xsl:call-template name="local:clear-toc-marks"/>
+        <xsl:call-template name="local:clear-drop-marks">
+            <xsl:with-param name="scope" select="id('toc-list', ixsl:page())//li"/>
+        </xsl:call-template>
         <xsl:if test="exists($source) and local:has-transfer-type($event, 'application/x-rdfa-editor-section')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <!-- bare-variable positional predicate: SaxonJS evaluates computed numeric
@@ -202,16 +203,10 @@ version="3.0">
 
     <xsl:template match="li[contains-token(@class, 'toc-item')]" mode="ixsl:ondragend">
         <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
-        <xsl:call-template name="local:clear-toc-marks"/>
+        <xsl:call-template name="local:clear-drop-marks">
+            <xsl:with-param name="scope" select="id('toc-list', ixsl:page())//li"/>
+        </xsl:call-template>
         <ixsl:set-property name="rdfaEditorDraggedSectionHeading" select="()" object="ixsl:window()"/>
-    </xsl:template>
-
-    <xsl:template name="local:clear-toc-marks">
-        <xsl:for-each select="id('toc-list', ixsl:page())//li[contains-token(@class, 'drop-before')
-                or contains-token(@class, 'drop-after')]">
-            <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-before' ])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-after' ])[current-date() lt xs:date('2000-01-01')]"/>
-        </xsl:for-each>
     </xsl:template>
 
     <!-- ................................ breadcrumb ................................ -->
@@ -236,7 +231,7 @@ version="3.0">
     </xsl:function>
 
     <xsl:template name="local:update-breadcrumb">
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:variable name="node" select="(
             (if (ixsl:get($selection, 'rangeCount') ge 1) then ixsl:get($selection, 'anchorNode') else ()),
             ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock'))[1]"/>
@@ -285,7 +280,7 @@ version="3.0">
             <xsl:variable name="target" as="element()?"
                 select="(ancestor-or-self::* intersect local:root-of(.)/descendant-or-self::*)[$index]"/>
             <xsl:for-each select="$target">
-                <xsl:sequence select="ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []),
+                <xsl:sequence select="ixsl:call(local:selection(),
                     'selectAllChildren', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:for-each>
         </xsl:for-each>
@@ -481,7 +476,7 @@ version="3.0">
                                     <xsl:with-param name="element" select="."/>
                                 </xsl:call-template>
                             </xsl:for-each>
-                            <xsl:sequence select="ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []),
+                            <xsl:sequence select="ixsl:call(local:selection(),
                                 'setBaseAndExtent', [ $node, $position - 1, $node,
                                     $position - 1 + string-length($query) ])[current-date() lt xs:date('2000-01-01')]"/>
                             <xsl:sequence select="ixsl:call(ixsl:get($node, 'parentElement'), 'scrollIntoView',
@@ -512,14 +507,14 @@ version="3.0">
             select="string(ixsl:get(($dialog//input[@name = 'replace'])[1], 'value'))"/>
         <xsl:variable name="ci" as="xs:boolean"
             select="not(ixsl:get(($dialog//input[@name = 'match-case'])[1], 'checked'))"/>
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:choose>
             <!-- the current selection is the match found by find-next -->
             <xsl:when test="$query ne '' and ixsl:get($selection, 'rangeCount') ge 1
                     and not(ixsl:get($selection, 'isCollapsed'))
                     and (ixsl:get($selection, 'anchorNode') ! exists(local:block-of(.)))
                     and local:norm(string(ixsl:call($selection, 'toString', [])), $ci) eq local:norm($query, $ci)">
-                <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                <xsl:variable name="range" select="local:caret-range()"/>
                 <xsl:call-template name="local:push-undo"/>
                 <xsl:sequence select="ixsl:call($range, 'deleteContents', [])[current-date() lt xs:date('2000-01-01')]"/>
                 <xsl:if test="$replacement ne ''">

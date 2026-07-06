@@ -43,9 +43,9 @@ version="3.0">
             </xsl:when>
             <!-- create mode -->
             <xsl:otherwise>
-                <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+                <xsl:variable name="selection" select="local:selection()"/>
                 <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1 and not(ixsl:get($selection, 'isCollapsed'))">
-                    <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                    <xsl:variable name="range" select="local:caret-range()"/>
                     <xsl:choose>
                         <xsl:when test="local:selection-valid($range)">
                             <ixsl:set-property name="rdfaEditorRange" select="$range" object="ixsl:window()"/>
@@ -185,7 +185,7 @@ version="3.0">
             <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $element ])[current-date() lt xs:date('2000-01-01')]"/>
             <!-- surroundContents leaves the selection undefined; re-select the wrapped
                  contents so subsequent toggles resolve their target -->
-            <xsl:sequence select="ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []), 'selectAllChildren',
+            <xsl:sequence select="ixsl:call(local:selection(), 'selectAllChildren',
                 [ $element ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="$element"/>
             <xsl:catch errors="*">

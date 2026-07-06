@@ -41,7 +41,7 @@ version="3.0">
 
     <!-- the region the user is working in: selection first, then the last focused host -->
     <xsl:function name="local:active-root" as="element()?">
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
             then ixsl:get($selection, 'anchorNode') else ()"/>
         <xsl:sequence select="($anchor ! local:root-of(.),
@@ -63,7 +63,7 @@ version="3.0">
     <!-- toolbar actions resolve the block from the selection, falling back to the
          last focused host (the block-type select steals focus - see ixsl:onfocusin) -->
     <xsl:function name="local:current-block" as="element()?">
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
             then ixsl:get($selection, 'anchorNode') else ()"/>
         <xsl:sequence select="($anchor ! local:block-of(.), ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock') ! local:block-of(.))[1]"/>
@@ -107,7 +107,7 @@ version="3.0">
         <xsl:param name="host" as="element()"/>
         <xsl:if test="local:block-text($host) = '' and empty($host/br)">
             <xsl:sequence select="ixsl:call($host, 'appendChild',
-                [ ixsl:call(ixsl:page(), 'createElement', [ 'br' ]) ])[current-date() lt xs:date('2000-01-01')]"/>
+                [ local:element('br') ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:if>
     </xsl:template>
 
@@ -119,10 +119,40 @@ version="3.0">
             intersect $host/descendant::*)[1]"/>
     </xsl:function>
 
+    <xsl:function name="local:selection" as="item()">
+        <xsl:sequence select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+    </xsl:function>
+
+    <xsl:function name="local:caret-range" as="item()?">
+        <xsl:variable name="selection" select="local:selection()"/>
+        <xsl:sequence select="if (ixsl:get($selection, 'rangeCount') ge 1)
+            then ixsl:call($selection, 'getRangeAt', [ 0 ]) else ()"/>
+    </xsl:function>
+
+    <xsl:function name="local:element" as="element()">
+        <xsl:param name="name" as="xs:string"/>
+        <xsl:sequence select="ixsl:call(ixsl:page(), 'createElement', [ $name ])"/>
+    </xsl:function>
+
+    <!-- focus the host of $node, then collapse the caret there -->
+    <xsl:template name="local:focus-caret">
+        <xsl:param name="node"/>
+        <xsl:param name="offset" as="xs:integer"/>
+        <xsl:for-each select="local:host-of($node)">
+            <xsl:call-template name="local:focus">
+                <xsl:with-param name="element" select="."/>
+            </xsl:call-template>
+        </xsl:for-each>
+        <xsl:call-template name="local:place-caret">
+            <xsl:with-param name="node" select="$node"/>
+            <xsl:with-param name="offset" select="$offset"/>
+        </xsl:call-template>
+    </xsl:template>
+
     <xsl:template name="local:place-caret">
         <xsl:param name="node"/>
         <xsl:param name="offset" as="xs:integer"/>
-        <xsl:sequence select="ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []), 'collapse',
+        <xsl:sequence select="ixsl:call(local:selection(), 'collapse',
             [ $node, $offset ])[current-date() lt xs:date('2000-01-01')]"/>
     </xsl:template>
 
@@ -171,7 +201,7 @@ version="3.0">
         <xsl:param name="block" as="element()"/>
 
         <xsl:if test="empty($block/*[@data-role = 'chrome'])">
-            <xsl:variable name="chrome" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'span' ])"/>
+            <xsl:variable name="chrome" as="element()" select="local:element('span')"/>
             <ixsl:set-attribute name="data-role" select="'chrome'" object="$chrome"/>
             <ixsl:set-attribute name="class" select="'drag-handle'" object="$chrome"/>
             <ixsl:set-attribute name="contenteditable" select="'false'" object="$chrome"/>
@@ -246,20 +276,12 @@ version="3.0">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:variable name="host" as="element()" select="."/>
                     <xsl:variable name="block" as="element()?" select="local:block-of(.)"/>
-                    <xsl:choose>
-                        <xsl:when test="$key = 'ArrowUp'">
-                            <xsl:for-each select="$block/preceding-sibling::*[1]">
-                                <xsl:call-template name="local:push-undo"/>
-                                <xsl:sequence select="ixsl:call(., 'before', [ $block ])[current-date() lt xs:date('2000-01-01')]"/>
-                            </xsl:for-each>
-                        </xsl:when>
-                        <xsl:otherwise>
-                            <xsl:for-each select="$block/following-sibling::*[1]">
-                                <xsl:call-template name="local:push-undo"/>
-                                <xsl:sequence select="ixsl:call(., 'after', [ $block ])[current-date() lt xs:date('2000-01-01')]"/>
-                            </xsl:for-each>
-                        </xsl:otherwise>
-                    </xsl:choose>
+                    <xsl:for-each select="if ($key = 'ArrowUp')
+                            then $block/preceding-sibling::*[1] else $block/following-sibling::*[1]">
+                        <xsl:call-template name="local:push-undo"/>
+                        <xsl:sequence select="ixsl:call(., if ($key = 'ArrowUp') then 'before' else 'after',
+                            [ $block ])[current-date() lt xs:date('2000-01-01')]"/>
+                    </xsl:for-each>
                     <!-- moving the focused block blurs it -->
                     <xsl:call-template name="local:focus">
                         <xsl:with-param name="element" select="$host"/>
@@ -270,9 +292,9 @@ version="3.0">
                      contenteditable island, so the browser stops at its edges -->
                 <xsl:when test="$key = ('ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft')
                         and not(ixsl:get($event, 'shiftKey')) and not(ixsl:get($event, 'altKey'))">
-                    <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+                    <xsl:variable name="selection" select="local:selection()"/>
                     <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1 and ixsl:get($selection, 'isCollapsed')">
-                        <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                        <xsl:variable name="range" select="local:caret-range()"/>
                         <xsl:variable name="host" as="element()" select="."/>
                         <xsl:variable name="hosts" as="element()*"
                             select="local:root-of(.)//*[@contenteditable = 'true']"/>
@@ -280,13 +302,10 @@ version="3.0">
                             <xsl:when test="$key = ('ArrowDown', 'ArrowRight') and local:at-end($host, $range)">
                                 <xsl:for-each select="($hosts[. &gt;&gt; $host])[1]">
                                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
-                                    <xsl:call-template name="local:focus">
-                                        <xsl:with-param name="element" select="."/>
-                                    </xsl:call-template>
-                                    <xsl:call-template name="local:place-caret">
-                                        <xsl:with-param name="node" select="."/>
-                                        <xsl:with-param name="offset" select="local:chrome-count(.)"/>
-                                    </xsl:call-template>
+                                    <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="."/>
+    <xsl:with-param name="offset" select="local:chrome-count(.)"/>
+</xsl:call-template>
                                 </xsl:for-each>
                             </xsl:when>
                             <xsl:when test="$key = ('ArrowUp', 'ArrowLeft') and local:at-start($host, $range)">
@@ -308,9 +327,9 @@ version="3.0">
                     </xsl:if>
                 </xsl:when>
                 <xsl:when test="$key = ('Enter', 'Backspace')">
-                    <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+                    <xsl:variable name="selection" select="local:selection()"/>
                     <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
-                        <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                        <xsl:variable name="range" select="local:caret-range()"/>
                         <xsl:choose>
                             <xsl:when test="$key = 'Enter'">
                                 <xsl:call-template name="local:handle-enter">
@@ -374,7 +393,7 @@ version="3.0">
             <!-- E1: Shift+Enter = line break -->
             <xsl:when test="ixsl:get($event, 'shiftKey')">
                 <xsl:call-template name="local:insert-at-caret">
-                    <xsl:with-param name="node" select="ixsl:call(ixsl:page(), 'createElement', [ 'br' ])"/>
+                    <xsl:with-param name="node" select="local:element('br')"/>
                     <xsl:with-param name="range" select="$range"/>
                 </xsl:call-template>
             </xsl:when>
@@ -423,8 +442,8 @@ version="3.0">
     <xsl:template name="local:insert-empty-paragraph">
         <xsl:param name="after" as="element()?"/>
 
-        <xsl:variable name="p" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'p' ])"/>
-        <xsl:sequence select="ixsl:call($p, 'appendChild', [ ixsl:call(ixsl:page(), 'createElement', [ 'br' ]) ])[current-date() lt xs:date('2000-01-01')]"/>
+        <xsl:variable name="p" as="element()" select="local:element('p')"/>
+        <xsl:sequence select="ixsl:call($p, 'appendChild', [ local:element('br') ])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:choose>
             <xsl:when test="exists($after)">
                 <xsl:sequence select="ixsl:call($after, 'after', [ $p ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -439,13 +458,10 @@ version="3.0">
         <xsl:call-template name="local:inject-chrome">
             <xsl:with-param name="block" select="$p"/>
         </xsl:call-template>
-        <xsl:call-template name="local:focus">
-            <xsl:with-param name="element" select="$p"/>
-        </xsl:call-template>
-        <xsl:call-template name="local:place-caret">
-            <xsl:with-param name="node" select="$p"/>
-            <xsl:with-param name="offset" select="local:chrome-count($p)"/>
-        </xsl:call-template>
+        <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="$p"/>
+    <xsl:with-param name="offset" select="local:chrome-count($p)"/>
+</xsl:call-template>
     </xsl:template>
 
     <xsl:template name="local:insert-at-caret">
@@ -483,13 +499,10 @@ version="3.0">
         <xsl:call-template name="local:ensure-placeholder">
             <xsl:with-param name="host" select="$new"/>
         </xsl:call-template>
-        <xsl:call-template name="local:focus">
-            <xsl:with-param name="element" select="$new"/>
-        </xsl:call-template>
-        <xsl:call-template name="local:place-caret">
-            <xsl:with-param name="node" select="$new"/>
-            <xsl:with-param name="offset" select="local:chrome-count($new)"/>
-        </xsl:call-template>
+        <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="$new"/>
+    <xsl:with-param name="offset" select="local:chrome-count($new)"/>
+</xsl:call-template>
     </xsl:template>
 
     <xsl:template name="local:handle-backspace">
@@ -538,13 +551,10 @@ version="3.0">
                             <xsl:variable name="prev-host" as="element()?"
                                 select="($prev/li[last()], $prev/figcaption, $prev)[@contenteditable = 'true'][1]"/>
                             <xsl:for-each select="$prev-host">
-                                <xsl:call-template name="local:focus">
-                                    <xsl:with-param name="element" select="."/>
-                                </xsl:call-template>
-                                <xsl:call-template name="local:place-caret">
-                                    <xsl:with-param name="node" select="."/>
-                                    <xsl:with-param name="offset" select="xs:integer(ixsl:get(., 'childNodes.length'))"/>
-                                </xsl:call-template>
+                                <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="."/>
+    <xsl:with-param name="offset" select="xs:integer(ixsl:get(., 'childNodes.length'))"/>
+</xsl:call-template>
                             </xsl:for-each>
                             <xsl:call-template name="local:after-mutation"/>
                         </xsl:when>
@@ -570,13 +580,10 @@ version="3.0">
         </xsl:for-each>
         <xsl:sequence select="ixsl:call($host, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
         <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
-        <xsl:call-template name="local:focus">
-            <xsl:with-param name="element" select="$prev"/>
-        </xsl:call-template>
-        <xsl:call-template name="local:place-caret">
-            <xsl:with-param name="node" select="$prev"/>
-            <xsl:with-param name="offset" select="$index"/>
-        </xsl:call-template>
+        <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="$prev"/>
+    <xsl:with-param name="offset" select="$index"/>
+</xsl:call-template>
     </xsl:template>
 
     <!-- ................................ paste / focus ................................ -->
@@ -616,9 +623,9 @@ version="3.0">
 
         <xsl:variable name="text" as="xs:string"
             select="if ($host/self::pre) then $raw else normalize-space($raw)"/>
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:if test="$text ne '' and ixsl:get($selection, 'rangeCount') ge 1">
-            <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+            <xsl:variable name="range" select="local:caret-range()"/>
             <xsl:call-template name="local:push-undo">
                 <xsl:with-param name="host" select="$host"/>
             </xsl:call-template>
@@ -640,14 +647,14 @@ version="3.0">
         <xsl:param name="host" as="element()"/>
         <xsl:param name="html" as="xs:string"/>
 
-        <xsl:variable name="carrier" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
+        <xsl:variable name="carrier" as="element()" select="local:element('div')"/>
         <ixsl:set-property name="innerHTML" select="$html" object="$carrier"/>
         <xsl:variable name="clean">
             <xsl:apply-templates select="$carrier/node()" mode="canonical"/>
         </xsl:variable>
         <xsl:variable name="has-blocks" as="xs:boolean"
             select="exists($clean/*[local-name() = $local:block-names])"/>
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
 
         <xsl:choose>
             <xsl:when test="empty($clean/node()) or ixsl:get($selection, 'rangeCount') lt 1"/>
@@ -676,7 +683,7 @@ version="3.0">
                         </xsl:choose>
                     </xsl:for-each-group>
                 </xsl:variable>
-                <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                <xsl:variable name="range" select="local:caret-range()"/>
                 <xsl:call-template name="local:push-undo">
                     <xsl:with-param name="host" select="$host"/>
                 </xsl:call-template>
@@ -688,7 +695,7 @@ version="3.0">
                     <xsl:with-param name="host" select="$host"/>
                     <xsl:with-param name="range" select="$range"/>
                 </xsl:call-template>
-                <xsl:variable name="stage" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
+                <xsl:variable name="stage" as="element()" select="local:element('div')"/>
                 <ixsl:set-property name="innerHTML" select="serialize($blocks, map{ 'method': 'xml' })" object="$stage"/>
                 <xsl:variable name="count" as="xs:integer" select="xs:integer(ixsl:get($stage, 'childNodes.length'))"/>
                 <xsl:iterate select="1 to $count">
@@ -707,24 +714,21 @@ version="3.0">
                 <!-- caret at the end of the last pasted block's last editable host -->
                 <xsl:variable name="last" as="element()?" select="$host/following-sibling::*[$count]"/>
                 <xsl:for-each select="($last/descendant-or-self::*[@contenteditable = 'true'])[last()]">
-                    <xsl:call-template name="local:focus">
-                        <xsl:with-param name="element" select="."/>
-                    </xsl:call-template>
-                    <xsl:call-template name="local:place-caret">
-                        <xsl:with-param name="node" select="."/>
-                        <xsl:with-param name="offset" select="count(node()) - count(node()[last()][self::br])"/>
-                    </xsl:call-template>
+                    <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="."/>
+    <xsl:with-param name="offset" select="count(node()) - count(node()[last()][self::br])"/>
+</xsl:call-template>
                 </xsl:for-each>
                 <xsl:call-template name="local:after-mutation"/>
             </xsl:when>
             <!-- inline-only fragment: insert at the caret -->
             <xsl:otherwise>
-                <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                <xsl:variable name="range" select="local:caret-range()"/>
                 <xsl:call-template name="local:push-undo">
                     <xsl:with-param name="host" select="$host"/>
                 </xsl:call-template>
                 <xsl:sequence select="ixsl:call($range, 'deleteContents', [])[current-date() lt xs:date('2000-01-01')]"/>
-                <xsl:variable name="stage" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
+                <xsl:variable name="stage" as="element()" select="local:element('div')"/>
                 <ixsl:set-property name="innerHTML" select="serialize($clean/node(), map{ 'method': 'xml' })" object="$stage"/>
                 <xsl:variable name="last" select="ixsl:get($stage, 'lastChild')"/>
                 <xsl:variable name="fragment" select="ixsl:call(ixsl:page(), 'createDocumentFragment', [])"/>
@@ -775,7 +779,7 @@ version="3.0">
         <xsl:param name="name" as="xs:string"/>
 
         <xsl:call-template name="local:push-undo"/>
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
             then ixsl:get($selection, 'anchorNode')[local:block-of(.) is $block] else ()"/>
         <xsl:variable name="caret-offset" as="xs:integer"
@@ -814,9 +818,9 @@ version="3.0">
     <!-- inline formatting toggles reuse the annotation wrap/unwrap machinery -->
     <xsl:template match="button[contains-token(@class, 'format-inline')]" mode="ixsl:onclick">
         <xsl:variable name="name" as="xs:string" select="string(@data-element)"/>
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
-            <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+            <xsl:variable name="range" select="local:caret-range()"/>
             <xsl:variable name="anchor" select="ixsl:get($selection, 'anchorNode')"/>
             <xsl:for-each select="local:host-of($anchor)[exists(local:block-of(.))]">
                 <xsl:variable name="existing" as="element()?"
@@ -865,7 +869,7 @@ version="3.0">
     <xsl:template match="button[contains-token(@class, 'insert-list')]" mode="ixsl:onclick">
         <xsl:call-template name="local:push-undo"/>
         <xsl:variable name="list" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ string(@data-list) ])"/>
-        <xsl:variable name="li" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'li' ])"/>
+        <xsl:variable name="li" as="element()" select="local:element('li')"/>
         <ixsl:set-attribute name="contenteditable" select="'true'" object="$li"/>
         <xsl:sequence select="ixsl:call($list, 'appendChild', [ $li ])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:choose>
@@ -881,13 +885,10 @@ version="3.0">
         <xsl:call-template name="local:inject-chrome">
             <xsl:with-param name="block" select="$list"/>
         </xsl:call-template>
-        <xsl:call-template name="local:focus">
-            <xsl:with-param name="element" select="$li"/>
-        </xsl:call-template>
-        <xsl:call-template name="local:place-caret">
-            <xsl:with-param name="node" select="$li"/>
-            <xsl:with-param name="offset" select="0"/>
-        </xsl:call-template>
+        <xsl:call-template name="local:focus-caret">
+    <xsl:with-param name="node" select="$li"/>
+    <xsl:with-param name="offset" select="0"/>
+</xsl:call-template>
         <xsl:call-template name="local:after-mutation"/>
     </xsl:template>
 
@@ -914,9 +915,9 @@ version="3.0">
 
     <xsl:template match="button[contains-token(@class, 'format-link')]" mode="ixsl:onclick">
         <xsl:variable name="event" select="ixsl:event()"/>
-        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:variable name="selection" select="local:selection()"/>
         <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
-            <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+            <xsl:variable name="range" select="local:caret-range()"/>
             <xsl:variable name="anchor" select="ixsl:get($selection, 'anchorNode')"/>
             <xsl:for-each select="local:host-of($anchor)[exists(local:block-of(.))]">
                 <xsl:variable name="link" as="element()?"
@@ -1099,11 +1100,11 @@ version="3.0">
         <xsl:variable name="src" as="xs:string" select="string(ixsl:get(($dialog//input[@name = 'src'])[1], 'value'))"/>
         <xsl:if test="$src ne ''">
             <xsl:call-template name="local:push-undo"/>
-            <xsl:variable name="figure" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'figure' ])"/>
-            <xsl:variable name="img" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'img' ])"/>
+            <xsl:variable name="figure" as="element()" select="local:element('figure')"/>
+            <xsl:variable name="img" as="element()" select="local:element('img')"/>
             <ixsl:set-attribute name="src" select="$src" object="$img"/>
             <ixsl:set-attribute name="alt" select="string(ixsl:get(($dialog//input[@name = 'alt'])[1], 'value'))" object="$img"/>
-            <xsl:variable name="figcaption" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'figcaption' ])"/>
+            <xsl:variable name="figcaption" as="element()" select="local:element('figcaption')"/>
             <ixsl:set-property name="textContent" select="string(ixsl:get(($dialog//input[@name = 'caption'])[1], 'value'))" object="$figcaption"/>
             <ixsl:set-attribute name="contenteditable" select="'true'" object="$figcaption"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $img ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -1269,7 +1270,8 @@ version="3.0">
     </xsl:function>
 
     <xsl:template name="local:clear-drop-marks">
-        <xsl:for-each select="local:roots()/*[contains-token(@class, 'drop-before')
+        <xsl:param name="scope" as="element()*" select="local:roots()/*"/>
+        <xsl:for-each select="$scope[contains-token(@class, 'drop-before')
                 or contains-token(@class, 'drop-after')]">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-before' ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-after' ])[current-date() lt xs:date('2000-01-01')]"/>
