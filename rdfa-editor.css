@@ -210,6 +210,24 @@
                 font-size: 14px;
                 color: #555;
                 margin: 0 0 8px 0;
+                padding-right: 20px;
+            }
+
+#toc-drawer .toc-close {
+                position: absolute;
+                right: 8px;
+                top: 6px;
+                background: none;
+                border: none;
+                padding: 0 4px;
+                font-size: 22px;
+                line-height: 1;
+                color: #999;
+                cursor: pointer;
+            }
+
+#toc-drawer .toc-close:hover {
+                color: #333;
             }
 
 #toc-drawer ul {
@@ -563,9 +581,10 @@
                 overflow-x: auto;
             }
 
-/* links in content follow the editor convention: caret on click, Ctrl/Cmd+Click opens */
+/* links are editable text: a plain click places the caret (I-beam, not a pointer that
+   would falsely promise navigation); Ctrl/Cmd+Click opens the href */
 .rdfa-editor-content a[href] {
-    cursor: pointer;
+    cursor: text;
 }
 
 /* the annotated selection stays visible while the overlay form has focus */

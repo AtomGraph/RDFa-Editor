@@ -95,14 +95,14 @@ results.sourceActiveRegion = {
 };
 await page.click('#output-modal .modal-close');
 
-// ---- links: pointer cursor, Ctrl+Click opens, plain click edits ----
+// ---- links: text cursor (editable text), Ctrl+Click opens, plain click edits ----
 await page.evaluate(() => {
     window.openedUrls = [];
     window.open = (url, target) => { window.openedUrls.push({ url, target }); return null; };
 });
 results.links = await page.evaluate(() => {
     const a = document.querySelector('#content a[href]');
-    return { pointer: getComputedStyle(a).cursor === 'pointer' };
+    return { textCursor: getComputedStyle(a).cursor === 'text' };
 });
 await page.click('#content a[href]', { modifiers: ['ControlOrMeta'] });
 results.links.ctrlClickOpens = await page.evaluate(() =>

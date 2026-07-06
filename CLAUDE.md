@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Blocks never move between regions (drop-target resolution is scoped to the dragged block's region). ToC and view-source follow the active region (`tocRoot` remembered at render); lint and find work across all regions.
 - **Window properties are prefixed** `rdfaEditor*` (e.g. `rdfaEditorRange`, `rdfaEditorActiveBlock`); editor UI containers carry the `rdfa-editor-ui` class and all generic CSS selectors (`.btn-*`, `.modal-*`, `.crumb`, …) are scoped under it — LDH/Bootstrap pages stay unaffected.
 - The extractor entry is a **named template only** (`-it:extract-rdfa`; no unnamed-mode `match="/"`) so it composes with host stylesheets' root templates. Integration with LinkedDataHub's client.xsl is compile-proven (see ldh/MIGRATION.md §10).
-- Links in content: plain click places the caret; Ctrl/Cmd+Click opens the href. The annotation overlay paints the stored selection as `.rdfa-editor-selection-hint` boxes (no content mutation), cleared on hide.
+- Links in content: plain click places the caret (links render with a text I-beam, not a pointer, so the affordance matches — they are editable text); Ctrl/Cmd+Click opens the href. The annotation overlay paints the stored selection as `.rdfa-editor-selection-hint` boxes (no content mutation), cleared on hide.
 
 ## Overview
 
