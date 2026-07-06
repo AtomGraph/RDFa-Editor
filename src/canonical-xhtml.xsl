@@ -33,6 +33,24 @@ version="3.0">
     <!-- C1: everything carrying @data-role is ephemeral (chrome, rendering) -->
     <xsl:template match="*[@data-role]" mode="canonical" priority="2"/>
 
+    <!-- S1: active/embedding elements never survive into stored content (the
+         canonical form is the sanitization boundary for multi-user content) -->
+    <xsl:template match="script | style | iframe | object | embed | applet
+        | form | input | button | select | textarea | link | meta | base" mode="canonical" priority="3"/>
+
+    <!-- S1b: comments and processing instructions are noise (Word/HTML paste junk) -->
+    <xsl:template match="comment() | processing-instruction()" mode="canonical"/>
+
+    <!-- S2: event-handler attributes are always stripped -->
+    <xsl:template match="@*[matches(local-name(), '^on', 'i')]" mode="canonical"/>
+
+    <!-- S3: scripting/data URL schemes are dropped from link and media targets
+         (the attribute, not the element); data:image/* remains valid in @src -->
+    <xsl:template match="@href[matches(normalize-space(.), '^(javascript|vbscript|data):', 'i')]
+        | @src[matches(normalize-space(.), '^(javascript|vbscript):', 'i')]
+        | @src[matches(normalize-space(.), '^data:', 'i')][not(matches(normalize-space(.), '^data:image/', 'i'))]"
+        mode="canonical"/>
+
     <!-- C2: editing-state and styling-hook attributes never serialize -->
     <xsl:template match="@contenteditable | @draggable | @class | @id | @style
         | @*[starts-with(name(), 'aria-')] | @*[starts-with(name(), 'data-')]" mode="canonical"/>

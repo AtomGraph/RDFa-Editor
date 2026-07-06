@@ -41,17 +41,46 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <!-- append a snapshot entry, enforcing the depth cap -->
+    <!-- append a snapshot entry, enforcing the depth cap. The caret position of the
+         state being snapshotted rides along as data attributes (the stash lives
+         outside #content, so data attributes are fine here) -->
     <xsl:template name="local:stash-push">
         <xsl:param name="stack" as="element()"/>
         <xsl:param name="snapshot" as="xs:string"/>
 
         <xsl:variable name="entry" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
         <ixsl:set-property name="textContent" select="$snapshot" object="$entry"/>
+        <xsl:call-template name="local:capture-caret">
+            <xsl:with-param name="entry" select="$entry"/>
+        </xsl:call-template>
         <xsl:sequence select="ixsl:call($stack, 'appendChild', [ $entry ])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:for-each select="($stack/div)[position() le count($stack/div) - $local:max-undo]">
             <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
+    </xsl:template>
+
+    <!-- caret as (block index, chrome-free text-node index, character offset);
+         captured only when the selection anchors a text node inside content -->
+    <xsl:template name="local:capture-caret">
+        <xsl:param name="entry" as="element()"/>
+
+        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
+            <xsl:variable name="anchor" select="ixsl:get($selection, 'anchorNode')"/>
+            <xsl:if test="ixsl:get($anchor, 'nodeType') = 3">
+                <xsl:for-each select="local:block-of($anchor)">
+                    <xsl:variable name="texts" select=".//text()[not(ancestor::*[@data-role])]"/>
+                    <xsl:if test="exists($texts[. is $anchor])">
+                        <ixsl:set-attribute name="data-block"
+                            select="string(count(preceding-sibling::*) + 1)" object="$entry"/>
+                        <ixsl:set-attribute name="data-node"
+                            select="string(count($texts[. &lt;&lt; $anchor]) + 1)" object="$entry"/>
+                        <ixsl:set-attribute name="data-offset"
+                            select="string(ixsl:get($selection, 'anchorOffset'))" object="$entry"/>
+                    </xsl:if>
+                </xsl:for-each>
+            </xsl:if>
+        </xsl:if>
     </xsl:template>
 
     <!-- record the pre-mutation state; call FIRST in every mutating handler.
@@ -83,9 +112,11 @@ version="3.0">
                 <xsl:with-param name="snapshot" select="string(ixsl:get(local:content(), 'innerHTML'))"/>
             </xsl:call-template>
             <xsl:variable name="snapshot" as="xs:string" select="string(.)"/>
+            <xsl:variable name="caret" as="xs:integer*" select="(@data-block, @data-node, @data-offset) ! xs:integer(.)"/>
             <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:restore-snapshot">
                 <xsl:with-param name="snapshot" select="$snapshot"/>
+                <xsl:with-param name="caret" select="$caret"/>
             </xsl:call-template>
         </xsl:for-each>
     </xsl:template>
@@ -99,15 +130,18 @@ version="3.0">
                 <xsl:with-param name="snapshot" select="string(ixsl:get(local:content(), 'innerHTML'))"/>
             </xsl:call-template>
             <xsl:variable name="snapshot" as="xs:string" select="string(.)"/>
+            <xsl:variable name="caret" as="xs:integer*" select="(@data-block, @data-node, @data-offset) ! xs:integer(.)"/>
             <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:restore-snapshot">
                 <xsl:with-param name="snapshot" select="$snapshot"/>
+                <xsl:with-param name="caret" select="$caret"/>
             </xsl:call-template>
         </xsl:for-each>
     </xsl:template>
 
     <xsl:template name="local:restore-snapshot">
         <xsl:param name="snapshot" as="xs:string"/>
+        <xsl:param name="caret" as="xs:integer*" select="()"/>
 
         <xsl:for-each select="local:content()">
             <ixsl:set-property name="innerHTML" select="$snapshot" object="."/>
@@ -127,15 +161,35 @@ version="3.0">
             <ixsl:remove-attribute name="draggable"/>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
-        <xsl:for-each select="(local:content()/descendant-or-self::*[@contenteditable = 'true'])[1]">
-            <xsl:call-template name="local:focus">
-                <xsl:with-param name="element" select="."/>
-            </xsl:call-template>
-            <xsl:call-template name="local:place-caret">
-                <xsl:with-param name="node" select="."/>
-                <xsl:with-param name="offset" select="local:chrome-count(.)"/>
-            </xsl:call-template>
-        </xsl:for-each>
+        <!-- the caret stored with a snapshot is the caret of that state: restore it -->
+        <xsl:variable name="block-index" as="xs:integer?" select="$caret[1]"/>
+        <xsl:variable name="node-index" as="xs:integer?" select="$caret[2]"/>
+        <xsl:variable name="target" as="text()?"
+            select="((local:content()/*)[$block-index]//text()[not(ancestor::*[@data-role])])[$node-index]"/>
+        <xsl:choose>
+            <xsl:when test="exists($target)">
+                <xsl:for-each select="local:host-of($target)">
+                    <xsl:call-template name="local:focus">
+                        <xsl:with-param name="element" select="."/>
+                    </xsl:call-template>
+                </xsl:for-each>
+                <xsl:call-template name="local:place-caret">
+                    <xsl:with-param name="node" select="$target"/>
+                    <xsl:with-param name="offset" select="min(($caret[3], string-length($target)))"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:for-each select="(local:content()/descendant-or-self::*[@contenteditable = 'true'])[1]">
+                    <xsl:call-template name="local:focus">
+                        <xsl:with-param name="element" select="."/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:place-caret">
+                        <xsl:with-param name="node" select="."/>
+                        <xsl:with-param name="offset" select="local:chrome-count(.)"/>
+                    </xsl:call-template>
+                </xsl:for-each>
+            </xsl:otherwise>
+        </xsl:choose>
         <xsl:call-template name="local:after-mutation"/>
     </xsl:template>
 

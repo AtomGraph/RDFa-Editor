@@ -1,0 +1,3 @@
+unsafe-attribute b1.1 event-handler attribute @onclick will be stripped from the canonical document
+unsafe-url b1.2.1 @href uses an unsafe URL scheme and will be stripped from the canonical document
+unsafe-url b1.2.3 @src uses an unsafe URL scheme and will be stripped from the canonical document

@@ -23,15 +23,16 @@ version="3.0">
     <xsl:template name="local:init-navigate">
         <xsl:for-each select="ixsl:page()//body">
             <xsl:result-document href="?." method="ixsl:append-content">
-                <aside id="toc-drawer" style="display: none;">
+                <aside id="toc-drawer" role="navigation" aria-label="Table of contents" style="display: none;">
                     <h2>Contents</h2>
                     <div id="toc-list"/>
                 </aside>
-                <footer id="breadcrumb">
+                <footer id="breadcrumb" role="navigation" aria-label="Document position">
                     <div id="breadcrumb-path"/>
                     <div id="breadcrumb-meta">
                         <span id="breadcrumb-subject"/>
-                        <span id="lint-badge" class="lint-badge" style="display: none;"/>
+                        <button type="button" id="lint-badge" class="lint-badge"
+                            aria-label="RDFa validation issues" style="display: none;"/>
                     </div>
                 </footer>
                 <xsl:call-template name="local:render-find-dialog"/>
@@ -326,7 +327,7 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <xsl:template match="span[@id = 'lint-badge']" mode="ixsl:onclick">
+    <xsl:template match="button[@id = 'lint-badge']" mode="ixsl:onclick">
         <xsl:variable name="lines" as="xs:string*"
             select="local:content() ! lint:lintable(.) ! lint:element-issues(.)
                 ! (string(@code) || ' &#x2014; ' || normalize-space(string(.)))"/>
@@ -378,7 +379,8 @@ version="3.0">
     </xsl:function>
 
     <xsl:template name="local:render-find-dialog">
-        <div id="find-dialog" class="edit-dialog" style="display: none;">
+        <div id="find-dialog" class="edit-dialog" role="dialog" aria-modal="true"
+                aria-label="Find and replace" style="display: none;">
             <label>Find</label>
             <input type="text" name="find"/>
             <label>Replace with</label>

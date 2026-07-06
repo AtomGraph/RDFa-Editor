@@ -34,7 +34,7 @@ version="3.0">
         <xsl:variable name="vocab-uris" as="xs:string*"
             select="$vocab-hrefs ! string(resolve-uri(., ixsl:location()))"/>
 
-        <div id="overlay" style="display: none;">
+        <div id="overlay" role="dialog" aria-modal="true" aria-label="RDFa annotation" style="display: none;">
             <div class="overlay-header">
                 <h3>RDFa Annotation</h3>
             </div>
@@ -245,6 +245,19 @@ version="3.0">
         </xsl:for-each>
         <ixsl:set-property name="editingSpan" select="()" object="ixsl:window()"/>
         <ixsl:set-property name="range" select="()" object="ixsl:window()"/>
+        <!-- return focus to the content -->
+        <xsl:for-each select="ixsl:get(ixsl:window(), 'activeBlock')[exists(local:block-of(.))]">
+            <xsl:call-template name="local:focus">
+                <xsl:with-param name="element" select="."/>
+            </xsl:call-template>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match="div[@id = 'overlay']" mode="ixsl:onkeydown">
+        <xsl:if test="string(ixsl:get(ixsl:event(), 'key')) = 'Escape'">
+            <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:hide-overlay"/>
+        </xsl:if>
     </xsl:template>
 
     <!-- a subject override is reflected in the statement's S row -->

@@ -168,8 +168,8 @@ version="3.0">
     </xsl:template>
 
     <xsl:template name="local:render-toolbar">
-        <div id="edit-toolbar">
-            <select name="block-type" title="Block type">
+        <div id="edit-toolbar" role="toolbar" aria-label="Editing toolbar">
+            <select name="block-type" title="Block type" aria-label="Block type">
                 <option value="p">Paragraph</option>
                 <option value="h1">Heading 1</option>
                 <option value="h2">Heading 2</option>
@@ -177,17 +177,17 @@ version="3.0">
                 <option value="blockquote">Quote</option>
                 <option value="pre">Preformatted</option>
             </select>
-            <button type="button" class="format-inline" data-element="strong" title="Bold"><strong>B</strong></button>
-            <button type="button" class="format-inline" data-element="em" title="Italic"><em>I</em></button>
-            <button type="button" class="format-link" title="Link">&#x1F517;</button>
-            <button type="button" class="insert-block" title="Add paragraph">+ &#xB6;</button>
-            <button type="button" class="insert-list" data-list="ul" title="Bulleted list">&#x2022; List</button>
-            <button type="button" class="insert-list" data-list="ol" title="Numbered list">1. List</button>
-            <button type="button" class="insert-figure" title="Insert figure">&#x1F5BC;</button>
-            <button type="button" class="delete-block" title="Delete block">&#x2715;</button>
-            <button type="button" id="toc-toggle" title="Table of contents">&#x2630;</button>
-            <button type="button" id="find-open" title="Find and replace">&#x1F50D;</button>
-            <button type="button" id="view-source" title="Canonical XHTML+RDFa">Source</button>
+            <button type="button" class="format-inline" data-element="strong" title="Bold" aria-label="Bold"><strong>B</strong></button>
+            <button type="button" class="format-inline" data-element="em" title="Italic" aria-label="Italic"><em>I</em></button>
+            <button type="button" class="format-link" title="Link" aria-label="Link">&#x1F517;</button>
+            <button type="button" class="insert-block" title="Add paragraph" aria-label="Add paragraph">+ &#xB6;</button>
+            <button type="button" class="insert-list" data-list="ul" title="Bulleted list" aria-label="Bulleted list">&#x2022; List</button>
+            <button type="button" class="insert-list" data-list="ol" title="Numbered list" aria-label="Numbered list">1. List</button>
+            <button type="button" class="insert-figure" title="Insert figure" aria-label="Insert figure">&#x1F5BC;</button>
+            <button type="button" class="delete-block" title="Delete block" aria-label="Delete block">&#x2715;</button>
+            <button type="button" id="toc-toggle" title="Table of contents" aria-label="Table of contents">&#x2630;</button>
+            <button type="button" id="find-open" title="Find and replace" aria-label="Find and replace">&#x1F50D;</button>
+            <button type="button" id="view-source" title="Canonical XHTML+RDFa" aria-label="View canonical source">Source</button>
         </div>
     </xsl:template>
 
@@ -212,10 +212,43 @@ version="3.0">
                 </xsl:when>
                 <!-- other ctrl/meta chords stay native (copy, paste, browser find) -->
                 <xsl:when test="ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey')"/>
+                <!-- Escape closes the annotation overlay / dialogs even while focus
+                     remains in the content (their own keydown templates only fire
+                     when focus is inside them) -->
+                <xsl:when test="$key = 'Escape'">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:hide-overlay"/>
+                    <xsl:call-template name="local:hide-dialogs"/>
+                </xsl:when>
+                <!-- Alt+Arrow moves the current block (keyboard alternative to drag-and-drop) -->
+                <xsl:when test="ixsl:get($event, 'altKey') and $key = ('ArrowUp', 'ArrowDown')">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:variable name="host" as="element()" select="."/>
+                    <xsl:variable name="block" as="element()?" select="local:block-of(.)"/>
+                    <xsl:choose>
+                        <xsl:when test="$key = 'ArrowUp'">
+                            <xsl:for-each select="$block/preceding-sibling::*[1]">
+                                <xsl:call-template name="local:push-undo"/>
+                                <xsl:sequence select="ixsl:call(., 'before', [ $block ])[current-date() lt xs:date('2000-01-01')]"/>
+                            </xsl:for-each>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:for-each select="$block/following-sibling::*[1]">
+                                <xsl:call-template name="local:push-undo"/>
+                                <xsl:sequence select="ixsl:call(., 'after', [ $block ])[current-date() lt xs:date('2000-01-01')]"/>
+                            </xsl:for-each>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    <!-- moving the focused block blurs it -->
+                    <xsl:call-template name="local:focus">
+                        <xsl:with-param name="element" select="$host"/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
                 <!-- arrow keys cross block boundaries: each block is its own
                      contenteditable island, so the browser stops at its edges -->
                 <xsl:when test="$key = ('ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft')
-                        and not(ixsl:get($event, 'shiftKey'))">
+                        and not(ixsl:get($event, 'shiftKey')) and not(ixsl:get($event, 'altKey'))">
                     <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
                     <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1 and ixsl:get($selection, 'isCollapsed')">
                         <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
@@ -525,30 +558,166 @@ version="3.0">
 
     <!-- ................................ paste / focus ................................ -->
 
+    <!-- block-level element names after canonicalization (attributeless divs became p) -->
+    <xsl:variable name="local:block-names" as="xs:string*" select="('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'blockquote', 'pre', 'figure', 'table', 'div', 'dl', 'hr', 'section', 'article')"/>
+
     <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:onpaste">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:if test="exists(local:block-of(.))">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:variable name="raw" as="xs:string"
-                select="string(ixsl:call(ixsl:get($event, 'clipboardData'), 'getData', [ 'text/plain' ]))"/>
-            <xsl:variable name="text" as="xs:string"
-                select="if (self::pre) then $raw else normalize-space($raw)"/>
-            <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
-            <xsl:if test="$text ne '' and ixsl:get($selection, 'rangeCount') ge 1">
+            <xsl:variable name="html" as="xs:string"
+                select="string(ixsl:call(ixsl:get($event, 'clipboardData'), 'getData', [ 'text/html' ]))"/>
+            <xsl:choose>
+                <!-- formatted paste through the canonical (sanitizing) pipeline -->
+                <xsl:when test="$html ne '' and not(self::pre)">
+                    <xsl:call-template name="local:paste-html">
+                        <xsl:with-param name="host" select="."/>
+                        <xsl:with-param name="html" select="$html"/>
+                    </xsl:call-template>
+                </xsl:when>
+                <xsl:otherwise>
+                    <xsl:call-template name="local:paste-text">
+                        <xsl:with-param name="host" select="."/>
+                        <xsl:with-param name="raw" select="string(ixsl:call(ixsl:get($event, 'clipboardData'),
+                            'getData', [ 'text/plain' ]))"/>
+                    </xsl:call-template>
+                </xsl:otherwise>
+            </xsl:choose>
+        </xsl:if>
+    </xsl:template>
+
+    <xsl:template name="local:paste-text">
+        <xsl:param name="host" as="element()"/>
+        <xsl:param name="raw" as="xs:string"/>
+
+        <xsl:variable name="text" as="xs:string"
+            select="if ($host/self::pre) then $raw else normalize-space($raw)"/>
+        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+        <xsl:if test="$text ne '' and ixsl:get($selection, 'rangeCount') ge 1">
+            <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+            <xsl:call-template name="local:push-undo">
+                <xsl:with-param name="host" select="$host"/>
+            </xsl:call-template>
+            <xsl:sequence select="ixsl:call($range, 'deleteContents', [])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:variable name="node" select="ixsl:call(ixsl:page(), 'createTextNode', [ $text ])"/>
+            <xsl:sequence select="ixsl:call($range, 'insertNode', [ $node ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:place-caret">
+                <xsl:with-param name="node" select="$node"/>
+                <xsl:with-param name="offset" select="string-length($text)"/>
+            </xsl:call-template>
+            <xsl:call-template name="local:after-mutation"/>
+        </xsl:if>
+    </xsl:template>
+
+    <!-- clipboard HTML: browser-parse it on a DETACHED element (scripts inert),
+         sanitize/normalize via mode="canonical", then insert - inline fragments at
+         the caret, block-level content as new blocks between the split halves -->
+    <xsl:template name="local:paste-html">
+        <xsl:param name="host" as="element()"/>
+        <xsl:param name="html" as="xs:string"/>
+
+        <xsl:variable name="carrier" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
+        <ixsl:set-property name="innerHTML" select="$html" object="$carrier"/>
+        <xsl:variable name="clean">
+            <xsl:apply-templates select="$carrier/node()" mode="canonical"/>
+        </xsl:variable>
+        <xsl:variable name="has-blocks" as="xs:boolean"
+            select="exists($clean/*[local-name() = $local:block-names])"/>
+        <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+
+        <xsl:choose>
+            <xsl:when test="empty($clean/node()) or ixsl:get($selection, 'rangeCount') lt 1"/>
+            <!-- composite hosts cannot contain blocks: flatten to text -->
+            <xsl:when test="$has-blocks and $host[self::li or self::figcaption]">
+                <xsl:call-template name="local:paste-text">
+                    <xsl:with-param name="host" select="$host"/>
+                    <xsl:with-param name="raw" select="string($carrier)"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:when test="$has-blocks">
+                <!-- stray top-level inline runs become paragraphs -->
+                <xsl:variable name="blocks" as="element()*">
+                    <xsl:for-each-group select="$clean/node()"
+                            group-adjacent="boolean(self::*[local-name() = $local:block-names])">
+                        <xsl:choose>
+                            <xsl:when test="current-grouping-key()">
+                                <xsl:sequence select="current-group()"/>
+                            </xsl:when>
+                            <xsl:when test="normalize-space(string-join(current-group() ! string(.)))">
+                                <p>
+                                    <xsl:sequence select="current-group()"/>
+                                </p>
+                            </xsl:when>
+                            <xsl:otherwise/>
+                        </xsl:choose>
+                    </xsl:for-each-group>
+                </xsl:variable>
                 <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
                 <xsl:call-template name="local:push-undo">
-                    <xsl:with-param name="host" select="."/>
+                    <xsl:with-param name="host" select="$host"/>
+                </xsl:call-template>
+                <xsl:if test="not(ixsl:get($range, 'collapsed'))">
+                    <xsl:sequence select="ixsl:call($range, 'deleteContents', [])[current-date() lt xs:date('2000-01-01')]"/>
+                </xsl:if>
+                <!-- split the host, then thread the pasted blocks in after the first half -->
+                <xsl:call-template name="local:split-block">
+                    <xsl:with-param name="host" select="$host"/>
+                    <xsl:with-param name="range" select="$range"/>
+                </xsl:call-template>
+                <xsl:variable name="stage" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
+                <ixsl:set-property name="innerHTML" select="serialize($blocks, map{ 'method': 'xml' })" object="$stage"/>
+                <xsl:variable name="count" as="xs:integer" select="xs:integer(ixsl:get($stage, 'childNodes.length'))"/>
+                <xsl:iterate select="1 to $count">
+                    <xsl:param name="anchor" select="$host"/>
+                    <xsl:variable name="node" select="ixsl:get($stage, 'firstChild')"/>
+                    <xsl:sequence select="ixsl:call($anchor, 'after', [ $node ])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:next-iteration>
+                        <xsl:with-param name="anchor" select="$node"/>
+                    </xsl:next-iteration>
+                </xsl:iterate>
+                <xsl:for-each select="$host/following-sibling::*[position() le $count]">
+                    <xsl:call-template name="local:init-block">
+                        <xsl:with-param name="block" select="."/>
+                    </xsl:call-template>
+                </xsl:for-each>
+                <!-- caret at the end of the last pasted block's last editable host -->
+                <xsl:variable name="last" as="element()?" select="$host/following-sibling::*[$count]"/>
+                <xsl:for-each select="($last/descendant-or-self::*[@contenteditable = 'true'])[last()]">
+                    <xsl:call-template name="local:focus">
+                        <xsl:with-param name="element" select="."/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:place-caret">
+                        <xsl:with-param name="node" select="."/>
+                        <xsl:with-param name="offset" select="count(node()) - count(node()[last()][self::br])"/>
+                    </xsl:call-template>
+                </xsl:for-each>
+                <xsl:call-template name="local:after-mutation"/>
+            </xsl:when>
+            <!-- inline-only fragment: insert at the caret -->
+            <xsl:otherwise>
+                <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                <xsl:call-template name="local:push-undo">
+                    <xsl:with-param name="host" select="$host"/>
                 </xsl:call-template>
                 <xsl:sequence select="ixsl:call($range, 'deleteContents', [])[current-date() lt xs:date('2000-01-01')]"/>
-                <xsl:variable name="node" select="ixsl:call(ixsl:page(), 'createTextNode', [ $text ])"/>
-                <xsl:sequence select="ixsl:call($range, 'insertNode', [ $node ])[current-date() lt xs:date('2000-01-01')]"/>
-                <xsl:call-template name="local:place-caret">
-                    <xsl:with-param name="node" select="$node"/>
-                    <xsl:with-param name="offset" select="string-length($text)"/>
-                </xsl:call-template>
+                <xsl:variable name="stage" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
+                <ixsl:set-property name="innerHTML" select="serialize($clean/node(), map{ 'method': 'xml' })" object="$stage"/>
+                <xsl:variable name="last" select="ixsl:get($stage, 'lastChild')"/>
+                <xsl:variable name="fragment" select="ixsl:call(ixsl:page(), 'createDocumentFragment', [])"/>
+                <xsl:for-each select="1 to xs:integer(ixsl:get($stage, 'childNodes.length'))">
+                    <xsl:sequence select="ixsl:call($fragment, 'appendChild', [ ixsl:get($stage, 'firstChild') ])[current-date() lt xs:date('2000-01-01')]"/>
+                </xsl:for-each>
+                <xsl:sequence select="ixsl:call($range, 'insertNode', [ $fragment ])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:for-each select="$last">
+                    <xsl:call-template name="local:place-caret">
+                        <xsl:with-param name="node" select="ixsl:get(., 'parentNode')"/>
+                        <xsl:with-param name="offset" select="count(preceding-sibling::node()) + 1"/>
+                    </xsl:call-template>
+                </xsl:for-each>
                 <xsl:call-template name="local:after-mutation"/>
-            </xsl:if>
-        </xsl:if>
+            </xsl:otherwise>
+        </xsl:choose>
     </xsl:template>
 
     <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:onfocusin">
@@ -752,7 +921,8 @@ version="3.0">
     </xsl:template>
 
     <xsl:template name="local:render-link-dialog">
-        <div id="link-dialog" class="edit-dialog" style="display: none;">
+        <div id="link-dialog" class="edit-dialog" role="dialog" aria-modal="true"
+                aria-label="Link" style="display: none;">
             <label>Link target (href)</label>
             <input type="text" name="href" placeholder="https://..."/>
             <div class="action-buttons">
@@ -835,6 +1005,13 @@ version="3.0">
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
 
+    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'find-dialog')]" mode="ixsl:onkeydown">
+        <xsl:if test="string(ixsl:get(ixsl:event(), 'key')) = 'Escape'">
+            <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:hide-dialogs"/>
+        </xsl:if>
+    </xsl:template>
+
     <!-- single teardown point for all dialogs -->
     <xsl:template name="local:hide-dialogs">
         <xsl:for-each select="id('link-dialog', ixsl:page()), id('figure-dialog', ixsl:page()),
@@ -846,6 +1023,12 @@ version="3.0">
         <ixsl:set-property name="insertAfterBlock" select="()" object="ixsl:window()"/>
         <ixsl:set-property name="findNode" select="()" object="ixsl:window()"/>
         <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
+        <!-- return focus to the content -->
+        <xsl:for-each select="ixsl:get(ixsl:window(), 'activeBlock')[exists(local:block-of(.))]">
+            <xsl:call-template name="local:focus">
+                <xsl:with-param name="element" select="."/>
+            </xsl:call-template>
+        </xsl:for-each>
     </xsl:template>
 
     <!-- ................................ figure dialog ................................ -->
@@ -867,7 +1050,8 @@ version="3.0">
     </xsl:template>
 
     <xsl:template name="local:render-figure-dialog">
-        <div id="figure-dialog" class="edit-dialog" style="display: none;">
+        <div id="figure-dialog" class="edit-dialog" role="dialog" aria-modal="true"
+                aria-label="Insert figure" style="display: none;">
             <label>Image URL (src)</label>
             <input type="text" name="src" placeholder="https://... or relative path"/>
             <label>Alternate text (alt)</label>

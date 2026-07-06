@@ -1,0 +1,564 @@
+/*
+ * rdfa-editor.css - the RDFa editor's UI contract: annotation overlay, edit
+ * dialogs, toolbar, block chrome and drag-and-drop marks, ToC drawer,
+ * breadcrumb bar, lint markers, RDFa highlighting and the output modal.
+ *
+ * Host page requirements: include this stylesheet and give the editable
+ * container (#content) enough left padding (>= 2.5em) for the block drag
+ * handles, which render in the gutter outside each block's box.
+ */
+
+/* RDFa Visual Styling - Subtle dashed borders */
+            #content *[property] {
+                border: 1px dashed #4caf50;
+                padding: 1px 2px;
+                cursor: pointer;
+                transition: background-color 0.2s, border-color 0.2s;
+            }
+
+#content *[property]:hover {
+                background-color: rgba(76, 175, 80, 0.1);
+                border-color: #2e7d32;
+            }
+
+#content *[typeof] {
+                border: 1px dashed #9c27b0;
+                padding: 1px 2px;
+                cursor: pointer;
+                transition: background-color 0.2s, border-color 0.2s;
+            }
+
+#content *[typeof]:hover {
+                background-color: rgba(156, 39, 176, 0.1);
+                border-color: #7b1fa2;
+            }
+
+#content *[about] {
+                border: 1px dashed #2196f3;
+                padding: 1px 2px;
+                cursor: pointer;
+                transition: background-color 0.2s, border-color 0.2s;
+            }
+
+#content *[about]:hover {
+                background-color: rgba(33, 150, 243, 0.1);
+                border-color: #1976d2;
+            }
+
+#content *[resource] {
+                border: 1px dashed #ff9800;
+                padding: 1px 2px;
+                cursor: pointer;
+                transition: background-color 0.2s, border-color 0.2s;
+            }
+
+#content *[resource]:hover {
+                background-color: rgba(255, 152, 0, 0.1);
+                border-color: #f57c00;
+            }
+
+/* Invalid selection flash animation */
+            @keyframes selection-flash {
+                0% { background-color: transparent; }
+                25% { background-color: rgba(244, 67, 54, 0.4); }
+                50% { background-color: rgba(244, 67, 54, 0.6); }
+                75% { background-color: rgba(244, 67, 54, 0.4); }
+                100% { background-color: transparent; }
+            }
+
+.invalid-selection-flash {
+                animation: selection-flash 0.6s ease-in-out 2;
+            }
+
+#content > * {
+                position: relative;
+            }
+
+/* invisible gutter strip: keeps the block hovered while the pointer
+               travels to the drag handle, which sits outside the block box */
+            #content > *::before {
+                content: '';
+                position: absolute;
+                left: -2.25em;
+                top: 0;
+                bottom: 0;
+                width: 2.25em;
+            }
+
+#content figure {
+                margin: 16px 0;
+            }
+
+#content figure img {
+                display: block;
+                max-width: 400px;
+            }
+
+#content [contenteditable="true"]:focus {
+                outline: 2px solid rgba(33, 150, 243, 0.35);
+                outline-offset: 2px;
+            }
+
+/* Block chrome (drag handle) - ephemeral, data-role stripped on serialization */
+            [data-role="chrome"] {
+                visibility: hidden;
+                position: absolute;
+                top: 2px;
+                left: -1.5em;
+                color: #9e9e9e;
+                font-size: 14px;
+                cursor: grab;
+                user-select: none;
+                border: none;
+            }
+
+#content > *:hover > [data-role="chrome"] {
+                visibility: visible;
+            }
+
+/* Drag-and-drop feedback (v6 conventions) */
+            #content > .dragging {
+                opacity: 0.4;
+            }
+
+#content > .drop-before {
+                box-shadow: 0 -3px 0 0 #2196f3;
+            }
+
+#content > .drop-after {
+                box-shadow: 0 3px 0 0 #2196f3;
+            }
+
+/* Editor toolbar (injected into the navbar) */
+            #edit-toolbar {
+                order: -1;
+                margin-right: auto;
+                display: flex;
+                gap: 6px;
+                align-items: center;
+            }
+
+#edit-toolbar select,
+            #edit-toolbar button {
+                padding: 6px 10px;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                background: white;
+                font-size: 13px;
+                font-family: "Roboto", sans-serif;
+                cursor: pointer;
+            }
+
+#edit-toolbar button:hover {
+                background: #f5f5f5;
+            }
+
+/* Link / figure dialogs */
+            .edit-dialog {
+                background: white;
+                border: 2px solid #2196f3;
+                border-radius: 8px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                padding: 16px;
+                min-width: 320px;
+                z-index: 10000;
+            }
+
+.edit-dialog label {
+                display: block;
+                font-size: 13px;
+                font-weight: 500;
+                color: #424242;
+                margin: 8px 0 4px 0;
+            }
+
+.edit-dialog input[type="text"] {
+                width: 100%;
+                padding: 8px 10px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                font-size: 14px;
+                box-sizing: border-box;
+            }
+
+.edit-dialog .action-buttons {
+                margin-top: 14px;
+            }
+
+/* ToC jumps land below the fixed navbar */
+            #content > * {
+                scroll-margin-top: 76px;
+                scroll-margin-bottom: 48px;
+            }
+
+/* ToC drawer (Fonto-style outline view) */
+            #toc-drawer {
+                position: fixed;
+                top: 64px;
+                left: 0;
+                bottom: 44px;
+                width: 260px;
+                overflow-y: auto;
+                background: white;
+                border-right: 1px solid #e0e0e0;
+                box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+                padding: 12px 16px;
+                z-index: 900;
+            }
+
+#toc-drawer h2 {
+                font-size: 14px;
+                color: #555;
+                margin: 0 0 8px 0;
+            }
+
+#toc-drawer ul {
+                list-style: none;
+                padding-left: 0;
+                margin: 4px 0;
+            }
+
+#toc-drawer ul ul {
+                padding-left: 14px;
+            }
+
+.toc-item {
+                padding: 2px 0;
+            }
+
+.toc-label {
+                cursor: pointer;
+                display: block;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 13px;
+            }
+
+.toc-label:hover {
+                background: #e3f2fd;
+            }
+
+#toc-drawer .drop-before {
+                box-shadow: 0 -3px 0 0 #2196f3;
+            }
+
+#toc-drawer .drop-after {
+                box-shadow: 0 3px 0 0 #2196f3;
+            }
+
+#toc-drawer .dragging {
+                opacity: 0.4;
+            }
+
+/* Breadcrumb bar (Fonto-style element path + RDFa subject) */
+            #breadcrumb {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: white;
+                border-top: 1px solid #e0e0e0;
+                padding: 8px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 13px;
+                z-index: 1000;
+            }
+
+.crumb {
+                cursor: pointer;
+                color: #1976d2;
+            }
+
+.crumb:hover {
+                text-decoration: underline;
+            }
+
+.crumb-sep {
+                color: #9e9e9e;
+                margin: 0 4px;
+            }
+
+#breadcrumb-subject {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                color: #1565c0;
+            }
+
+.lint-badge {
+                border: none;
+                font-family: "Roboto", sans-serif;
+                background: #f44336;
+                color: white;
+                border-radius: 10px;
+                padding: 2px 10px;
+                font-size: 12px;
+                cursor: pointer;
+                margin-left: 12px;
+            }
+
+/* RDFa validation markers (class only - stripped by canonicalization) */
+            #content .rdfa-invalid {
+                text-decoration: underline wavy #f44336;
+                text-decoration-skip-ink: none;
+            }
+
+.edit-dialog .checkbox-label {
+                display: inline-flex;
+                gap: 6px;
+                align-items: center;
+                font-weight: 400;
+                margin-top: 8px;
+            }
+
+/* Modern Overlay Styling */
+            #overlay {
+                background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+                border: 2px solid #2196f3;
+                border-radius: 8px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                font-family: "Roboto", sans-serif;
+                min-width: 450px;
+                max-width: 500px;
+                z-index: 10000;
+            }
+
+.overlay-header {
+                background: linear-gradient(135deg, #2196f3, #1976d2);
+                color: white;
+                padding: 16px 20px;
+                border-radius: 6px 6px 0 0;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+.overlay-header h3 {
+                margin: 0 0 8px 0;
+                font-size: 18px;
+                font-weight: 500;
+            }
+
+#overlay form {
+                padding: 20px;
+            }
+
+/* Statement (S / P / O) framing */
+            .statement {
+                display: grid;
+                grid-template-columns: 26px 1fr;
+                gap: 10px 12px;
+                align-items: center;
+                background: #e3f2fd;
+                border-radius: 6px;
+                padding: 14px 16px;
+                margin-bottom: 16px;
+            }
+
+.stmt-role {
+                font-family: 'Courier New', monospace;
+                font-weight: bold;
+                font-size: 12px;
+                color: white;
+                background: #2196f3;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+#stmt-subject {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                color: #1565c0;
+                word-break: break-all;
+            }
+
+/* Advanced fields disclosure */
+            #overlay details {
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 8px 16px;
+                margin-bottom: 16px;
+                background: white;
+            }
+
+#overlay summary {
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                color: #757575;
+                padding: 4px 0;
+            }
+
+#overlay details fieldset {
+                margin-top: 12px;
+            }
+
+/* Fieldsets */
+            #overlay fieldset {
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 12px 16px;
+                margin-bottom: 16px;
+                background: white;
+            }
+
+#overlay label {
+                display: block;
+                font-weight: 500;
+                color: #424242;
+                margin-bottom: 8px;
+                font-size: 14px;
+            }
+
+#overlay input[type="text"],
+            #overlay select {
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                font-size: 14px;
+                font-family: "Roboto", sans-serif;
+                transition: border-color 0.2s;
+                box-sizing: border-box;
+            }
+
+#overlay input[type="text"]:focus,
+            #overlay select:focus {
+                outline: none;
+                border-color: #2196f3;
+                box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+            }
+
+#overlay input[type="text"]:disabled {
+                background-color: #f5f5f5;
+                color: #999;
+            }
+
+.helper-text {
+                display: block;
+                font-size: 12px;
+                color: #757575;
+                margin-top: 6px;
+                font-style: italic;
+            }
+
+/* Action Buttons */
+            .action-buttons {
+                display: flex;
+                gap: 12px;
+                margin-top: 20px;
+                justify-content: flex-end;
+            }
+
+.btn-primary,
+            .btn-secondary,
+            .btn-danger {
+                padding: 10px 24px;
+                border: none;
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+                font-family: "Roboto", sans-serif;
+            }
+
+.btn-primary {
+                background: #4caf50;
+                color: white;
+            }
+
+.btn-primary:hover {
+                background: #45a049;
+                box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+            }
+
+.btn-secondary {
+                background: #f5f5f5;
+                color: #424242;
+                border: 1px solid #e0e0e0;
+            }
+
+.btn-secondary:hover {
+                background: #e0e0e0;
+            }
+
+.btn-danger {
+                background: #f44336;
+                color: white;
+                margin-right: auto;
+            }
+
+.btn-danger:hover {
+                background: #d32f2f;
+                box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+            }
+
+#overlay input[name="custom-property"],
+            #overlay input[name="custom-type"] {
+                margin-top: 8px;
+            }
+
+/* Modal Dialog */
+            .modal {
+                position: fixed;
+                z-index: 10001;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+.modal-content {
+                background-color: white;
+                padding: 30px;
+                border-radius: 8px;
+                width: 90%;
+                max-width: 900px;
+                max-height: 80vh;
+                overflow-y: auto;
+                position: relative;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            }
+
+.modal-close {
+                position: absolute;
+                right: 20px;
+                top: 15px;
+                font-size: 32px;
+                font-weight: bold;
+                color: #999;
+                cursor: pointer;
+                line-height: 1;
+                transition: color 0.2s;
+            }
+
+.modal-close:hover {
+                color: #333;
+            }
+
+.modal-content h3 {
+                margin-top: 0;
+                color: #333;
+                padding-right: 40px;
+            }
+
+.modal-content pre {
+                margin: 15px 0 0 0;
+                padding: 15px;
+                background-color: #f5f5f5;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                overflow-x: auto;
+            }

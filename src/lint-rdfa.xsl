@@ -93,6 +93,20 @@
                 select="@property"/>' extracts an empty literal</lint:issue>
         </xsl:for-each>
 
+        <!-- unsafe-attribute: event handlers are stripped by canonicalization; flag them early -->
+        <xsl:for-each select="$element/@*[matches(local-name(), '^on', 'i')]">
+            <lint:issue code="unsafe-attribute" path="{lint:path($element)}">event-handler attribute
+                @<xsl:value-of select="name(.)"/> will be stripped from the canonical document</lint:issue>
+        </xsl:for-each>
+
+        <!-- unsafe-url: scripting/data schemes in link and media targets -->
+        <xsl:for-each select="$element/@href[matches(normalize-space(.), '^(javascript|vbscript|data):', 'i')],
+                $element/@src[matches(normalize-space(.), '^(javascript|vbscript):', 'i')],
+                $element/@src[matches(normalize-space(.), '^data:', 'i')][not(matches(normalize-space(.), '^data:image/', 'i'))]">
+            <lint:issue code="unsafe-url" path="{lint:path($element)}">@<xsl:value-of select="name(.)"/>
+                uses an unsafe URL scheme and will be stripped from the canonical document</lint:issue>
+        </xsl:for-each>
+
         <!-- about-relative -->
         <xsl:for-each select="$element/@about[normalize-space(.) ne '']
                 [not(starts-with(normalize-space(.), '#'))]
