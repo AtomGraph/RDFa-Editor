@@ -178,74 +178,63 @@
                 font-weight: 500;
             }
 
-            .selected-text-preview {
-                display: block;
-                font-size: 14px;
-                font-style: italic;
-                opacity: 0.9;
-                margin-top: 4px;
-            }
 
             #overlay form {
                 padding: 20px;
             }
 
-            /* Pattern Selector */
-            .pattern-selector {
-                display: flex;
-                gap: 12px;
-                padding: 12px;
+            /* Statement (S / P / O) framing */
+            .statement {
+                display: grid;
+                grid-template-columns: 26px 1fr;
+                gap: 10px 12px;
+                align-items: center;
                 background: #e3f2fd;
                 border-radius: 6px;
+                padding: 14px 16px;
                 margin-bottom: 16px;
             }
 
-            .pattern-option {
-                flex: 1;
-                text-align: center;
-                cursor: pointer;
-                padding: 8px 12px;
-                border-radius: 4px;
-                background: white;
-                border: 2px solid transparent;
-                transition: all 0.2s;
-            }
-
-            .pattern-option:has(input:checked) {
-                background: #2196f3;
-                color: white;
-                border-color: #1976d2;
-            }
-
-            .pattern-option input[type="radio"] {
-                display: none;
-            }
-
-            .pattern-option span {
-                font-size: 13px;
-                font-weight: 500;
-            }
-
-            /* Inherited Subject Indicator */
-            .inherited-context {
-                background: #e8f5e9;
-                border-left: 4px solid #4caf50;
-                padding: 12px 16px;
-                margin-bottom: 16px;
-                border-radius: 4px;
-                font-size: 13px;
-            }
-
-            .inherited-label {
-                font-weight: 500;
-                color: #2e7d32;
-                margin-bottom: 4px;
-            }
-
-            .inherited-value {
+            .stmt-role {
                 font-family: 'Courier New', monospace;
-                color: #1b5e20;
+                font-weight: bold;
+                font-size: 12px;
+                color: white;
+                background: #2196f3;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            #stmt-subject {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                color: #1565c0;
                 word-break: break-all;
+            }
+
+            /* Advanced fields disclosure */
+            #overlay details {
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                padding: 8px 16px;
+                margin-bottom: 16px;
+                background: white;
+            }
+
+            #overlay summary {
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 500;
+                color: #757575;
+                padding: 4px 0;
+            }
+
+            #overlay details fieldset {
+                margin-top: 12px;
             }
 
             /* Fieldsets */
@@ -295,25 +284,6 @@
                 color: #757575;
                 margin-top: 6px;
                 font-style: italic;
-            }
-
-            /* Value Options */
-            .value-options {
-                display: flex;
-                gap: 16px;
-                margin-bottom: 12px;
-            }
-
-            .value-option {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                font-size: 14px;
-                cursor: pointer;
-            }
-
-            .value-option input[type="radio"] {
-                cursor: pointer;
             }
 
             /* Action Buttons */

@@ -32,15 +32,13 @@ version="3.0">
                 <ixsl:set-property name="editingSpan" select="$annotation" object="ixsl:window()"/>
                 <xsl:call-template name="local:populate-form">
                     <xsl:with-param name="span" select="$annotation"/>
-                </xsl:call-template>
-                <xsl:call-template name="local:update-form-visibility">
-                    <xsl:with-param name="pattern" select="local:span-pattern($annotation)"/>
+                    <xsl:with-param name="value" select="string(($annotation/@content, $annotation)[1])"/>
                 </xsl:call-template>
                 <xsl:call-template name="local:show-overlay">
                     <xsl:with-param name="event" select="$event"/>
-                    <xsl:with-param name="selected-text" select="string($annotation)"/>
                     <xsl:with-param name="in-scope-subject"
-                        select="$annotation/parent::* ! rdfa:in-scope-subject(., local:document-uri())"/>
+                        select="($annotation/@about ! string(.),
+                            $annotation/parent::* ! rdfa:in-scope-subject(., local:document-uri()))[1]"/>
                 </xsl:call-template>
             </xsl:when>
             <!-- create mode -->
@@ -52,13 +50,11 @@ version="3.0">
                         <xsl:when test="local:selection-valid($range)">
                             <ixsl:set-property name="range" select="$range" object="ixsl:window()"/>
                             <ixsl:set-property name="editingSpan" select="()" object="ixsl:window()"/>
-                            <xsl:call-template name="local:populate-form"/>
-                            <xsl:call-template name="local:update-form-visibility">
-                                <xsl:with-param name="pattern" select="'property'"/>
+                            <xsl:call-template name="local:populate-form">
+                                <xsl:with-param name="value" select="string(ixsl:call($selection, 'toString', []))"/>
                             </xsl:call-template>
                             <xsl:call-template name="local:show-overlay">
                                 <xsl:with-param name="event" select="$event"/>
-                                <xsl:with-param name="selected-text" select="string(ixsl:call($selection, 'toString', []))"/>
                                 <xsl:with-param name="in-scope-subject" select="rdfa:in-scope-subject(., local:document-uri())"/>
                             </xsl:call-template>
                         </xsl:when>
@@ -86,30 +82,34 @@ version="3.0">
                 and ixsl:call(ixsl:get($start, 'parentNode'), 'isSameNode', [ ixsl:get($end, 'parentNode') ]))"/>
     </xsl:function>
 
-    <!-- the single write path for RDFa attributes, shared by create and edit -->
+    <!-- the single write path for RDFa attributes, shared by create and edit. No modes:
+         the attributes follow from the filled fields. A value differing from the display
+         text becomes @content - unless @resource is the object (RDFa step 11: @content
+         would take precedence and orphan the resource) -->
     <xsl:template name="local:apply-annotation">
         <xsl:param name="target" as="element()"/>
         <xsl:param name="values" as="map(xs:string, xs:string?)"/>
+        <xsl:param name="reference-text" as="xs:string"/>
 
         <xsl:for-each select="$target">
             <xsl:variable name="element" select="."/>
             <xsl:sequence select="('about', 'typeof', 'property', 'resource', 'content')
                 ! ixsl:call($element, 'removeAttribute', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
 
-            <xsl:if test="$values?pattern = 'advanced' and exists($values?subject)">
+            <xsl:if test="exists($values?subject)">
                 <ixsl:set-attribute name="about" select="$values?subject"/>
             </xsl:if>
-            <xsl:if test="$values?pattern = 'entity' and exists($values?typeof)">
+            <xsl:if test="exists($values?typeof)">
                 <ixsl:set-attribute name="typeof" select="$values?typeof"/>
             </xsl:if>
             <xsl:if test="exists($values?property)">
                 <ixsl:set-attribute name="property" select="$values?property"/>
             </xsl:if>
-            <xsl:if test="$values?pattern = 'advanced' and exists($values?object)">
+            <xsl:if test="exists($values?object)">
                 <ixsl:set-attribute name="resource" select="$values?object"/>
             </xsl:if>
-            <xsl:if test="$values?value-type = 'custom' and exists($values?content)">
-                <ixsl:set-attribute name="content" select="$values?content"/>
+            <xsl:if test="exists($values?value[. ne $reference-text]) and empty($values?object)">
+                <ixsl:set-attribute name="content" select="$values?value"/>
             </xsl:if>
         </xsl:for-each>
     </xsl:template>
@@ -123,17 +123,20 @@ version="3.0">
                 <xsl:call-template name="local:apply-annotation">
                     <xsl:with-param name="target" select="$editing"/>
                     <xsl:with-param name="values" select="$values"/>
+                    <xsl:with-param name="reference-text" select="string($editing)"/>
                 </xsl:call-template>
                 <xsl:call-template name="local:hide-overlay"/>
             </xsl:when>
             <xsl:otherwise>
                 <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'range')"/>
+                <xsl:variable name="reference-text" as="xs:string" select="string(ixsl:call($range, 'toString', []))"/>
                 <xsl:variable name="span" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'span' ])"/>
                 <xsl:try>
                     <xsl:sequence select="ixsl:call($range, 'surroundContents', [ $span ])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:call-template name="local:apply-annotation">
                         <xsl:with-param name="target" select="$span"/>
                         <xsl:with-param name="values" select="$values"/>
+                        <xsl:with-param name="reference-text" select="$reference-text"/>
                     </xsl:call-template>
                     <xsl:call-template name="local:hide-overlay"/>
                     <xsl:catch errors="*">
