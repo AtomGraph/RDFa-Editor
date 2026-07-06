@@ -79,17 +79,15 @@ version="3.0">
     </xsl:function>
 
     <!-- one optgroup per vocabulary; feeds both the typeof and the property selects.
-         Documents arrive from the init promise chain, positionally aligned with $hrefs -->
+         $hrefs are absolute URIs resolved by the caller; in the browser they hit the
+         preloaded document pool, headless they are ordinary file URIs -->
     <xsl:template name="local:vocab-options">
         <xsl:param name="hrefs" as="xs:string*"/>
-        <xsl:param name="docs" as="document-node()*"/>
         <xsl:param name="kind" as="xs:string"/>
 
-        <xsl:for-each select="1 to count($hrefs)">
-            <xsl:variable name="index" as="xs:integer" select="."/>
-            <xsl:variable name="href" as="xs:string" select="$hrefs[$index]"/>
-            <xsl:variable name="vocab" as="document-node()" select="$docs[$index]"/>
-            <optgroup label="{local:ontology-label($vocab, $href)}">
+        <xsl:for-each select="$hrefs">
+            <xsl:variable name="vocab" as="document-node()" select="doc(.)"/>
+            <optgroup label="{local:ontology-label($vocab, .)}">
                 <xsl:for-each select="local:vocab-terms($vocab, $kind)">
                     <xsl:sort select="?label"/>
                     <option value="{?uri}">

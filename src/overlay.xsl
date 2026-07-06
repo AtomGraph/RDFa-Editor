@@ -22,19 +22,17 @@ version="3.0">
 -->
 
     <xsl:template name="local:init-overlay">
-        <xsl:param name="vocab-docs" as="document-node()*"/>
-
         <xsl:for-each select="ixsl:page()//body">
             <xsl:result-document href="?." method="ixsl:append-content">
-                <xsl:call-template name="local:render-overlay">
-                    <xsl:with-param name="vocab-docs" select="$vocab-docs"/>
-                </xsl:call-template>
+                <xsl:call-template name="local:render-overlay"/>
             </xsl:result-document>
         </xsl:for-each>
     </xsl:template>
 
     <xsl:template name="local:render-overlay">
-        <xsl:param name="vocab-docs" as="document-node()*"/>
+        <!-- the host page preloaded these into the document pool under page-relative URIs -->
+        <xsl:variable name="vocab-uris" as="xs:string*"
+            select="$vocab-hrefs ! string(resolve-uri(., ixsl:location()))"/>
 
         <div id="overlay" style="display: none;">
             <div class="overlay-header">
@@ -48,8 +46,7 @@ version="3.0">
                     <div class="stmt-control">
                         <select name="property">
                             <xsl:call-template name="local:vocab-options">
-                                <xsl:with-param name="hrefs" select="$vocab-hrefs"/>
-                                <xsl:with-param name="docs" select="$vocab-docs"/>
+                                <xsl:with-param name="hrefs" select="$vocab-uris"/>
                                 <xsl:with-param name="kind" select="'property'"/>
                             </xsl:call-template>
                             <option value="{$local:custom}">-- Custom property --</option>
@@ -70,8 +67,7 @@ version="3.0">
                         <select name="typeof">
                             <option value="">(none)</option>
                             <xsl:call-template name="local:vocab-options">
-                                <xsl:with-param name="hrefs" select="$vocab-hrefs"/>
-                                <xsl:with-param name="docs" select="$vocab-docs"/>
+                                <xsl:with-param name="hrefs" select="$vocab-uris"/>
                                 <xsl:with-param name="kind" select="'class'"/>
                             </xsl:call-template>
                             <option value="{$local:custom}">-- Custom type --</option>

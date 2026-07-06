@@ -43,6 +43,10 @@ version="3.0">
         <xsl:sequence select="substring-before(ixsl:get(ixsl:window(), 'location.href') || '#', '#')"/>
     </xsl:function>
 
+    <!-- the initial template (SaxonJS.transform initialTemplate in the host page).
+         Everything here is synchronous: the host page preloads the vocabulary
+         documents into the SaxonJS document pool (SaxonJS.getResource +
+         documentPool), keyed by page-relative URI -->
     <xsl:template name="main">
         <xsl:for-each select="('editingSpan', 'range', 'activeBlock', 'draggedBlock',
                 'editRange', 'editingLink', 'insertAfterBlock', 'lastUndoHost',
@@ -51,18 +55,9 @@ version="3.0">
         </xsl:for-each>
         <ixsl:set-property name="lastUndoTime" select="0" object="ixsl:window()"/>
         <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
-        <xsl:call-template name="local:init"/>
-    </xsl:template>
 
-    <!-- the host page preloads the vocabulary documents into the SaxonJS document
-         pool (SaxonJS.getResource + documentPool), keyed by page-relative URI -->
-    <xsl:template name="local:init">
-        <xsl:variable name="vocab-docs" as="document-node()*"
-            select="$vocab-hrefs ! doc(resolve-uri(., ixsl:location()))"/>
         <xsl:call-template name="local:init-undo"/>
-        <xsl:call-template name="local:init-overlay">
-            <xsl:with-param name="vocab-docs" select="$vocab-docs"/>
-        </xsl:call-template>
+        <xsl:call-template name="local:init-overlay"/>
         <xsl:call-template name="local:init-editing"/>
         <xsl:call-template name="local:init-navigate"/>
     </xsl:template>
