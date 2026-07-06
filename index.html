@@ -8,12 +8,24 @@
 		  <script type="text/javascript" src="lib/SaxonJS3.js"></script>
 		  <script type="text/javascript">
 				window.onload = function() {
-					   SaxonJS.transform({
-						  stylesheetLocation: "dist/index.xsl.sef.json",
-						  initialTemplate: "main",
-						  logLevel: 10
-					   }, "async");
-					}
+					// preload the vocabulary documents into the SaxonJS document pool,
+					// so doc() resolves them synchronously during initialization
+					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+					Promise.all(vocabs.map(href =>
+							SaxonJS.getResource({ location: href, type: "xml" })))
+						.then(resources => {
+							const pool = {};
+							vocabs.forEach((href, i) =>
+								pool[new URL(href, document.baseURI).href] = resources[i]);
+							return SaxonJS.transform({
+								documentPool: pool,
+								stylesheetLocation: "dist/index.xsl.sef.json",
+								initialTemplate: "main",
+								logLevel: 10
+							}, "async");
+						})
+						.catch(err => console.log("Transformation failed: " + err));
+				}
 		 </script>
         <style type="text/css">
 			body {
