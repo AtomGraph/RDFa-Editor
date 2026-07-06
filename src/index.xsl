@@ -25,10 +25,13 @@ version="3.0">
 
     <xsl:include href="RDFa2RDFXML-v3.xsl"/>
     <xsl:include href="canonical-xhtml.xsl"/>
+    <xsl:include href="lint-rdfa.xsl"/>
     <xsl:include href="vocab.xsl"/>
     <xsl:include href="overlay.xsl"/>
     <xsl:include href="annotate.xsl"/>
     <xsl:include href="edit.xsl"/>
+    <xsl:include href="undo.xsl"/>
+    <xsl:include href="navigate.xsl"/>
 
     <!-- ontology documents (RDF/XML) feeding the type and property dropdowns.
          Relative hrefs resolve against the SEF location (dist/) -->
@@ -41,9 +44,12 @@ version="3.0">
 
     <xsl:template name="main">
         <xsl:for-each select="('editingSpan', 'range', 'activeBlock', 'draggedBlock',
-                'editRange', 'editingLink', 'insertAfterBlock')">
+                'editRange', 'editingLink', 'insertAfterBlock', 'lastUndoHost',
+                'breadcrumbLeaf', 'draggedSectionHeading', 'findNode')">
             <ixsl:set-property name="{.}" select="()" object="ixsl:window()"/>
         </xsl:for-each>
+        <ixsl:set-property name="lastUndoTime" select="0" object="ixsl:window()"/>
+        <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
         <!-- prefetch the vocabularies asynchronously, then render the UI -->
         <ixsl:schedule-action document="{string-join($vocab-hrefs, ' ')}">
             <xsl:call-template name="local:init"/>
@@ -51,8 +57,10 @@ version="3.0">
     </xsl:template>
 
     <xsl:template name="local:init">
+        <xsl:call-template name="local:init-undo"/>
         <xsl:call-template name="local:init-overlay"/>
         <xsl:call-template name="local:init-editing"/>
+        <xsl:call-template name="local:init-navigate"/>
     </xsl:template>
 
 </xsl:stylesheet>

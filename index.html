@@ -19,6 +19,7 @@
 			body {
                 font-family: "Roboto", sans-serif;
                 padding-top: 70px; /* Account for fixed navbar */
+                padding-bottom: 56px; /* Account for fixed breadcrumb bar */
             }
 
             /* Fixed Top Navbar */
@@ -242,6 +243,131 @@
 
             .edit-dialog .action-buttons {
                 margin-top: 14px;
+            }
+
+            /* ToC jumps land below the fixed navbar */
+            #content > * {
+                scroll-margin-top: 76px;
+                scroll-margin-bottom: 48px;
+            }
+
+            /* ToC drawer (Fonto-style outline view) */
+            #toc-drawer {
+                position: fixed;
+                top: 64px;
+                left: 0;
+                bottom: 44px;
+                width: 260px;
+                overflow-y: auto;
+                background: white;
+                border-right: 1px solid #e0e0e0;
+                box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+                padding: 12px 16px;
+                z-index: 900;
+            }
+
+            #toc-drawer h2 {
+                font-size: 14px;
+                color: #555;
+                margin: 0 0 8px 0;
+            }
+
+            #toc-drawer ul {
+                list-style: none;
+                padding-left: 0;
+                margin: 4px 0;
+            }
+
+            #toc-drawer ul ul {
+                padding-left: 14px;
+            }
+
+            .toc-item {
+                padding: 2px 0;
+            }
+
+            .toc-label {
+                cursor: pointer;
+                display: block;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 13px;
+            }
+
+            .toc-label:hover {
+                background: #e3f2fd;
+            }
+
+            #toc-drawer .drop-before {
+                box-shadow: 0 -3px 0 0 #2196f3;
+            }
+
+            #toc-drawer .drop-after {
+                box-shadow: 0 3px 0 0 #2196f3;
+            }
+
+            #toc-drawer .dragging {
+                opacity: 0.4;
+            }
+
+            /* Breadcrumb bar (Fonto-style element path + RDFa subject) */
+            #breadcrumb {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: white;
+                border-top: 1px solid #e0e0e0;
+                padding: 8px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 13px;
+                z-index: 1000;
+            }
+
+            .crumb {
+                cursor: pointer;
+                color: #1976d2;
+            }
+
+            .crumb:hover {
+                text-decoration: underline;
+            }
+
+            .crumb-sep {
+                color: #9e9e9e;
+                margin: 0 4px;
+            }
+
+            #breadcrumb-subject {
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                color: #1565c0;
+            }
+
+            .lint-badge {
+                background: #f44336;
+                color: white;
+                border-radius: 10px;
+                padding: 2px 10px;
+                font-size: 12px;
+                cursor: pointer;
+                margin-left: 12px;
+            }
+
+            /* RDFa validation markers (class only - stripped by canonicalization) */
+            #content .rdfa-invalid {
+                text-decoration: underline wavy #f44336;
+                text-decoration-skip-ink: none;
+            }
+
+            .edit-dialog .checkbox-label {
+                display: inline-flex;
+                gap: 6px;
+                align-items: center;
+                font-weight: 400;
+                margin-top: 8px;
             }
 
             /* Modern Overlay Styling */
@@ -519,8 +645,10 @@
 
         <div id="content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
             <h1 property="http://purl.org/dc/terms/title">Demo document</h1>
+            <h2>Company</h2>
             <p>Our company was founded by <strong>Dr. Jane Smith</strong> in 2020. She graduated
                 from <em>MIT</em> and now leads our <strong><em>innovation team</em></strong>.</p>
+            <h2>Publications</h2>
             <p>Visit our <a href="https://example.com">official website</a> or check out
                 <a href="https://blog.example.com">our blog</a> for more information.</p>
             <p><span property="https://schema.org/name">ACME Corporation</span> will launch a new
@@ -530,6 +658,7 @@
                 <li>Second point with <strong>emphasis</strong></li>
             </ul>
             <blockquote>A quoted remark worth keeping.</blockquote>
+            <h3>Queries</h3>
             <pre>PREFIX schema: &lt;https://schema.org/&gt;
 SELECT ?name WHERE { ?s schema:name ?name . }</pre>
             <figure>

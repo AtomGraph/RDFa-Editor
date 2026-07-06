@@ -1,0 +1,3 @@
+term-unresolvable b1.1 @property term 'nmae' resolves to no IRI (no in-scope vocab or prefix)
+term-unresolvable b1.2.1 @typeof term 'nmae' resolves to no IRI (no in-scope vocab or prefix)
+term-unresolvable b1.3 @datatype term 'date' resolves to no IRI (no in-scope vocab or prefix)

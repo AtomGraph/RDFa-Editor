@@ -1,0 +1,1 @@
+empty-literal b1.1.1 @property 'http://schema.org/name' extracts an empty literal

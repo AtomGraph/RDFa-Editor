@@ -164,6 +164,8 @@ version="3.0">
             <button type="button" class="insert-list" data-list="ol" title="Numbered list">1. List</button>
             <button type="button" class="insert-figure" title="Insert figure">&#x1F5BC;</button>
             <button type="button" class="delete-block" title="Delete block">&#x2715;</button>
+            <button type="button" id="toc-toggle" title="Table of contents">&#x2630;</button>
+            <button type="button" id="find-open" title="Find and replace">&#x1F50D;</button>
             <button type="button" id="view-source" title="Canonical XHTML+RDFa">Source</button>
         </div>
     </xsl:template>
@@ -173,31 +175,69 @@ version="3.0">
     <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:onkeydown">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="key" as="xs:string" select="string(ixsl:get($event, 'key'))"/>
-        <xsl:if test="exists(local:block-of(.)) and $key = ('Enter', 'Backspace')
-                and not(ixsl:get($event, 'isComposing'))
-                and not(ixsl:get($event, 'ctrlKey')) and not(ixsl:get($event, 'metaKey'))">
-            <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
-            <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
-                <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
-                <xsl:choose>
-                    <xsl:when test="$key = 'Enter'">
-                        <xsl:call-template name="local:handle-enter">
-                            <xsl:with-param name="host" select="."/>
-                            <xsl:with-param name="event" select="$event"/>
-                            <xsl:with-param name="range" select="$range"/>
-                        </xsl:call-template>
-                    </xsl:when>
-                    <!-- Backspace intercepts only collapsed carets; everything else stays
-                         native, preserving the browser's typing undo (B1) -->
-                    <xsl:when test="ixsl:get($selection, 'isCollapsed')">
-                        <xsl:call-template name="local:handle-backspace">
-                            <xsl:with-param name="host" select="."/>
-                            <xsl:with-param name="event" select="$event"/>
-                            <xsl:with-param name="range" select="$range"/>
-                        </xsl:call-template>
-                    </xsl:when>
-                </xsl:choose>
-            </xsl:if>
+        <xsl:variable name="chord" as="xs:boolean"
+            select="(ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey')) and not(ixsl:get($event, 'altKey'))"/>
+        <xsl:if test="exists(local:block-of(.)) and not(ixsl:get($event, 'isComposing'))">
+            <xsl:choose>
+                <!-- native undo is replaced by the snapshot history: intercept even on an empty stack -->
+                <xsl:when test="$chord and lower-case($key) = 'z' and not(ixsl:get($event, 'shiftKey'))">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:apply-undo"/>
+                </xsl:when>
+                <xsl:when test="$chord and ((lower-case($key) = 'z' and ixsl:get($event, 'shiftKey'))
+                        or (lower-case($key) = 'y' and not(ixsl:get($event, 'shiftKey'))))">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:apply-redo"/>
+                </xsl:when>
+                <!-- other ctrl/meta chords stay native (copy, paste, browser find) -->
+                <xsl:when test="ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey')"/>
+                <xsl:when test="$key = ('Enter', 'Backspace')">
+                    <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
+                    <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
+                        <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                        <xsl:choose>
+                            <xsl:when test="$key = 'Enter'">
+                                <xsl:call-template name="local:handle-enter">
+                                    <xsl:with-param name="host" select="."/>
+                                    <xsl:with-param name="event" select="$event"/>
+                                    <xsl:with-param name="range" select="$range"/>
+                                </xsl:call-template>
+                            </xsl:when>
+                            <!-- Backspace intercepts only collapsed carets; everything else stays native (B1) -->
+                            <xsl:when test="ixsl:get($selection, 'isCollapsed')">
+                                <xsl:call-template name="local:handle-backspace">
+                                    <xsl:with-param name="host" select="."/>
+                                    <xsl:with-param name="event" select="$event"/>
+                                    <xsl:with-param name="range" select="$range"/>
+                                </xsl:call-template>
+                            </xsl:when>
+                        </xsl:choose>
+                    </xsl:if>
+                </xsl:when>
+                <xsl:otherwise/>
+            </xsl:choose>
+        </xsl:if>
+    </xsl:template>
+
+    <!-- undo chords also work with focus on the page background -->
+    <xsl:template match="body" mode="ixsl:onkeydown">
+        <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:variable name="key" as="xs:string" select="string(ixsl:get($event, 'key'))"/>
+        <xsl:variable name="chord" as="xs:boolean"
+            select="(ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey')) and not(ixsl:get($event, 'altKey'))"/>
+        <xsl:if test="ixsl:call(ixsl:get($event, 'target'), 'isSameNode', [ . ]) and $chord">
+            <xsl:choose>
+                <xsl:when test="lower-case($key) = 'z' and not(ixsl:get($event, 'shiftKey'))">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:apply-undo"/>
+                </xsl:when>
+                <xsl:when test="(lower-case($key) = 'z' and ixsl:get($event, 'shiftKey'))
+                        or (lower-case($key) = 'y' and not(ixsl:get($event, 'shiftKey')))">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:apply-redo"/>
+                </xsl:when>
+                <xsl:otherwise/>
+            </xsl:choose>
         </xsl:if>
     </xsl:template>
 
@@ -207,6 +247,9 @@ version="3.0">
         <xsl:param name="range"/>
 
         <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+        <xsl:call-template name="local:push-undo">
+            <xsl:with-param name="host" select="$host"/>
+        </xsl:call-template>
         <xsl:if test="not(ixsl:get($range, 'collapsed'))">
             <xsl:sequence select="ixsl:call($range, 'deleteContents', [])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:if>
@@ -256,6 +299,7 @@ version="3.0">
                 </xsl:call-template>
             </xsl:otherwise>
         </xsl:choose>
+        <xsl:call-template name="local:after-mutation"/>
     </xsl:template>
 
     <!-- a fresh empty paragraph after a block: the <br> is the browser-standard caret
@@ -335,10 +379,14 @@ version="3.0">
                 <!-- B4/B5: list items merge into the previous item; the first is inert -->
                 <xsl:when test="$host/self::li">
                     <xsl:for-each select="$host/preceding-sibling::li[1]">
+                        <xsl:call-template name="local:push-undo">
+                            <xsl:with-param name="host" select="$host"/>
+                        </xsl:call-template>
                         <xsl:call-template name="local:merge-into-previous">
                             <xsl:with-param name="host" select="$host"/>
                             <xsl:with-param name="prev" select="."/>
                         </xsl:call-template>
+                        <xsl:call-template name="local:after-mutation"/>
                     </xsl:for-each>
                 </xsl:when>
                 <!-- B6 -->
@@ -348,13 +396,18 @@ version="3.0">
                     <xsl:choose>
                         <!-- B2: text blocks merge -->
                         <xsl:when test="$prev[self::p or self::h1 or self::h2 or self::h3 or self::blockquote]">
+                            <xsl:call-template name="local:push-undo">
+                                <xsl:with-param name="host" select="$host"/>
+                            </xsl:call-template>
                             <xsl:call-template name="local:merge-into-previous">
                                 <xsl:with-param name="host" select="$host"/>
                                 <xsl:with-param name="prev" select="$prev"/>
                             </xsl:call-template>
+                            <xsl:call-template name="local:after-mutation"/>
                         </xsl:when>
                         <!-- B3: never merge across composite blocks; an empty block is removed -->
                         <xsl:when test="exists($prev) and local:block-text($host) = ''">
+                            <xsl:call-template name="local:push-undo"/>
                             <xsl:sequence select="ixsl:call($host, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
                             <ixsl:set-property name="activeBlock" select="()" object="ixsl:window()"/>
                             <xsl:variable name="prev-host" as="element()?"
@@ -368,6 +421,7 @@ version="3.0">
                                     <xsl:with-param name="offset" select="xs:integer(ixsl:get(., 'childNodes.length'))"/>
                                 </xsl:call-template>
                             </xsl:for-each>
+                            <xsl:call-template name="local:after-mutation"/>
                         </xsl:when>
                         <xsl:otherwise/>
                     </xsl:choose>
@@ -413,6 +467,9 @@ version="3.0">
             <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
             <xsl:if test="$text ne '' and ixsl:get($selection, 'rangeCount') ge 1">
                 <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
+                <xsl:call-template name="local:push-undo">
+                    <xsl:with-param name="host" select="."/>
+                </xsl:call-template>
                 <xsl:sequence select="ixsl:call($range, 'deleteContents', [])[current-date() lt xs:date('2000-01-01')]"/>
                 <xsl:variable name="node" select="ixsl:call(ixsl:page(), 'createTextNode', [ $text ])"/>
                 <xsl:sequence select="ixsl:call($range, 'insertNode', [ $node ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -420,6 +477,7 @@ version="3.0">
                     <xsl:with-param name="node" select="$node"/>
                     <xsl:with-param name="offset" select="string-length($text)"/>
                 </xsl:call-template>
+                <xsl:call-template name="local:after-mutation"/>
             </xsl:if>
         </xsl:if>
     </xsl:template>
@@ -427,6 +485,7 @@ version="3.0">
     <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:onfocusin">
         <xsl:if test="exists(local:block-of(.))">
             <ixsl:set-property name="activeBlock" select="." object="ixsl:window()"/>
+            <xsl:call-template name="local:update-breadcrumb"/>
         </xsl:if>
     </xsl:template>
 
@@ -454,6 +513,7 @@ version="3.0">
         <xsl:param name="block" as="element()"/>
         <xsl:param name="name" as="xs:string"/>
 
+        <xsl:call-template name="local:push-undo"/>
         <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
         <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
             then ixsl:get($selection, 'anchorNode')[local:block-of(.) is $block] else ()"/>
@@ -487,6 +547,7 @@ version="3.0">
                 </xsl:call-template>
             </xsl:otherwise>
         </xsl:choose>
+        <xsl:call-template name="local:after-mutation"/>
     </xsl:template>
 
     <!-- inline formatting toggles reuse the annotation wrap/unwrap machinery -->
@@ -501,18 +562,28 @@ version="3.0">
                     select="($anchor/ancestor-or-self::*[local-name() = $name] intersect descendant::*)[1]"/>
                 <xsl:choose>
                     <xsl:when test="exists($existing)">
+                        <xsl:call-template name="local:push-undo"/>
                         <xsl:call-template name="local:unwrap-element">
                             <xsl:with-param name="element" select="$existing"/>
                         </xsl:call-template>
+                        <xsl:call-template name="local:after-mutation"/>
                     </xsl:when>
                     <xsl:when test="not(ixsl:get($selection, 'isCollapsed'))">
+                        <!-- capture pre-wrap state; push only when the wrap succeeded -->
+                        <xsl:variable name="snapshot" as="xs:string"
+                            select="string(ixsl:get(local:content(), 'innerHTML'))"/>
                         <xsl:variable name="wrapped" as="element()?">
                             <xsl:call-template name="local:wrap-range">
                                 <xsl:with-param name="range" select="$range"/>
                                 <xsl:with-param name="name" select="$name"/>
                             </xsl:call-template>
                         </xsl:variable>
-                        <xsl:sequence select="$wrapped[current-date() lt xs:date('2000-01-01')]"/>
+                        <xsl:for-each select="$wrapped">
+                            <xsl:call-template name="local:push-undo">
+                                <xsl:with-param name="snapshot" select="$snapshot"/>
+                            </xsl:call-template>
+                            <xsl:call-template name="local:after-mutation"/>
+                        </xsl:for-each>
                     </xsl:when>
                     <xsl:otherwise/>
                 </xsl:choose>
@@ -521,12 +592,15 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'insert-block')]" mode="ixsl:onclick">
+        <xsl:call-template name="local:push-undo"/>
         <xsl:call-template name="local:insert-empty-paragraph">
             <xsl:with-param name="after" select="local:current-block()"/>
         </xsl:call-template>
+        <xsl:call-template name="local:after-mutation"/>
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'insert-list')]" mode="ixsl:onclick">
+        <xsl:call-template name="local:push-undo"/>
         <xsl:variable name="list" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ string(@data-list) ])"/>
         <xsl:variable name="li" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'li' ])"/>
         <ixsl:set-attribute name="contenteditable" select="'true'" object="$li"/>
@@ -549,6 +623,7 @@ version="3.0">
             <xsl:with-param name="node" select="$li"/>
             <xsl:with-param name="offset" select="0"/>
         </xsl:call-template>
+        <xsl:call-template name="local:after-mutation"/>
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'delete-block')]" mode="ixsl:onclick">
@@ -556,6 +631,7 @@ version="3.0">
             <xsl:variable name="confirmed" as="xs:boolean" select="local:block-text(.) = ''
                 or ixsl:call(ixsl:window(), 'confirm', [ 'Delete this block?' ])"/>
             <xsl:if test="$confirmed">
+                <xsl:call-template name="local:push-undo"/>
                 <xsl:variable name="prev" as="element()?" select="preceding-sibling::*[1]"/>
                 <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
                 <ixsl:set-property name="activeBlock" select="()" object="ixsl:window()"/>
@@ -564,6 +640,7 @@ version="3.0">
                         <xsl:with-param name="element" select="."/>
                     </xsl:call-template>
                 </xsl:for-each>
+                <xsl:call-template name="local:after-mutation"/>
             </xsl:if>
         </xsl:for-each>
     </xsl:template>
@@ -645,11 +722,15 @@ version="3.0">
             <xsl:variable name="editing" select="ixsl:get(ixsl:window(), 'editingLink')"/>
             <xsl:choose>
                 <xsl:when test="exists($editing)">
+                    <xsl:call-template name="local:push-undo"/>
                     <xsl:for-each select="$editing">
                         <ixsl:set-attribute name="href" select="$href"/>
                     </xsl:for-each>
                 </xsl:when>
                 <xsl:otherwise>
+                    <!-- capture pre-wrap state; push only when the wrap succeeded -->
+                    <xsl:variable name="snapshot" as="xs:string"
+                        select="string(ixsl:get(local:content(), 'innerHTML'))"/>
                     <xsl:variable name="wrapped" as="element()?">
                         <xsl:call-template name="local:wrap-range">
                             <xsl:with-param name="range" select="ixsl:get(ixsl:window(), 'editRange')"/>
@@ -657,19 +738,25 @@ version="3.0">
                         </xsl:call-template>
                     </xsl:variable>
                     <xsl:for-each select="$wrapped">
+                        <xsl:call-template name="local:push-undo">
+                            <xsl:with-param name="snapshot" select="$snapshot"/>
+                        </xsl:call-template>
                         <ixsl:set-attribute name="href" select="$href"/>
                     </xsl:for-each>
                 </xsl:otherwise>
             </xsl:choose>
+            <xsl:call-template name="local:after-mutation"/>
         </xsl:if>
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'link-remove')]" mode="ixsl:onclick">
         <xsl:for-each select="ixsl:get(ixsl:window(), 'editingLink')">
+            <xsl:call-template name="local:push-undo"/>
             <xsl:call-template name="local:unwrap-element">
                 <xsl:with-param name="element" select="."/>
             </xsl:call-template>
+            <xsl:call-template name="local:after-mutation"/>
         </xsl:for-each>
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
@@ -679,14 +766,17 @@ version="3.0">
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
 
-    <!-- single teardown point for both dialogs -->
+    <!-- single teardown point for all dialogs -->
     <xsl:template name="local:hide-dialogs">
-        <xsl:for-each select="id('link-dialog', ixsl:page()), id('figure-dialog', ixsl:page())">
+        <xsl:for-each select="id('link-dialog', ixsl:page()), id('figure-dialog', ixsl:page()),
+                id('find-dialog', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
         <ixsl:set-property name="editRange" select="()" object="ixsl:window()"/>
         <ixsl:set-property name="editingLink" select="()" object="ixsl:window()"/>
         <ixsl:set-property name="insertAfterBlock" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="findNode" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
     </xsl:template>
 
     <!-- ................................ figure dialog ................................ -->
@@ -726,6 +816,7 @@ version="3.0">
         <xsl:variable name="dialog" as="element()" select="ancestor::div[@id = 'figure-dialog']"/>
         <xsl:variable name="src" as="xs:string" select="string(ixsl:get(($dialog//input[@name = 'src'])[1], 'value'))"/>
         <xsl:if test="$src ne ''">
+            <xsl:call-template name="local:push-undo"/>
             <xsl:variable name="figure" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'figure' ])"/>
             <xsl:variable name="img" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'img' ])"/>
             <ixsl:set-attribute name="src" select="$src" object="$img"/>
@@ -749,6 +840,7 @@ version="3.0">
             <xsl:call-template name="local:focus">
                 <xsl:with-param name="element" select="$figcaption"/>
             </xsl:call-template>
+            <xsl:call-template name="local:after-mutation"/>
         </xsl:if>
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
@@ -783,7 +875,7 @@ version="3.0">
         <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'draggedBlock')"/>
         <xsl:variable name="target" as="element()?" select="local:block-of(.)"/>
         <xsl:if test="exists($dragged) and exists($target) and not($target is $dragged)
-                and local:has-block-data($event)">
+                and local:has-transfer-type($event, 'application/x-rdfa-editor-block')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <ixsl:set-property name="dropEffect" select="'move'" object="ixsl:get($event, 'dataTransfer')"/>
             <xsl:call-template name="local:clear-drop-marks"/>
@@ -797,12 +889,14 @@ version="3.0">
         <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'draggedBlock')"/>
         <xsl:variable name="target" as="element()?" select="local:block-of(.)"/>
         <xsl:if test="exists($dragged) and exists($target) and not($target is $dragged)
-                and local:has-block-data($event)">
+                and local:has-transfer-type($event, 'application/x-rdfa-editor-block')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:clear-drop-marks"/>
+            <xsl:call-template name="local:push-undo"/>
             <xsl:sequence select="ixsl:call($target,
                 if (local:drop-before($event, $target)) then 'before' else 'after',
                 [ $dragged ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:after-mutation"/>
         </xsl:if>
     </xsl:template>
 
@@ -814,11 +908,11 @@ version="3.0">
     </xsl:template>
 
     <!-- dataTransfer.types marshals to an XDM array or sequence of strings -->
-    <xsl:function name="local:has-block-data" as="xs:boolean">
+    <xsl:function name="local:has-transfer-type" as="xs:boolean">
         <xsl:param name="event"/>
+        <xsl:param name="type" as="xs:string"/>
         <xsl:variable name="types" select="ixsl:get(ixsl:get($event, 'dataTransfer'), 'types')"/>
-        <xsl:sequence select="(if ($types instance of array(*)) then $types?* else $types)
-            = 'application/x-rdfa-editor-block'"/>
+        <xsl:sequence select="(if ($types instance of array(*)) then $types?* else $types) = $type"/>
     </xsl:function>
 
     <!-- above or below the vertical midpoint of the target block -->

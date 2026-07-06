@@ -1,0 +1,1 @@
+content-resource-conflict b1.1.1 @content and @resource on the same @property element: @content wins, the resource is orphaned

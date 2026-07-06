@@ -120,16 +120,21 @@ version="3.0">
 
         <xsl:choose>
             <xsl:when test="exists($editing)">
+                <xsl:call-template name="local:push-undo"/>
                 <xsl:call-template name="local:apply-annotation">
                     <xsl:with-param name="target" select="$editing"/>
                     <xsl:with-param name="values" select="$values"/>
                     <xsl:with-param name="reference-text" select="string($editing)"/>
                 </xsl:call-template>
+                <xsl:call-template name="local:after-mutation"/>
                 <xsl:call-template name="local:hide-overlay"/>
             </xsl:when>
             <xsl:otherwise>
                 <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'range')"/>
                 <xsl:variable name="reference-text" as="xs:string" select="string(ixsl:call($range, 'toString', []))"/>
+                <!-- capture pre-wrap state; push only when the wrap succeeded -->
+                <xsl:variable name="snapshot" as="xs:string"
+                    select="string(ixsl:get(local:content(), 'innerHTML'))"/>
                 <xsl:variable name="span" as="element()?">
                     <xsl:call-template name="local:wrap-range">
                         <xsl:with-param name="range" select="$range"/>
@@ -137,11 +142,15 @@ version="3.0">
                     </xsl:call-template>
                 </xsl:variable>
                 <xsl:for-each select="$span">
+                    <xsl:call-template name="local:push-undo">
+                        <xsl:with-param name="snapshot" select="$snapshot"/>
+                    </xsl:call-template>
                     <xsl:call-template name="local:apply-annotation">
                         <xsl:with-param name="target" select="."/>
                         <xsl:with-param name="values" select="$values"/>
                         <xsl:with-param name="reference-text" select="$reference-text"/>
                     </xsl:call-template>
+                    <xsl:call-template name="local:after-mutation"/>
                 </xsl:for-each>
                 <xsl:call-template name="local:hide-overlay"/>
             </xsl:otherwise>
@@ -183,9 +192,11 @@ version="3.0">
 
     <xsl:template match="button[tokenize(@class) = 'remove-action']" mode="ixsl:onclick">
         <xsl:for-each select="ixsl:get(ixsl:window(), 'editingSpan')">
+            <xsl:call-template name="local:push-undo"/>
             <xsl:call-template name="local:unwrap-element">
                 <xsl:with-param name="element" select="."/>
             </xsl:call-template>
+            <xsl:call-template name="local:after-mutation"/>
         </xsl:for-each>
         <xsl:call-template name="local:hide-overlay"/>
     </xsl:template>

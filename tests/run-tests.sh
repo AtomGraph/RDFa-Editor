@@ -29,6 +29,23 @@ for fixture in tests/fixtures/*.xhtml; do
     fi
 done
 
+for fixture in tests/fixtures/lint/*.xhtml; do
+    name=$(basename "$fixture" .xhtml)
+    if ! npx xslt3-he -xsl:tests/lint-driver.xsl -s:"$fixture" -it:lint-report -o:"$tmp/l-$name.actual" 2>"$tmp/l-$name.err"; then
+        echo "FAIL lint/$name (lint error)"
+        cat "$tmp/l-$name.err"
+        fail=1
+        continue
+    fi
+    if diff -u "tests/expected/lint/$name.txt" "$tmp/l-$name.actual" >"$tmp/l-$name.diff"; then
+        echo "PASS lint/$name"
+    else
+        echo "FAIL lint/$name"
+        cat "$tmp/l-$name.diff"
+        fail=1
+    fi
+done
+
 for fixture in tests/fixtures/canonical/*.xhtml; do
     name=$(basename "$fixture" .xhtml)
     if ! npx xslt3-he -xsl:src/canonical-xhtml.xsl -s:"$fixture" -it:canonical-xhtml -o:"$tmp/c-$name.xhtml" 2>"$tmp/c-$name.err"; then
