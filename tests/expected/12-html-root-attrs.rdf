@@ -1,0 +1,10 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfa="http://www.w3.org/ns/rdfa#"
+         xmlns:schema="http://schema.org/"
+         xmlns:ex="http://example.com/ns#">
+    <rdf:Description rdf:about="http://based.example/app/page">
+        <rdfa:usesVocabulary rdf:resource="http://schema.org/"/>
+        <schema:name xml:lang="en">Based title</schema:name>
+        <ex:note rdf:resource="http://based.example/app/page#note1"/>
+    </rdf:Description>
+</rdf:RDF>

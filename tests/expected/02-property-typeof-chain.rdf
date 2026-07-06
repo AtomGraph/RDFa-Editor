@@ -1,0 +1,16 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:schema="http://schema.org/">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <schema:author rdf:nodeID="b1.1.1.1"/>
+    </rdf:Description>
+    <rdf:Description rdf:nodeID="b1.1.1.1">
+        <rdf:type rdf:resource="http://schema.org/Person"/>
+        <schema:name>Jane Smith</schema:name>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <schema:publisher rdf:resource="http://example.org/acme"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/acme">
+        <rdf:type rdf:resource="http://schema.org/Organization"/>
+    </rdf:Description>
+</rdf:RDF>

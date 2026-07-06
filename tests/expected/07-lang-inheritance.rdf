@@ -1,0 +1,10 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dct="http://purl.org/dc/terms/"
+         xmlns:schema="http://schema.org/">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <dct:title xml:lang="en">English title</dct:title>
+        <dct:alternative xml:lang="da">Dansk titel</dct:alternative>
+        <schema:name xml:lang="fr">Quel nom</schema:name>
+        <schema:description>No language</schema:description>
+    </rdf:Description>
+</rdf:RDF>

@@ -1,0 +1,9 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dct="http://purl.org/dc/terms/"
+         xmlns:schema="http://schema.org/">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <dct:created rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2024-01-15</dct:created>
+        <dct:modified rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2024-02-01</dct:modified>
+        <schema:name xml:lang="en">Custom Name</schema:name>
+    </rdf:Description>
+</rdf:RDF>

@@ -1,0 +1,15 @@
+{
+    "name": "rdfa-editor",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "Declarative XHTML+RDFa editor - XSLT 3.0 + SaxonJS",
+    "scripts": {
+        "build": "bash generate-sef.sh",
+        "test": "bash tests/run-tests.sh",
+        "test:browser": "node tests/browser/run.mjs"
+    },
+    "devDependencies": {
+        "playwright": "^1.49.0"
+    }
+}

@@ -1,0 +1,15 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfa="http://www.w3.org/ns/rdfa#"
+         xmlns:schema="http://schema.org/"
+         xmlns:foaf="http://xmlns.com/foaf/0.1/">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <rdfa:usesVocabulary rdf:resource="http://schema.org/"/>
+        <rdfa:usesVocabulary rdf:resource="http://xmlns.com/foaf/0.1/"/>
+        <schema:name>My article</schema:name>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc#author">
+        <rdf:type rdf:resource="http://schema.org/Person"/>
+        <schema:name>Jane</schema:name>
+        <foaf:nick>jsmith</foaf:nick>
+    </rdf:Description>
+</rdf:RDF>

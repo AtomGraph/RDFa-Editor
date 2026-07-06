@@ -1,0 +1,22 @@
+name: CI
+on:
+    push:
+    pull_request:
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 22
+            - name: Install xmlstarlet (entity expansion in generate-sef.sh)
+              run: sudo apt-get update && sudo apt-get install -y xmlstarlet
+            - name: Headless XSLT test suites (extractor, canonical, lint)
+              run: bash tests/run-tests.sh
+            - name: Rebuild SEF (catches src/dist drift)
+              run: bash generate-sef.sh
+            - run: npm install
+            - run: npx playwright install --with-deps chromium
+            - name: Browser test suites
+              run: npm run test:browser

@@ -1,0 +1,23 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <body>
+        <div id="content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
+            <h1 property="http://purl.org/dc/terms/title">Products</h1>
+            <article property="https://schema.org/hasPart" resource="#products-intro"
+                     typeof="http://schema.org/WebPageElement">
+                <p property="https://schema.org/text">Intro prose</p>
+            </article>
+            <figure property="https://schema.org/hasPart" resource="#top-selling"
+                    typeof="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart">
+                <figcaption property="http://purl.org/dc/terms/title">Top selling products</figcaption>
+                <span property="http://spinrdf.org/spin#query" resource="#products-query"></span>
+                <div data-role="rendering"><svg xmlns="http://www.w3.org/2000/svg"/></div>
+            </figure>
+            <aside property="https://schema.org/mentions" resource="https://northwind.example/suppliers/1/#this"
+                   typeof="https://schema.org/Organization">
+                <span property="https://schema.org/name">Exotic Liquids</span>
+                <a property="https://schema.org/makesOffer" resource="https://northwind.example/products/1/#this"
+                   href="https://northwind.example/products/1/">Chai</a>
+            </aside>
+        </div>
+    </body>
+</html>

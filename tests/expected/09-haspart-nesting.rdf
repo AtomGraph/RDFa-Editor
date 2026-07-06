@@ -1,0 +1,28 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dct="http://purl.org/dc/terms/"
+         xmlns:schema="http://schema.org/"
+         xmlns:schemas="https://schema.org/"
+         xmlns:ldh="https://w3id.org/atomgraph/linkeddatahub#"
+         xmlns:spin="http://spinrdf.org/spin#">
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <rdf:type rdf:resource="https://www.w3.org/ns/ldt/document-hierarchy#Container"/>
+        <dct:title>Products</dct:title>
+        <schemas:hasPart rdf:resource="http://example.org/dir/doc#products-intro"/>
+        <schemas:hasPart rdf:resource="http://example.org/dir/doc#top-selling"/>
+        <schemas:mentions rdf:resource="https://northwind.example/suppliers/1/#this"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc#products-intro">
+        <rdf:type rdf:resource="http://schema.org/WebPageElement"/>
+        <schemas:text>Intro prose</schemas:text>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc#top-selling">
+        <rdf:type rdf:resource="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart"/>
+        <dct:title>Top selling products</dct:title>
+        <spin:query rdf:resource="http://example.org/dir/doc#products-query"/>
+    </rdf:Description>
+    <rdf:Description rdf:about="https://northwind.example/suppliers/1/#this">
+        <rdf:type rdf:resource="https://schema.org/Organization"/>
+        <schemas:name>Exotic Liquids</schemas:name>
+        <schemas:makesOffer rdf:resource="https://northwind.example/products/1/#this"/>
+    </rdf:Description>
+</rdf:RDF>

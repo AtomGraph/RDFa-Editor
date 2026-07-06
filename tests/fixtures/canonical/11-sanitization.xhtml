@@ -1,0 +1,14 @@
+<div xmlns="http://www.w3.org/1999/xhtml" id="content" about="">
+    <p contenteditable="true" onclick="alert(1)">Text with <strong onmouseover="steal()">handlers</strong>
+        and a <a href="javascript:alert(1)">bad link</a> and a <a href="http://ok.example/">good link</a>.</p>
+    <script type="text/javascript">evil();</script>
+    <!-- Word paste junk comment -->
+    <p><iframe src="http://evil.example/"></iframe><object data="x"></object>Embedded gone.</p>
+    <form action="/steal"><input type="text" name="x"/><button>go</button></form>
+    <figure>
+        <img src="data:image/png;base64,iVBORw0KGgo=" alt="inline image kept"/>
+        <img src="data:text/html;base64,PHNjcmlwdD4=" alt="data html dropped"/>
+        <img src="vbscript:evil" alt="vbscript dropped"/>
+        <figcaption contenteditable="true">Caption</figcaption>
+    </figure>
+</div>

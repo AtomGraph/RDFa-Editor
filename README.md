@@ -1,9 +1,53 @@
 # RDFa-Editor
 
-A prototype of how RDFa annotations can be done on XHTML declaratively using client-side XSLT. Double-click on some text, enter any name in the prompt and inspect the DOM of the bold `<span>`. You should see RDFa attributes such as `about`, `content`, and `property`.
+A declarative **XHTML+RDFa authoring tool** running entirely on client-side XSLT 3.0
+([SaxonJS 3](https://www.saxonica.com/saxon-js/index.xml) with the `ixsl:` interactive
+extensions). No JavaScript application code — the editor UI, the editing behavior, the
+RDFa extraction and the document canonicalization are all XSLT.
 
-Works at least in Firefox.
+- **Structured-block editing** of any number of `.rdfa-editor-content` regions (p, h1–h3, lists, blockquote,
+  pre, figure): Enter splits, Backspace merges, toolbar for block types / inline
+  formatting / links / figures, drag-handle and Alt+Arrow reordering, HTML paste through
+  a sanitizing canonicalization pipeline, unified snapshot undo/redo with caret
+  restoration.
+- **RDFa annotation**: right-click a selection to assert a statement (S/P/O framing,
+  vocabulary dropdowns fed by plain ontology RDF/XML files); right-click an annotation
+  to edit or remove it.
+- **Strictly W3C-conformant RDFa 1.1 extraction** to RDF/XML ("Extract RDF"), a
+  **canonical serialization** stripping all editing ephemera ("Source"), and
+  **RDFa lint** (unresolvable terms, unsafe markup, step-11 conflicts) surfaced as
+  wavy underlines + a breadcrumb badge.
+- **Navigation**: ToC drawer (outline with section drag-reorder), breadcrumb bar with
+  the RDFa subject in scope at the caret, find & replace.
 
-Uses Saxon-CE 1.1 as XSLT 2.0 processor in the browser: http://www.saxonica.com/ce/index.xml
+## Run
 
-An updated version is also available as Saxon-JS (though not open-source): http://www.saxonica.com/saxon-js/index.xml
+```bash
+bash generate-sef.sh            # compile src/*.xsl -> dist/index.xsl.sef.json (needs xmlstarlet + npx)
+python3 -m http.server 8000     # any static server
+# open http://localhost:8000/index.html
+```
+
+## Test
+
+```bash
+npm test                        # headless XSLT suites: extractor, canonicalization, lint fixtures
+npm install && npx playwright install chromium
+npm run test:browser            # Playwright suites (serves the repo itself)
+```
+
+## Architecture
+
+See `CLAUDE.md` for the module map and conventions. The load-bearing pieces:
+`src/RDFa2RDFXML-v3.xsl` (RDFa 1.1 → RDF/XML, pure XSLT, headless-tested),
+`src/canonical-xhtml.xsl` (canonical + sanitized serialization form, pure XSLT),
+`src/lint-rdfa.xsl` (pure), and the IXSL modules `edit.xsl` / `annotate.xsl` /
+`overlay.xsl` / `navigate.xsl` / `undo.xsl` / `vocab.xsl`. The editor's stylesheet is
+self-contained: a host page provides one or more `.rdfa-editor-content` regions, `rdfa-editor.css`, and
+preloads the vocabulary documents into the SaxonJS document pool (see `index.html`).
+
+## Embedding in LinkedDataHub
+
+The plan for replacing LinkedDataHub's WYMEditor with this editor lives in
+[`ldh/MIGRATION.md`](ldh/MIGRATION.md). The overall roadmap is in
+[`ROADMAP.md`](ROADMAP.md).

@@ -1,0 +1,1 @@
+term-unresolvable b1.2.1 @property term 'name' resolves to no IRI (no in-scope vocab or prefix)
