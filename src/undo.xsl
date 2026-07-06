@@ -33,9 +33,9 @@ version="3.0">
     <xsl:template name="local:init-undo">
         <xsl:for-each select="ixsl:page()//body">
             <xsl:result-document href="?." method="ixsl:append-content">
-                <div id="undo-storage" data-role="storage" style="display: none;">
-                    <div id="undo-stack"/>
-                    <div id="redo-stack"/>
+                <div id="rdfa-editor-undo-storage" data-role="storage" style="display: none;">
+                    <div id="rdfa-editor-undo-stack"/>
+                    <div id="rdfa-editor-redo-stack"/>
                 </div>
             </xsl:result-document>
         </xsl:for-each>
@@ -47,11 +47,16 @@ version="3.0">
     <xsl:template name="local:stash-push">
         <xsl:param name="stack" as="element()"/>
         <xsl:param name="snapshot" as="xs:string"/>
+        <xsl:param name="root" as="element()"/>
 
         <xsl:variable name="entry" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ 'div' ])"/>
         <ixsl:set-property name="textContent" select="$snapshot" object="$entry"/>
+        <!-- histories are keyed by editable region -->
+        <ixsl:set-attribute name="data-root"
+            select="string(count(local:roots()[. &lt;&lt; $root]) + 1)" object="$entry"/>
         <xsl:call-template name="local:capture-caret">
             <xsl:with-param name="entry" select="$entry"/>
+            <xsl:with-param name="root" select="$root"/>
         </xsl:call-template>
         <xsl:sequence select="ixsl:call($stack, 'appendChild', [ $entry ])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:for-each select="($stack/div)[position() le count($stack/div) - $local:max-undo]">
@@ -63,11 +68,12 @@ version="3.0">
          captured only when the selection anchors a text node inside content -->
     <xsl:template name="local:capture-caret">
         <xsl:param name="entry" as="element()"/>
+        <xsl:param name="root" as="element()"/>
 
         <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
         <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1">
             <xsl:variable name="anchor" select="ixsl:get($selection, 'anchorNode')"/>
-            <xsl:if test="ixsl:get($anchor, 'nodeType') = 3">
+            <xsl:if test="ixsl:get($anchor, 'nodeType') = 3 and (local:root-of($anchor) ! (. is $root))">
                 <xsl:for-each select="local:block-of($anchor)">
                     <xsl:variable name="texts" select=".//text()[not(ancestor::*[@data-role])]"/>
                     <xsl:if test="exists($texts[. is $anchor])">
@@ -88,28 +94,37 @@ version="3.0">
          and pushing only on success -->
     <xsl:template name="local:push-undo">
         <xsl:param name="host" as="element()?" select="()"/>
-        <xsl:param name="snapshot" as="xs:string" select="string(ixsl:get(local:content(), 'innerHTML'))"/>
+        <xsl:param name="root" as="element()?" select="($host ! local:root-of(.), local:active-root())[1]"/>
+        <xsl:param name="snapshot" as="xs:string?" select="$root ! string(ixsl:get(., 'innerHTML'))"/>
 
-        <xsl:variable name="stack" as="element()" select="id('undo-stack', ixsl:page())"/>
-        <!-- dedup guard: a snapshot equal to the top is a no-op (backstop against double pushes) -->
-        <xsl:if test="not(string(($stack/div)[last()]) eq $snapshot)">
-            <xsl:call-template name="local:stash-push">
-                <xsl:with-param name="stack" select="$stack"/>
-                <xsl:with-param name="snapshot" select="$snapshot"/>
-            </xsl:call-template>
-            <ixsl:set-property name="textContent" select="''" object="id('redo-stack', ixsl:page())"/>
-        </xsl:if>
-        <ixsl:set-property name="lastUndoTime"
+        <xsl:for-each select="$root[exists($snapshot)]">
+            <xsl:variable name="stack" as="element()" select="id('rdfa-editor-undo-stack', ixsl:page())"/>
+            <xsl:variable name="root-index" as="xs:integer" select="count(local:roots()[. &lt;&lt; current()]) + 1"/>
+            <xsl:variable name="top" as="element()?" select="($stack/div)[last()]"/>
+            <!-- dedup guard: the same region's unchanged snapshot is a no-op -->
+            <xsl:if test="not(string($top) eq $snapshot and xs:integer($top/@data-root) eq $root-index)">
+                <xsl:call-template name="local:stash-push">
+                    <xsl:with-param name="stack" select="$stack"/>
+                    <xsl:with-param name="snapshot" select="$snapshot"/>
+                    <xsl:with-param name="root" select="."/>
+                </xsl:call-template>
+                <ixsl:set-property name="textContent" select="''" object="id('rdfa-editor-redo-stack', ixsl:page())"/>
+            </xsl:if>
+        </xsl:for-each>
+        <ixsl:set-property name="rdfaEditorLastUndoTime"
             select="ixsl:call(ixsl:get(ixsl:window(), 'Date'), 'now', [])" object="ixsl:window()"/>
-        <ixsl:set-property name="lastUndoHost" select="$host" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorLastUndoHost" select="$host" object="ixsl:window()"/>
     </xsl:template>
 
     <xsl:template name="local:apply-undo">
-        <xsl:variable name="top" as="element()?" select="(id('undo-stack', ixsl:page())/div)[last()]"/>
+        <xsl:variable name="top" as="element()?" select="(id('rdfa-editor-undo-stack', ixsl:page())/div)[last()]"/>
         <xsl:for-each select="$top">
+            <xsl:variable name="root-index" as="xs:integer" select="xs:integer(@data-root)"/>
+            <xsl:variable name="root" as="element()?" select="local:roots()[$root-index]"/>
             <xsl:call-template name="local:stash-push">
-                <xsl:with-param name="stack" select="id('redo-stack', ixsl:page())"/>
-                <xsl:with-param name="snapshot" select="string(ixsl:get(local:content(), 'innerHTML'))"/>
+                <xsl:with-param name="stack" select="id('rdfa-editor-redo-stack', ixsl:page())"/>
+                <xsl:with-param name="snapshot" select="$root ! string(ixsl:get(., 'innerHTML'))"/>
+                <xsl:with-param name="root" select="$root"/>
             </xsl:call-template>
             <xsl:variable name="snapshot" as="xs:string" select="string(.)"/>
             <xsl:variable name="caret" as="xs:integer*" select="(@data-block, @data-node, @data-offset) ! xs:integer(.)"/>
@@ -117,17 +132,21 @@ version="3.0">
             <xsl:call-template name="local:restore-snapshot">
                 <xsl:with-param name="snapshot" select="$snapshot"/>
                 <xsl:with-param name="caret" select="$caret"/>
+                <xsl:with-param name="root" select="$root"/>
             </xsl:call-template>
         </xsl:for-each>
     </xsl:template>
 
     <xsl:template name="local:apply-redo">
-        <xsl:variable name="top" as="element()?" select="(id('redo-stack', ixsl:page())/div)[last()]"/>
+        <xsl:variable name="top" as="element()?" select="(id('rdfa-editor-redo-stack', ixsl:page())/div)[last()]"/>
         <xsl:for-each select="$top">
+            <xsl:variable name="root-index" as="xs:integer" select="xs:integer(@data-root)"/>
+            <xsl:variable name="root" as="element()?" select="local:roots()[$root-index]"/>
             <!-- raw push onto the undo stack: must NOT clear the redo stack -->
             <xsl:call-template name="local:stash-push">
-                <xsl:with-param name="stack" select="id('undo-stack', ixsl:page())"/>
-                <xsl:with-param name="snapshot" select="string(ixsl:get(local:content(), 'innerHTML'))"/>
+                <xsl:with-param name="stack" select="id('rdfa-editor-undo-stack', ixsl:page())"/>
+                <xsl:with-param name="snapshot" select="$root ! string(ixsl:get(., 'innerHTML'))"/>
+                <xsl:with-param name="root" select="$root"/>
             </xsl:call-template>
             <xsl:variable name="snapshot" as="xs:string" select="string(.)"/>
             <xsl:variable name="caret" as="xs:integer*" select="(@data-block, @data-node, @data-offset) ! xs:integer(.)"/>
@@ -135,6 +154,7 @@ version="3.0">
             <xsl:call-template name="local:restore-snapshot">
                 <xsl:with-param name="snapshot" select="$snapshot"/>
                 <xsl:with-param name="caret" select="$caret"/>
+                <xsl:with-param name="root" select="$root"/>
             </xsl:call-template>
         </xsl:for-each>
     </xsl:template>
@@ -142,8 +162,9 @@ version="3.0">
     <xsl:template name="local:restore-snapshot">
         <xsl:param name="snapshot" as="xs:string"/>
         <xsl:param name="caret" as="xs:integer*" select="()"/>
+        <xsl:param name="root" as="element()?"/>
 
-        <xsl:for-each select="local:content()">
+        <xsl:for-each select="$root">
             <ixsl:set-property name="innerHTML" select="$snapshot" object="."/>
         </xsl:for-each>
         <!-- every stored node reference is stale now -->
@@ -154,10 +175,10 @@ version="3.0">
                 'draggedSectionHeading')">
             <ixsl:set-property name="{.}" select="()" object="ixsl:window()"/>
         </xsl:for-each>
-        <ixsl:set-property name="lastUndoTime" select="0" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorLastUndoTime" select="0" object="ixsl:window()"/>
         <!-- snapshots taken mid-drag may carry transient drag state -->
         <xsl:call-template name="local:clear-drop-marks"/>
-        <xsl:for-each select="local:content()/*[@draggable]">
+        <xsl:for-each select="$root/*[@draggable]">
             <ixsl:remove-attribute name="draggable"/>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
@@ -165,7 +186,7 @@ version="3.0">
         <xsl:variable name="block-index" as="xs:integer?" select="$caret[1]"/>
         <xsl:variable name="node-index" as="xs:integer?" select="$caret[2]"/>
         <xsl:variable name="target" as="text()?"
-            select="((local:content()/*)[$block-index]//text()[not(ancestor::*[@data-role])])[$node-index]"/>
+            select="(($root/*)[$block-index]//text()[not(ancestor::*[@data-role])])[$node-index]"/>
         <xsl:choose>
             <xsl:when test="exists($target)">
                 <xsl:for-each select="local:host-of($target)">
@@ -179,7 +200,7 @@ version="3.0">
                 </xsl:call-template>
             </xsl:when>
             <xsl:otherwise>
-                <xsl:for-each select="(local:content()/descendant-or-self::*[@contenteditable = 'true'])[1]">
+                <xsl:for-each select="($root/descendant-or-self::*[@contenteditable = 'true'])[1]">
                     <xsl:call-template name="local:focus">
                         <xsl:with-param name="element" select="."/>
                     </xsl:call-template>
@@ -217,8 +238,8 @@ version="3.0">
                          is stable across event invocations in SaxonJS (probed), so it cannot
                          detect burst boundaries -->
                     <xsl:variable name="now" as="xs:double" select="ixsl:call(ixsl:get(ixsl:window(), 'Date'), 'now', [])"/>
-                    <xsl:if test="$now - xs:double((ixsl:get(ixsl:window(), 'lastUndoTime'), 0)[1]) gt 1000
-                            or not(ixsl:get(ixsl:window(), 'lastUndoHost') ! (. is current()))">
+                    <xsl:if test="$now - xs:double((ixsl:get(ixsl:window(), 'rdfaEditorLastUndoTime'), 0)[1]) gt 1000
+                            or not(ixsl:get(ixsl:window(), 'rdfaEditorLastUndoHost') ! (. is current()))">
                         <xsl:call-template name="local:push-undo">
                             <xsl:with-param name="host" select="."/>
                         </xsl:call-template>

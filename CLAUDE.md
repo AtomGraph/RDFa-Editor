@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Multi-instance model (M2)
+
+- **Editable regions** are any elements with the `rdfa-editor-content` class token (host-page chrome, canonicalization-stripped). No `id('content')` singletons anywhere: `local:roots()`, `local:root-of()`, `local:active-root()` (selection, then last focused host, then first region) in `edit.xsl`.
+- **Undo is region-keyed**: one global stack, each stash entry carries `data-root` (region index) and restores only its region; caret data is region-relative. Stash ids: `rdfa-editor-undo-storage/-stack/-redo-stack`.
+- Blocks never move between regions (drop-target resolution is scoped to the dragged block's region). ToC and view-source follow the active region (`tocRoot` remembered at render); lint and find work across all regions.
+- **Window properties are prefixed** `rdfaEditor*` (e.g. `rdfaEditorRange`, `rdfaEditorActiveBlock`); editor UI containers carry the `rdfa-editor-ui` class and all generic CSS selectors (`.btn-*`, `.modal-*`, `.crumb`, …) are scoped under it — LDH/Bootstrap pages stay unaffected.
+- The extractor entry is a **named template only** (`-it:extract-rdfa`; no unnamed-mode `match="/"`) so it composes with host stylesheets' root templates. Integration with LinkedDataHub's client.xsl is compile-proven (see ldh/MIGRATION.md §10).
+- Links in content: plain click places the caret; Ctrl/Cmd+Click opens the href. The annotation overlay paints the stored selection as `.rdfa-editor-selection-hint` boxes (no content mutation), cleared on hide.
+
 ## Overview
 
 RDFa-Editor is a prototype XHTML+RDFa authoring tool using client-side XSLT. Content lives in a `#content` container of structured blocks (p, h1–h3, ul/ol, blockquote, pre, figure), always editable Notion-style: typing within blocks, Enter splits, Backspace-at-start merges, toolbar for block types / inline formatting / lists / figures / links, drag-handle reordering. Right-click a text selection to annotate it with RDFa; right-click an existing annotation to edit or remove it. "Extract RDF" shows the page's triples; "Source" shows the canonical XHTML+RDFa serialization (all editing ephemera stripped).

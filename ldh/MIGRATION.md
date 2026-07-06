@@ -7,10 +7,9 @@ pipeline. All LDH references are to
 
 ## Prerequisites (this repo)
 
-- **M2 multi-instance refactor** — LDH pages edit many XHTML blocks; the editor
-  currently assumes a single `id('content')` root (`local:content()`, undo snapshots,
-  lint/ToC scoping). Editable roots must be resolved per instance (container class
-  convention), with per-instance undo stacks.
+- **M2 multi-instance refactor** — DONE: editable regions are `.rdfa-editor-content`
+  containers (any number per page); undo is region-keyed; drops never cross regions;
+  ToC/view-source follow the active region; window state is `rdfaEditor*`-prefixed.
 - **M4 vocabulary UX (recommended)** — replace the option-list selects with a typeahead
   fed by LDH's ontology endpoint (below); 100+-option selects don't scale to app
   ontologies.
@@ -124,19 +123,36 @@ instead).
   `xsl:import`ed from `client.xsl`.
 - `rdfa-editor.css` is copied under `static/…/css/`.
 
-### 10. Conflict audit checklist (before the first compile)
+### 10. Conflict audit — VERIFIED (compile-proven)
 
-- The extractor's unnamed-mode `match="/"` (`extract-rdfa`) vs LDH's root templates —
-  move the editor's entry behind a named/mode-scoped entry only.
-- `xsl:output` declarations (LDH's principal output wins with `xsl:import` —
-  verify; the extractor's `indent="yes"` must not leak).
-- Event-template overlap: one template per mode per element — audit LDH's existing
-  `ixsl:onkeydown`/`onclick`/`onmousedown`/drag handlers against the editor's host-level
-  (`*[@contenteditable='true']`) and `body` templates.
-- `id('content')` and other singleton assumptions (removed by M2).
-- Window-property names (`activeBlock`, `undoStack` stash ids, …) — prefix them
-  (`rdfaEditor*`) to avoid collisions.
-- `$base-uri` and other global params — declared once across the merged tree.
+The full integration was proven by compiling LDH's `client.xsl` (from the built
+`target/ROOT` tree) with all nine editor modules appended as `xsl:import`s into a
+single SEF via `xslt3-he -nogo -ns:##html5 -relocate:on` — no errors, no conflicts.
+
+Audit results:
+- Extractor entry is a **named template only** (`extract-rdfa`; the unnamed-mode
+  `match="/"` was removed; headless tests invoke with `-it:extract-rdfa`). All other
+  editor matching lives in named modes (`rdfa:extract`, `canonical`) or `ixsl:*` event
+  modes.
+- Event templates: LDH has no `contenteditable` usage and no `body` keydown template
+  (only `body` onmousemove in navigation.xsl — different mode). No pattern overlap.
+- `drag-handle` class token exists on both sides, but LDH matches `div.drag-handle`
+  and the editor `span.drag-handle` — disjoint patterns; both sides' CSS is
+  container-scoped (`.row-fluid.block .drag-handle` vs the editor's region scoping).
+- No id, window-property, named-template, or mode-name collisions (grep-verified).
+  Editor window props are `rdfaEditor*`-prefixed; undo stash ids are
+  `rdfa-editor-*`-prefixed; generic UI class selectors (`.btn-*`, `.modal-*`, `.crumb`,
+  `.toc-*`, …) are scoped under `.rdfa-editor-ui` so Bootstrap 2.3.2 styling is
+  untouched.
+- LDH's `base-uri` params are all template-local — no clash with the extractor's
+  global `$base-uri`.
+- `xsl:output`: resolved by import precedence (client.xsl is the principal module).
+
+Build caveat: `xslt3-he` does not expand DOCTYPE entity declarations when loading
+modules — LDH's entity-using stylesheets must be entity-expanded (e.g.
+`xmlstarlet c14n`) before the SEF compile, and `xsl:import` hrefs resolve against the
+importing file's location (`xml:base` is not honored). The editor modules are
+entity-free and import cleanly from any location.
 
 ### 11. v6 outlook
 

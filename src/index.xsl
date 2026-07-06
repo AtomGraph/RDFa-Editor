@@ -33,16 +33,6 @@ version="3.0">
     <xsl:include href="undo.xsl"/>
     <xsl:include href="navigate.xsl"/>
 
-    <!-- ontology documents (RDF/XML) feeding the type and property dropdowns.
-         Relative hrefs resolve against the page URI; the host page preloads them
-         into the SaxonJS document pool (must match its list) -->
-    <xsl:param name="vocab-hrefs" as="xs:string*" select="('vocabs/foaf.rdf', 'vocabs/dcterms.rdf')"/>
-
-    <!-- the page URI without its fragment: the base for RDFa resolution in the browser -->
-    <xsl:function name="local:document-uri" as="xs:string">
-        <xsl:sequence select="substring-before(ixsl:get(ixsl:window(), 'location.href') || '#', '#')"/>
-    </xsl:function>
-
     <!-- the initial template (SaxonJS.transform initialTemplate in the host page).
          Everything here is synchronous: the host page preloads the vocabulary
          documents into the SaxonJS document pool (SaxonJS.getResource +
@@ -53,11 +43,12 @@ version="3.0">
                 'breadcrumbLeaf', 'draggedSectionHeading', 'findNode')">
             <ixsl:set-property name="{.}" select="()" object="ixsl:window()"/>
         </xsl:for-each>
-        <ixsl:set-property name="lastUndoTime" select="0" object="ixsl:window()"/>
-        <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorLastUndoTime" select="0" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorFindOffset" select="1" object="ixsl:window()"/>
 
         <xsl:call-template name="local:init-undo"/>
         <xsl:call-template name="local:init-overlay"/>
+        <xsl:call-template name="local:init-annotate"/>
         <xsl:call-template name="local:init-editing"/>
         <xsl:call-template name="local:init-navigate"/>
     </xsl:template>

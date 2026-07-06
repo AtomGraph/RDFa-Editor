@@ -54,7 +54,7 @@ Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/ato
 ## C. Milestones
 
 - **M1 — Hardening (THIS ROUND, implemented)**: sanitization + HTML paste + a11y/keys + undo caret restoration + in-repo tests/CI + CSS extraction + README; migration plan document in `ldh/`.
-- **M2 — Multi-instance component**: editable roots by convention (not `id('content')`), per-instance undo/lint/ToC scoping, stable component namespace + params.
+- **M2 — Multi-instance component** (DONE): `.rdfa-editor-content` regions, region-keyed undo, scoped ToC/source, `rdfaEditor*` state prefix, `.rdfa-editor-ui` CSS scoping; LDH integration compile-proven (ldh/MIGRATION.md §10).
 - **M3 — LDH swap**: the contract above (LDH-side patches + build wiring + e2e in an LDH dev instance).
 - **M4 — Vocabulary UX**: typeahead over ontology terms from `/ns`, schema.org vocab, domain/range-aware ranking.
 - **M5 — Editing completeness**: tables (add/remove rows/cols, cells editable), nested lists, h4–h6, code/sub/sup, image upload via LDH, cross-node find, i18n strings, Firefox/Safari passes, touch fallback.

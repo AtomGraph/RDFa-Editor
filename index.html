@@ -67,7 +67,7 @@
                 line-height: 1.6;
             }
             /* Content blocks */
-            #content {
+            .rdfa-editor-content {
                 margin: 20px 0;
                 padding: 20px 20px 20px 40px;
                 border: 1px solid #e0e0e0;
@@ -96,7 +96,7 @@
                <strong>Source</strong> shows the canonical XHTML+RDFa; <strong>Extract RDF</strong> the triples.</p>
         </div>
 
-        <div id="content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
+        <div id="content" class="rdfa-editor-content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
             <h1 property="http://purl.org/dc/terms/title">Demo document</h1>
             <h2>Company</h2>
             <p>Our company was founded by <strong>Dr. Jane Smith</strong> in 2020. She graduated
@@ -120,13 +120,12 @@ SELECT ?name WHERE { ?s schema:name ?name . }</pre>
             </figure>
         </div>
 
-        <!-- Output Modal (Extract RDF / View source) -->
-        <div id="output-modal" class="modal" style="display: none;">
-            <div class="modal-content">
-                <span class="modal-close">&#215;</span>
-                <h3 id="output-title">Output</h3>
-                <pre id="output-content"></pre>
-            </div>
+        <!-- a second editable region: the editor is multi-instance -->
+        <div id="notes" class="rdfa-editor-content" about="#notes">
+            <h2>Notes</h2>
+            <p>A second, independent editable region — blocks cannot be dragged between regions,
+                and undo is keyed per region.</p>
         </div>
+
     </body>
 </html>

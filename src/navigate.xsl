@@ -23,11 +23,11 @@ version="3.0">
     <xsl:template name="local:init-navigate">
         <xsl:for-each select="ixsl:page()//body">
             <xsl:result-document href="?." method="ixsl:append-content">
-                <aside id="toc-drawer" role="navigation" aria-label="Table of contents" style="display: none;">
+                <aside id="toc-drawer" class="rdfa-editor-ui" role="navigation" aria-label="Table of contents" style="display: none;">
                     <h2>Contents</h2>
                     <div id="toc-list"/>
                 </aside>
-                <footer id="breadcrumb" role="navigation" aria-label="Document position">
+                <footer id="breadcrumb" class="rdfa-editor-ui" role="navigation" aria-label="Document position">
                     <div id="breadcrumb-path"/>
                     <div id="breadcrumb-meta">
                         <span id="breadcrumb-subject"/>
@@ -50,13 +50,18 @@ version="3.0">
     </xsl:function>
 
     <xsl:template name="local:render-toc">
-        <xsl:variable name="headings" as="element()*" select="local:content()/(h1 | h2 | h3)"/>
+        <xsl:variable name="root" as="element()?" select="local:active-root()"/>
+        <xsl:variable name="headings" as="element()*" select="$root/(h1 | h2 | h3)"/>
+        <!-- remembered for item click/drag resolution (roots are never replaced, only
+             their children, so the reference stays valid across undo restores) -->
+        <ixsl:set-property name="rdfaEditorTocRoot" select="$root" object="ixsl:window()"/>
         <xsl:for-each select="id('toc-list', ixsl:page())">
             <xsl:result-document href="?." method="ixsl:replace-content">
                 <xsl:choose>
                     <xsl:when test="exists($headings)">
                         <xsl:call-template name="local:toc-level">
                             <xsl:with-param name="headings" select="$headings"/>
+                            <xsl:with-param name="root" select="$root"/>
                             <xsl:with-param name="rank" select="1"/>
                         </xsl:call-template>
                     </xsl:when>
@@ -71,18 +76,20 @@ version="3.0">
     <!-- hierarchical outline by heading rank; handles skipped ranks naturally -->
     <xsl:template name="local:toc-level">
         <xsl:param name="headings" as="element()*"/>
+        <xsl:param name="root" as="element()"/>
         <xsl:param name="rank" as="xs:integer"/>
 
         <ul>
             <xsl:for-each-group select="$headings" group-starting-with="*[local:rank(.) le $rank]">
                 <li class="toc-item toc-{local-name(current-group()[1])}" draggable="true"
-                    data-index="{count(local:content()/(h1 | h2 | h3)[. &lt;&lt; current-group()[1]]) + 1}">
+                    data-index="{count($root/(h1 | h2 | h3)[. &lt;&lt; current-group()[1]]) + 1}">
                     <span class="toc-label">
                         <xsl:value-of select="local:block-text(current-group()[1])"/>
                     </span>
                     <xsl:if test="exists(current-group()[position() gt 1])">
                         <xsl:call-template name="local:toc-level">
                             <xsl:with-param name="headings" select="current-group()[position() gt 1]"/>
+                            <xsl:with-param name="root" select="$root"/>
                             <xsl:with-param name="rank" select="$rank + 1"/>
                         </xsl:call-template>
                     </xsl:if>
@@ -107,7 +114,7 @@ version="3.0">
 
     <xsl:template match="span[contains-token(@class, 'toc-label')]" mode="ixsl:onclick">
         <xsl:variable name="index" as="xs:integer" select="xs:integer(../@data-index)"/>
-        <xsl:for-each select="(local:content()/(h1 | h2 | h3))[$index]">
+        <xsl:for-each select="(ixsl:get(ixsl:window(), 'rdfaEditorTocRoot')/(h1 | h2 | h3))[$index]">
             <xsl:sequence select="ixsl:call(., 'scrollIntoView', [ map{ 'block': 'start' } ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:focus">
                 <xsl:with-param name="element" select="."/>
@@ -134,8 +141,8 @@ version="3.0">
     <xsl:template match="li[contains-token(@class, 'toc-item')]" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
         <xsl:variable name="index" as="xs:integer" select="xs:integer(@data-index)"/>
-        <ixsl:set-property name="draggedSectionHeading"
-            select="(local:content()/(h1 | h2 | h3))[$index]" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorDraggedSectionHeading"
+            select="(ixsl:get(ixsl:window(), 'rdfaEditorTocRoot')/(h1 | h2 | h3))[$index]" object="ixsl:window()"/>
         <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
         <xsl:sequence select="ixsl:call($transfer, 'setData', [ 'application/x-rdfa-editor-section', '' ])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'add', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -143,7 +150,7 @@ version="3.0">
 
     <xsl:template match="li[contains-token(@class, 'toc-item')]" mode="ixsl:ondragover">
         <xsl:variable name="event" select="ixsl:event()"/>
-        <xsl:if test="exists(ixsl:get(ixsl:window(), 'draggedSectionHeading'))
+        <xsl:if test="exists(ixsl:get(ixsl:window(), 'rdfaEditorDraggedSectionHeading'))
                 and local:has-transfer-type($event, 'application/x-rdfa-editor-section')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <ixsl:set-property name="dropEffect" select="'move'" object="ixsl:get($event, 'dataTransfer')"/>
@@ -156,7 +163,7 @@ version="3.0">
     <xsl:template match="li[contains-token(@class, 'toc-item')]" mode="ixsl:ondrop">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="item" as="element()" select="."/>
-        <xsl:variable name="source" select="ixsl:get(ixsl:window(), 'draggedSectionHeading')"/>
+        <xsl:variable name="source" select="ixsl:get(ixsl:window(), 'rdfaEditorDraggedSectionHeading')"/>
         <xsl:variable name="before" as="xs:boolean" select="local:drop-before($event, $item)"/>
         <xsl:call-template name="local:clear-toc-marks"/>
         <xsl:if test="exists($source) and local:has-transfer-type($event, 'application/x-rdfa-editor-section')">
@@ -164,7 +171,8 @@ version="3.0">
             <!-- bare-variable positional predicate: SaxonJS evaluates computed numeric
                  predicates as booleans in this context -->
             <xsl:variable name="index" as="xs:integer" select="xs:integer($item/@data-index)"/>
-            <xsl:variable name="target" as="element()?" select="(local:content()/(h1 | h2 | h3))[$index]"/>
+            <xsl:variable name="target" as="element()?"
+                select="(ixsl:get(ixsl:window(), 'rdfaEditorTocRoot')/(h1 | h2 | h3))[$index]"/>
             <!-- no-op: dropping onto itself or into its own section (incl. subsections) -->
             <xsl:if test="exists($target) and not($target is $source)
                     and empty($target intersect local:section-of($source))">
@@ -195,7 +203,7 @@ version="3.0">
     <xsl:template match="li[contains-token(@class, 'toc-item')]" mode="ixsl:ondragend">
         <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:call-template name="local:clear-toc-marks"/>
-        <ixsl:set-property name="draggedSectionHeading" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorDraggedSectionHeading" select="()" object="ixsl:window()"/>
     </xsl:template>
 
     <xsl:template name="local:clear-toc-marks">
@@ -218,7 +226,7 @@ version="3.0">
     <xsl:function name="local:crumb-label" as="xs:string">
         <xsl:param name="element" as="element()"/>
         <xsl:choose>
-            <xsl:when test="$element/@id = 'content'">content</xsl:when>
+            <xsl:when test="contains-token($element/@class, 'rdfa-editor-content')">content</xsl:when>
             <xsl:otherwise>
                 <xsl:variable name="term" as="xs:string?"
                     select="($element/@property, $element/@typeof)[1] ! tokenize(.)[1]"/>
@@ -231,13 +239,13 @@ version="3.0">
         <xsl:variable name="selection" select="ixsl:call(ixsl:window(), 'getSelection', [])"/>
         <xsl:variable name="node" select="(
             (if (ixsl:get($selection, 'rangeCount') ge 1) then ixsl:get($selection, 'anchorNode') else ()),
-            ixsl:get(ixsl:window(), 'activeBlock'))[1]"/>
+            ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock'))[1]"/>
         <xsl:variable name="leaf" as="element()?" select="$node/ancestor-or-self::*[1]"/>
         <xsl:choose>
             <xsl:when test="exists($leaf) and exists(local:block-of($leaf))">
-                <ixsl:set-property name="breadcrumbLeaf" select="$leaf" object="ixsl:window()"/>
+                <ixsl:set-property name="rdfaEditorBreadcrumbLeaf" select="$leaf" object="ixsl:window()"/>
                 <xsl:variable name="ancestors" as="element()*"
-                    select="$leaf/ancestor-or-self::* intersect local:content()/descendant-or-self::*"/>
+                    select="$leaf/ancestor-or-self::* intersect local:root-of($leaf)/descendant-or-self::*"/>
                 <xsl:for-each select="id('breadcrumb-path', ixsl:page())">
                     <xsl:result-document href="?." method="ixsl:replace-content">
                         <xsl:for-each select="$ancestors">
@@ -256,7 +264,7 @@ version="3.0">
                 </xsl:for-each>
             </xsl:when>
             <xsl:otherwise>
-                <ixsl:set-property name="breadcrumbLeaf" select="()" object="ixsl:window()"/>
+                <ixsl:set-property name="rdfaEditorBreadcrumbLeaf" select="()" object="ixsl:window()"/>
                 <xsl:for-each select="id('breadcrumb-path', ixsl:page())">
                     <ixsl:set-property name="textContent" select="''" object="."/>
                 </xsl:for-each>
@@ -273,9 +281,9 @@ version="3.0">
 
     <xsl:template match="span[contains-token(@class, 'crumb')]" mode="ixsl:onclick">
         <xsl:variable name="index" as="xs:integer" select="xs:integer(@data-index)"/>
-        <xsl:for-each select="ixsl:get(ixsl:window(), 'breadcrumbLeaf')[exists(local:block-of(.))]">
+        <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorBreadcrumbLeaf')[exists(local:block-of(.))]">
             <xsl:variable name="target" as="element()?"
-                select="(ancestor-or-self::* intersect local:content()/descendant-or-self::*)[$index]"/>
+                select="(ancestor-or-self::* intersect local:root-of(.)/descendant-or-self::*)[$index]"/>
             <xsl:for-each select="$target">
                 <xsl:sequence select="ixsl:call(ixsl:call(ixsl:window(), 'getSelection', []),
                     'selectAllChildren', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -305,10 +313,10 @@ version="3.0">
     <!-- ................................ lint surfacing ................................ -->
 
     <xsl:template name="local:run-lint">
-        <xsl:for-each select="local:content()//*[contains-token(@class, 'rdfa-invalid')]">
+        <xsl:for-each select="local:roots()//*[contains-token(@class, 'rdfa-invalid')]">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'rdfa-invalid' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
-        <xsl:variable name="lintable" as="element()*" select="local:content() ! lint:lintable(.)"/>
+        <xsl:variable name="lintable" as="element()*" select="local:roots() ! lint:lintable(.)"/>
         <xsl:for-each select="$lintable[exists(lint:element-issues(.))]">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'add', [ 'rdfa-invalid' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
@@ -329,7 +337,7 @@ version="3.0">
 
     <xsl:template match="button[@id = 'lint-badge']" mode="ixsl:onclick">
         <xsl:variable name="lines" as="xs:string*"
-            select="local:content() ! lint:lintable(.) ! lint:element-issues(.)
+            select="local:roots() ! lint:lintable(.) ! lint:element-issues(.)
                 ! (string(@code) || ' &#x2014; ' || normalize-space(string(.)))"/>
         <xsl:call-template name="local:show-output">
             <xsl:with-param name="title" select="'RDFa validation issues'"/>
@@ -379,7 +387,7 @@ version="3.0">
     </xsl:function>
 
     <xsl:template name="local:render-find-dialog">
-        <div id="find-dialog" class="edit-dialog" role="dialog" aria-modal="true"
+        <div id="find-dialog" class="rdfa-editor-ui edit-dialog" role="dialog" aria-modal="true"
                 aria-label="Find and replace" style="display: none;">
             <label>Find</label>
             <input type="text" name="find"/>
@@ -442,10 +450,10 @@ version="3.0">
                 </xsl:call-template>
             </xsl:when>
             <xsl:otherwise>
-                <xsl:variable name="texts" select="local:content()//text()[not(ancestor::*[@data-role])]"/>
-                <xsl:variable name="current" select="ixsl:get(ixsl:window(), 'findNode')[exists(local:block-of(.))]"/>
+                <xsl:variable name="texts" select="local:roots()//text()[not(ancestor::*[@data-role])]"/>
+                <xsl:variable name="current" select="ixsl:get(ixsl:window(), 'rdfaEditorFindNode')[exists(local:block-of(.))]"/>
                 <xsl:variable name="offset" as="xs:integer"
-                    select="(ixsl:get(ixsl:window(), 'findOffset') ! xs:integer(.), 1)[1]"/>
+                    select="(ixsl:get(ixsl:window(), 'rdfaEditorFindOffset') ! xs:integer(.), 1)[1]"/>
                 <!-- wrap-around scan plan: current node from the last match onward,
                      following nodes, preceding nodes, current node from the top -->
                 <xsl:variable name="plan" as="map(*)*" select="
@@ -460,8 +468,8 @@ version="3.0">
                         <xsl:call-template name="local:find-status">
                             <xsl:with-param name="message" select="'No matches.'"/>
                         </xsl:call-template>
-                        <ixsl:set-property name="findNode" select="()" object="ixsl:window()"/>
-                        <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
+                        <ixsl:set-property name="rdfaEditorFindNode" select="()" object="ixsl:window()"/>
+                        <ixsl:set-property name="rdfaEditorFindOffset" select="1" object="ixsl:window()"/>
                     </xsl:on-completion>
                     <xsl:variable name="node" select="?n"/>
                     <xsl:variable name="position" as="xs:integer?"
@@ -478,8 +486,8 @@ version="3.0">
                                     $position - 1 + string-length($query) ])[current-date() lt xs:date('2000-01-01')]"/>
                             <xsl:sequence select="ixsl:call(ixsl:get($node, 'parentElement'), 'scrollIntoView',
                                 [ map{ 'block': 'center' } ])[current-date() lt xs:date('2000-01-01')]"/>
-                            <ixsl:set-property name="findNode" select="$node" object="ixsl:window()"/>
-                            <ixsl:set-property name="findOffset"
+                            <ixsl:set-property name="rdfaEditorFindNode" select="$node" object="ixsl:window()"/>
+                            <ixsl:set-property name="rdfaEditorFindOffset"
                                 select="$position + string-length($query)" object="ixsl:window()"/>
                             <xsl:call-template name="local:find-status">
                                 <xsl:with-param name="message" select="''"/>
@@ -517,8 +525,8 @@ version="3.0">
                 <xsl:if test="$replacement ne ''">
                     <xsl:variable name="node" select="ixsl:call(ixsl:page(), 'createTextNode', [ $replacement ])"/>
                     <xsl:sequence select="ixsl:call($range, 'insertNode', [ $node ])[current-date() lt xs:date('2000-01-01')]"/>
-                    <ixsl:set-property name="findNode" select="$node" object="ixsl:window()"/>
-                    <ixsl:set-property name="findOffset" select="string-length($replacement) + 1" object="ixsl:window()"/>
+                    <ixsl:set-property name="rdfaEditorFindNode" select="$node" object="ixsl:window()"/>
+                    <ixsl:set-property name="rdfaEditorFindOffset" select="string-length($replacement) + 1" object="ixsl:window()"/>
                 </xsl:if>
                 <xsl:call-template name="local:after-mutation"/>
                 <xsl:call-template name="local:find-next"/>
@@ -538,7 +546,7 @@ version="3.0">
             select="string(ixsl:get(($dialog//input[@name = 'replace'])[1], 'value'))"/>
         <xsl:variable name="ci" as="xs:boolean"
             select="not(ixsl:get(($dialog//input[@name = 'match-case'])[1], 'checked'))"/>
-        <xsl:variable name="matched" select="local:content()//text()[not(ancestor::*[@data-role])]
+        <xsl:variable name="matched" select="local:roots()//text()[not(ancestor::*[@data-role])]
             [$query ne ''][contains(local:norm(string(.), $ci), local:norm($query, $ci))]"/>
         <xsl:choose>
             <xsl:when test="empty($matched)">
@@ -564,8 +572,8 @@ version="3.0">
                         <xsl:with-param name="total" select="$total + xs:integer($result?count)"/>
                     </xsl:next-iteration>
                 </xsl:iterate>
-                <ixsl:set-property name="findNode" select="()" object="ixsl:window()"/>
-                <ixsl:set-property name="findOffset" select="1" object="ixsl:window()"/>
+                <ixsl:set-property name="rdfaEditorFindNode" select="()" object="ixsl:window()"/>
+                <ixsl:set-property name="rdfaEditorFindOffset" select="1" object="ixsl:window()"/>
                 <xsl:call-template name="local:after-mutation"/>
             </xsl:otherwise>
         </xsl:choose>

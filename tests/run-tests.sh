@@ -12,7 +12,7 @@ fail=0
 
 for fixture in tests/fixtures/*.xhtml; do
     name=$(basename "$fixture" .xhtml)
-    if ! npx xslt3-he -xsl:src/RDFa2RDFXML-v3.xsl -s:"$fixture" -o:"$tmp/$name.rdf" base-uri="$BASE" 2>"$tmp/$name.err"; then
+    if ! npx xslt3-he -xsl:src/RDFa2RDFXML-v3.xsl -s:"$fixture" -it:extract-rdfa -o:"$tmp/$name.rdf" base-uri="$BASE" 2>"$tmp/$name.err"; then
         echo "FAIL $name (extraction error)"
         cat "$tmp/$name.err"
         fail=1

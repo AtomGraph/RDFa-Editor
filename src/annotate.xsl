@@ -29,7 +29,7 @@ version="3.0">
         <xsl:choose>
             <!-- edit mode -->
             <xsl:when test="exists($annotation)">
-                <ixsl:set-property name="editingSpan" select="$annotation" object="ixsl:window()"/>
+                <ixsl:set-property name="rdfaEditorEditingSpan" select="$annotation" object="ixsl:window()"/>
                 <xsl:call-template name="local:populate-form">
                     <xsl:with-param name="span" select="$annotation"/>
                     <xsl:with-param name="value" select="string(($annotation/@content, $annotation)[1])"/>
@@ -48,8 +48,11 @@ version="3.0">
                     <xsl:variable name="range" select="ixsl:call($selection, 'getRangeAt', [ 0 ])"/>
                     <xsl:choose>
                         <xsl:when test="local:selection-valid($range)">
-                            <ixsl:set-property name="range" select="$range" object="ixsl:window()"/>
-                            <ixsl:set-property name="editingSpan" select="()" object="ixsl:window()"/>
+                            <ixsl:set-property name="rdfaEditorRange" select="$range" object="ixsl:window()"/>
+                            <ixsl:set-property name="rdfaEditorEditingSpan" select="()" object="ixsl:window()"/>
+                            <xsl:call-template name="local:show-selection-hint">
+                                <xsl:with-param name="range" select="$range"/>
+                            </xsl:call-template>
                             <xsl:call-template name="local:populate-form">
                                 <xsl:with-param name="value" select="string(ixsl:call($selection, 'toString', []))"/>
                             </xsl:call-template>
@@ -117,7 +120,7 @@ version="3.0">
 
     <xsl:template match="button[tokenize(@class) = 'spo-action']" mode="ixsl:onclick">
         <xsl:variable name="values" as="map(xs:string, xs:string?)" select="local:form-values(ancestor::form)"/>
-        <xsl:variable name="editing" select="ixsl:get(ixsl:window(), 'editingSpan')"/>
+        <xsl:variable name="editing" select="ixsl:get(ixsl:window(), 'rdfaEditorEditingSpan')"/>
 
         <xsl:choose>
             <xsl:when test="exists($editing)">
@@ -131,11 +134,12 @@ version="3.0">
                 <xsl:call-template name="local:hide-overlay"/>
             </xsl:when>
             <xsl:otherwise>
-                <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'range')"/>
+                <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'rdfaEditorRange')"/>
                 <xsl:variable name="reference-text" as="xs:string" select="string(ixsl:call($range, 'toString', []))"/>
                 <!-- capture pre-wrap state; push only when the wrap succeeded -->
-                <xsl:variable name="snapshot" as="xs:string"
-                    select="string(ixsl:get(local:content(), 'innerHTML'))"/>
+                <xsl:variable name="snapshot-root" as="element()?" select="local:active-root()"/>
+                <xsl:variable name="snapshot" as="xs:string?"
+                    select="$snapshot-root ! string(ixsl:get(., 'innerHTML'))"/>
                 <xsl:variable name="span" as="element()?">
                     <xsl:call-template name="local:wrap-range">
                         <xsl:with-param name="range" select="$range"/>
@@ -144,6 +148,7 @@ version="3.0">
                 </xsl:variable>
                 <xsl:for-each select="$span">
                     <xsl:call-template name="local:push-undo">
+                        <xsl:with-param name="root" select="$snapshot-root"/>
                         <xsl:with-param name="snapshot" select="$snapshot"/>
                     </xsl:call-template>
                     <xsl:call-template name="local:apply-annotation">
@@ -192,7 +197,7 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="button[tokenize(@class) = 'remove-action']" mode="ixsl:onclick">
-        <xsl:for-each select="ixsl:get(ixsl:window(), 'editingSpan')">
+        <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorEditingSpan')">
             <xsl:call-template name="local:push-undo"/>
             <xsl:call-template name="local:unwrap-element">
                 <xsl:with-param name="element" select="."/>
@@ -229,6 +234,21 @@ version="3.0">
             <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
     </xsl:function>
+
+    <!-- the editor renders its own output modal (host pages provide only content regions) -->
+    <xsl:template name="local:init-annotate">
+        <xsl:for-each select="ixsl:page()//body">
+            <xsl:result-document href="?." method="ixsl:append-content">
+                <div id="output-modal" class="rdfa-editor-ui" style="display: none;">
+                    <div class="modal-content">
+                        <span class="modal-close">&#215;</span>
+                        <h3 id="output-title">Output</h3>
+                        <pre id="output-content"/>
+                    </div>
+                </div>
+            </xsl:result-document>
+        </xsl:for-each>
+    </xsl:template>
 
     <!-- shared output modal (Extract RDF / View source) -->
     <xsl:template name="local:show-output">

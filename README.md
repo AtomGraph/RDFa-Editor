@@ -5,7 +5,7 @@ A declarative **XHTML+RDFa authoring tool** running entirely on client-side XSLT
 extensions). No JavaScript application code — the editor UI, the editing behavior, the
 RDFa extraction and the document canonicalization are all XSLT.
 
-- **Structured-block editing** of a `#content` container (p, h1–h3, lists, blockquote,
+- **Structured-block editing** of any number of `.rdfa-editor-content` regions (p, h1–h3, lists, blockquote,
   pre, figure): Enter splits, Backspace merges, toolbar for block types / inline
   formatting / links / figures, drag-handle and Alt+Arrow reordering, HTML paste through
   a sanitizing canonicalization pipeline, unified snapshot undo/redo with caret
@@ -43,7 +43,7 @@ See `CLAUDE.md` for the module map and conventions. The load-bearing pieces:
 `src/canonical-xhtml.xsl` (canonical + sanitized serialization form, pure XSLT),
 `src/lint-rdfa.xsl` (pure), and the IXSL modules `edit.xsl` / `annotate.xsl` /
 `overlay.xsl` / `navigate.xsl` / `undo.xsl` / `vocab.xsl`. The editor's stylesheet is
-self-contained: a host page provides a `#content` container, `rdfa-editor.css`, and
+self-contained: a host page provides one or more `.rdfa-editor-content` regions, `rdfa-editor.css`, and
 preloads the vocabulary documents into the SaxonJS document pool (see `index.html`).
 
 ## Embedding in LinkedDataHub

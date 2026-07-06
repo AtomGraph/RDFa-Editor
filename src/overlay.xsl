@@ -34,7 +34,7 @@ version="3.0">
         <xsl:variable name="vocab-uris" as="xs:string*"
             select="$vocab-hrefs ! string(resolve-uri(., ixsl:location()))"/>
 
-        <div id="overlay" role="dialog" aria-modal="true" aria-label="RDFa annotation" style="display: none;">
+        <div id="overlay" class="rdfa-editor-ui" role="dialog" aria-modal="true" aria-label="RDFa annotation" style="display: none;">
             <div class="overlay-header">
                 <h3>RDFa Annotation</h3>
             </div>
@@ -238,15 +238,44 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
+    <!-- the browser drops the visible selection once focus moves into the overlay
+         form: paint the stored range's client rects as pointer-transparent hint
+         boxes (no content mutation), cleared on hide -->
+    <xsl:template name="local:show-selection-hint">
+        <xsl:param name="range"/>
+
+        <xsl:variable name="scroll-x" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollX')"/>
+        <xsl:variable name="scroll-y" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollY')"/>
+        <!-- getClientRects returns a DOMRectList; Array.from marshals it to a sequence -->
+        <xsl:for-each select="ixsl:call(ixsl:get(ixsl:window(), 'Array'), 'from',
+                [ ixsl:call($range, 'getClientRects', []) ])"><!-- -->
+            <xsl:variable name="rect" select="."/>
+            <xsl:for-each select="ixsl:page()//body">
+                <xsl:result-document href="?." method="ixsl:append-content">
+                    <div class="rdfa-editor-selection-hint" style="left: {ixsl:get($rect, 'left') + $scroll-x}px;
+                        top: {ixsl:get($rect, 'top') + $scroll-y}px; width: {ixsl:get($rect, 'width')}px;
+                        height: {ixsl:get($rect, 'height')}px;"/>
+                </xsl:result-document>
+            </xsl:for-each>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template name="local:hide-selection-hint">
+        <xsl:for-each select="ixsl:page()//body/div[contains-token(@class, 'rdfa-editor-selection-hint')]">
+            <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+    </xsl:template>
+
     <!-- single teardown point: hiding the overlay always clears the interaction state -->
     <xsl:template name="local:hide-overlay">
+        <xsl:call-template name="local:hide-selection-hint"/>
         <xsl:for-each select="id('overlay', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
-        <ixsl:set-property name="editingSpan" select="()" object="ixsl:window()"/>
-        <ixsl:set-property name="range" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorEditingSpan" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorRange" select="()" object="ixsl:window()"/>
         <!-- return focus to the content -->
-        <xsl:for-each select="ixsl:get(ixsl:window(), 'activeBlock')[exists(local:block-of(.))]">
+        <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock')[exists(local:block-of(.))]">
             <xsl:call-template name="local:focus">
                 <xsl:with-param name="element" select="."/>
             </xsl:call-template>

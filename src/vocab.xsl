@@ -21,6 +21,11 @@ version="3.0">
     description, as in the DCMI terms file); labels as attributes or child elements.
 -->
 
+    <!-- ontology documents (RDF/XML) feeding the type and property dropdowns.
+         Relative hrefs resolve against the page URI; the host page preloads them
+         into the SaxonJS document pool (must match its list) -->
+    <xsl:param name="vocab-hrefs" as="xs:string*" select="('vocabs/foaf.rdf', 'vocabs/dcterms.rdf')"/>
+
     <xsl:variable name="local:class-types" as="xs:string*" select="(
         'http://www.w3.org/2000/01/rdf-schema#Class',
         'http://www.w3.org/2002/07/owl#Class'
