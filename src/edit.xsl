@@ -939,11 +939,24 @@ version="3.0">
         <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'add', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
     </xsl:template>
 
+    <!-- images are natively draggable, so a drag starting on one would otherwise
+         carry no block identity and snap back; treat it as dragging its block -->
+    <xsl:template match="div[@id = 'content']//img" mode="ixsl:ondragstart">
+        <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
+        <xsl:for-each select="local:block-of(.)">
+            <ixsl:set-property name="draggedBlock" select="." object="ixsl:window()"/>
+            <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
+            <xsl:sequence select="ixsl:call($transfer, 'setData', [ 'application/x-rdfa-editor-block', '' ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:sequence select="ixsl:call($transfer, 'setDragImage', [ ., 0, 0 ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'add', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+    </xsl:template>
+
     <xsl:template match="div[@id = 'content'] | div[@id = 'content']//*" mode="ixsl:ondragover">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'draggedBlock')"/>
-        <xsl:variable name="target" as="element()?" select="local:block-of(.)"/>
-        <xsl:if test="exists($dragged) and exists($target) and not($target is $dragged)
+        <xsl:variable name="target" as="element()?" select="local:drop-target-of(., $event)"/>
+        <xsl:if test="exists($dragged) and exists($target)
                 and local:has-transfer-type($event, 'application/x-rdfa-editor-block')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <ixsl:set-property name="dropEffect" select="'move'" object="ixsl:get($event, 'dataTransfer')"/>
@@ -956,8 +969,8 @@ version="3.0">
     <xsl:template match="div[@id = 'content'] | div[@id = 'content']//*" mode="ixsl:ondrop">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'draggedBlock')"/>
-        <xsl:variable name="target" as="element()?" select="local:block-of(.)"/>
-        <xsl:if test="exists($dragged) and exists($target) and not($target is $dragged)
+        <xsl:variable name="target" as="element()?" select="local:drop-target-of(., $event)"/>
+        <xsl:if test="exists($dragged) and exists($target)
                 and local:has-transfer-type($event, 'application/x-rdfa-editor-block')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:clear-drop-marks"/>
@@ -969,9 +982,11 @@ version="3.0">
         </xsl:if>
     </xsl:template>
 
-    <xsl:template match="*[parent::div[@id = 'content']]" mode="ixsl:ondragend">
-        <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
-        <ixsl:remove-attribute name="draggable"/>
+    <xsl:template match="div[@id = 'content'] | div[@id = 'content']//*" mode="ixsl:ondragend">
+        <xsl:for-each select="local:block-of(.)">
+            <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
+            <ixsl:remove-attribute name="draggable"/>
+        </xsl:for-each>
         <xsl:call-template name="local:clear-drop-marks"/>
         <ixsl:set-property name="draggedBlock" select="()" object="ixsl:window()"/>
     </xsl:template>
@@ -982,6 +997,32 @@ version="3.0">
         <xsl:param name="type" as="xs:string"/>
         <xsl:variable name="types" select="ixsl:get(ixsl:get($event, 'dataTransfer'), 'types')"/>
         <xsl:sequence select="(if ($types instance of array(*)) then $types?* else $types) = $type"/>
+    </xsl:function>
+
+    <!-- the block to drop relative to: the hit-tested block when there is one,
+         else the geometrically nearest block by vertical midpoint - so gaps between
+         blocks, the container padding and the (tall) dragged block itself are all
+         valid drop zones instead of snapping the drag back -->
+    <xsl:function name="local:drop-target-of" as="element()?">
+        <xsl:param name="hit"/>
+        <xsl:param name="event"/>
+        <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'draggedBlock')"/>
+        <xsl:variable name="block" as="element()?" select="local:block-of($hit)"/>
+        <xsl:choose>
+            <xsl:when test="exists($block) and not(exists($dragged) and $block is $dragged)">
+                <xsl:sequence select="$block"/>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:variable name="y" as="xs:double" select="xs:double(ixsl:get($event, 'clientY'))"/>
+                <xsl:variable name="candidates" as="element()*"
+                    select="local:content()/*[not(exists($dragged) and . is $dragged)]"/>
+                <xsl:variable name="distances" as="xs:double*" select="$candidates
+                    ! (let $rect := ixsl:call(., 'getBoundingClientRect', []) return
+                        abs(xs:double(ixsl:get($rect, 'top')) + xs:double(ixsl:get($rect, 'height')) div 2 - $y))"/>
+                <xsl:variable name="nearest" as="xs:integer?" select="index-of($distances, min($distances))[1]"/>
+                <xsl:sequence select="$candidates[$nearest]"/>
+            </xsl:otherwise>
+        </xsl:choose>
     </xsl:function>
 
     <!-- above or below the vertical midpoint of the target block -->
