@@ -94,6 +94,37 @@
                 max-width: 400px;
             }
 
+/* Table blocks: cell borders make empty cells clickable while editing.
+   Class-free, so canonical output (stored content) keeps host-page styling */
+            .rdfa-editor-content table {
+                border-collapse: collapse;
+                margin: 16px 0;
+            }
+
+.rdfa-editor-content th,
+            .rdfa-editor-content td {
+                border: 1px solid #e0e0e0;
+                padding: 4px 8px;
+                min-width: 2em;
+                vertical-align: top;
+            }
+
+.rdfa-editor-content th {
+                background: #fafafa;
+            }
+
+.rdfa-editor-content caption {
+                caption-side: top;
+                text-align: left;
+                padding: 4px 0;
+                color: #757575;
+            }
+
+#edit-toolbar button:disabled {
+                opacity: 0.4;
+                cursor: default;
+            }
+
 .rdfa-editor-content [contenteditable="true"]:focus {
                 outline: 2px solid rgba(33, 150, 243, 0.35);
                 outline-offset: 2px;

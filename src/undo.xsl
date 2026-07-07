@@ -163,6 +163,18 @@ version="3.0">
 
         <xsl:for-each select="$root">
             <ixsl:set-property name="innerHTML" select="$snapshot" object="."/>
+            <!-- the HTML fragment parser foster-parents non-table content out of a
+                 <table>, so a chrome span serialized inside a table lands as a bogus
+                 region child on restore. Drop the strays and re-inject (idempotent);
+                 must precede caret resolution, which indexes $root/* -->
+            <xsl:for-each select="*[@data-role = 'chrome']">
+                <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+            </xsl:for-each>
+            <xsl:for-each select="*">
+                <xsl:call-template name="local:inject-chrome">
+                    <xsl:with-param name="block" select="."/>
+                </xsl:call-template>
+            </xsl:for-each>
         </xsl:for-each>
         <!-- every stored node reference is stale now -->
         <xsl:call-template name="local:hide-overlay"/>

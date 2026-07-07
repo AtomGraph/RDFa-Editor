@@ -17,6 +17,7 @@
 
     <xsl:template match="text()[not(normalize-space())][not(ancestor::pre)]
         [parent::html | parent::head | parent::body | parent::div | parent::section
-         | parent::article | parent::ul | parent::ol | parent::figure]"/>
+         | parent::article | parent::ul | parent::ol | parent::figure
+         | parent::table | parent::thead | parent::tbody | parent::tfoot | parent::tr]"/>
 
 </xsl:stylesheet>
