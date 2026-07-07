@@ -8,6 +8,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
 page.on('pageerror', err => errors.push(String(err)));
+const assert = (name, cond) => { results[name] = cond; if (!cond) errors.push('ASSERT FAILED: ' + name); };
 
 await page.goto(BASE + '/tests/fixture.html');
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 15000 });
@@ -71,6 +72,59 @@ await page.evaluate(() => {
 await page.keyboard.press('Shift+ArrowLeft');
 results.arrows.shiftStaysNative = await page.evaluate(() =>
     !window.getSelection().isCollapsed);
+
+// 2b. block images are navigation stops (not skipped): arrow keys select the
+// non-editable image by focusing it, then step past it into the caption
+assert('imageNav.focusable', await page.evaluate(() =>
+    document.querySelector('#content figure img')?.getAttribute('tabindex') === '-1'));
+// caret at the end of the <pre> that precedes the figure, then ArrowDown selects the image
+await page.evaluate(() => {
+    const pre = document.querySelector('#content > pre');
+    pre.focus();
+    const t = [...pre.childNodes].reverse().find(n => n.nodeType === 3);
+    window.getSelection().collapse(t, t.textContent.length);
+});
+await page.keyboard.press('ArrowDown');
+assert('imageNav.downSelectsImage', await page.evaluate(() =>
+    document.activeElement === document.querySelector('#content figure img')));
+// ArrowDown again steps past the image into the caption
+await page.keyboard.press('ArrowDown');
+assert('imageNav.downLeavesToCaption', await page.evaluate(() =>
+    document.querySelector('#content figcaption').contains(window.getSelection().anchorNode)
+    || window.getSelection().anchorNode === document.querySelector('#content figcaption')));
+// ArrowUp from the caption start re-selects the image
+await page.evaluate(() => {
+    const cap = document.querySelector('#content figcaption');
+    cap.focus();
+    const t = [...cap.childNodes].find(n => n.nodeType === 3);
+    window.getSelection().collapse(t, 0);
+});
+await page.keyboard.press('ArrowUp');
+assert('imageNav.upSelectsImage', await page.evaluate(() =>
+    document.activeElement === document.querySelector('#content figure img')));
+// ArrowUp from the image lands the caret back in the previous block
+await page.keyboard.press('ArrowUp');
+assert('imageNav.upLeavesToPrev', await page.evaluate(() =>
+    document.querySelector('#content > pre').contains(window.getSelection().anchorNode)
+    || document.activeElement === document.querySelector('#content > pre')));
+
+// 2c. Backspace on a selected image deletes its figure; undo restores it (with tabindex)
+await page.evaluate(() => {
+    const pre = document.querySelector('#content > pre');
+    pre.focus();
+    const t = [...pre.childNodes].reverse().find(n => n.nodeType === 3);
+    window.getSelection().collapse(t, t.textContent.length);
+});
+await page.keyboard.press('ArrowDown'); // select the image
+await page.keyboard.press('Backspace'); // delete the whole figure
+assert('imageNav.backspaceDeletesFigure', await page.evaluate(() =>
+    !document.querySelector('#content figure')));
+assert('imageNav.deleteLandsCaret', await page.evaluate(() =>
+    document.querySelector('#content > pre').contains(window.getSelection().anchorNode)
+    || document.activeElement === document.querySelector('#content > pre')));
+await page.keyboard.press('Control+z'); // undo restores the figure and its focusable image
+assert('imageNav.undoRestoresFigure', await page.evaluate(() =>
+    !!document.querySelector('#content figure img[tabindex="-1"]')));
 
 // 3. Enter at end -> empty block accepts mouse click + typing
 await page.evaluate(() => {

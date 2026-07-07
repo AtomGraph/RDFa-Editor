@@ -60,6 +60,16 @@ version="3.0">
         <xsl:sequence select="$node/ancestor-or-self::*[@contenteditable = 'true'][1]"/>
     </xsl:function>
 
+    <!-- keyboard-navigation stops within a region, in document order: the editable
+         hosts plus block-level (figure) images. An image can't hold a caret, so it
+         is a navigation island in its own right - focused (selected) rather than
+         given a caret - see local:land-forward/-backward -->
+    <xsl:function name="local:nav-targets" as="element()*">
+        <xsl:param name="node"/>
+        <xsl:sequence select="local:root-of($node)//*[@contenteditable = 'true'
+            or (self::img and empty(ancestor::*[@contenteditable = 'true']))]"/>
+    </xsl:function>
+
     <!-- toolbar actions resolve the block from the selection, falling back to the
          last focused host (the block-type select steals focus - see ixsl:onfocusin) -->
     <xsl:function name="local:current-block" as="element()?">
@@ -161,6 +171,60 @@ version="3.0">
         <xsl:sequence select="ixsl:call($element, 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
     </xsl:template>
 
+    <!-- a block image is 'selected' by focusing it (it carries tabindex=-1, set at
+         init); the text caret is cleared so only the image reads as the current
+         target. Its onfocusin records it as the active block, so toolbar/drag act
+         on its figure just as for a focused editable host -->
+    <xsl:template name="local:select-image">
+        <xsl:param name="image" as="element()"/>
+        <xsl:sequence select="ixsl:call(local:selection(), 'removeAllRanges', [])[current-date() lt xs:date('2000-01-01')]"/>
+        <xsl:call-template name="local:focus">
+            <xsl:with-param name="element" select="$image"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <!-- land at the start of the next target (down/right): caret at a host after any
+         chrome, focus (selection) at an image -->
+    <xsl:template name="local:land-forward">
+        <xsl:param name="target" as="element()"/>
+        <xsl:choose>
+            <xsl:when test="$target/self::img">
+                <xsl:call-template name="local:select-image">
+                    <xsl:with-param name="image" select="$target"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:call-template name="local:focus-caret">
+                    <xsl:with-param name="node" select="$target"/>
+                    <xsl:with-param name="offset" select="local:chrome-count($target)"/>
+                </xsl:call-template>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+
+    <!-- land at the end of the previous target (up/left): caret before any trailing
+         placeholder <br> at a host, focus (selection) at an image -->
+    <xsl:template name="local:land-backward">
+        <xsl:param name="target" as="element()"/>
+        <xsl:choose>
+            <xsl:when test="$target/self::img">
+                <xsl:call-template name="local:select-image">
+                    <xsl:with-param name="image" select="$target"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:call-template name="local:focus">
+                    <xsl:with-param name="element" select="$target"/>
+                </xsl:call-template>
+                <xsl:call-template name="local:place-caret">
+                    <xsl:with-param name="node" select="$target"/>
+                    <xsl:with-param name="offset"
+                        select="count($target/node()) - count($target/node()[last()][self::br])"/>
+                </xsl:call-template>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+
     <!-- ................................ init ................................ -->
 
     <xsl:template name="local:init-editing">
@@ -192,6 +256,11 @@ version="3.0">
                 $block[self::ul or self::ol]/li, $block[self::figure]/figcaption,
                 $block[self::table]/(caption, ((thead | tbody | tfoot)/tr, tr)/(td | th))">
             <ixsl:set-attribute name="contenteditable" select="'true'"/>
+        </xsl:for-each>
+        <!-- block images can't hold a caret, so they are made focusable to serve as
+             keyboard-navigation islands (tabindex is canonicalization-stripped) -->
+        <xsl:for-each select="$block[self::figure]//img[empty(ancestor::*[@contenteditable = 'true'])]">
+            <ixsl:set-attribute name="tabindex" select="'-1'"/>
         </xsl:for-each>
         <xsl:call-template name="local:inject-chrome">
             <xsl:with-param name="block" select="$block"/>
@@ -307,36 +376,31 @@ version="3.0">
                     </xsl:call-template>
                 </xsl:when>
                 <!-- arrow keys cross block boundaries: each block is its own
-                     contenteditable island, so the browser stops at its edges -->
+                     contenteditable island, so the browser stops at its edges.
+                     Block-level (figure) images are non-editable but still navigable -
+                     local:nav-targets includes them and local:land-* selects them
+                     (focus) rather than placing a caret -->
                 <xsl:when test="$key = ('ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft')
                         and not(ixsl:get($event, 'shiftKey')) and not(ixsl:get($event, 'altKey'))">
                     <xsl:variable name="selection" select="local:selection()"/>
                     <xsl:if test="ixsl:get($selection, 'rangeCount') ge 1 and ixsl:get($selection, 'isCollapsed')">
                         <xsl:variable name="range" select="local:caret-range()"/>
                         <xsl:variable name="host" as="element()" select="."/>
-                        <xsl:variable name="hosts" as="element()*"
-                            select="local:root-of(.)//*[@contenteditable = 'true']"/>
+                        <xsl:variable name="targets" as="element()*" select="local:nav-targets(.)"/>
                         <xsl:choose>
                             <xsl:when test="$key = ('ArrowDown', 'ArrowRight') and local:at-end($host, $range)">
-                                <xsl:for-each select="($hosts[. &gt;&gt; $host])[1]">
+                                <xsl:for-each select="($targets[. &gt;&gt; $host])[1]">
                                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
-                                    <xsl:call-template name="local:focus-caret">
-    <xsl:with-param name="node" select="."/>
-    <xsl:with-param name="offset" select="local:chrome-count(.)"/>
-</xsl:call-template>
+                                    <xsl:call-template name="local:land-forward">
+                                        <xsl:with-param name="target" select="."/>
+                                    </xsl:call-template>
                                 </xsl:for-each>
                             </xsl:when>
                             <xsl:when test="$key = ('ArrowUp', 'ArrowLeft') and local:at-start($host, $range)">
-                                <xsl:for-each select="($hosts[. &lt;&lt; $host])[last()]">
+                                <xsl:for-each select="($targets[. &lt;&lt; $host])[last()]">
                                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
-                                    <xsl:call-template name="local:focus">
-                                        <xsl:with-param name="element" select="."/>
-                                    </xsl:call-template>
-                                    <!-- caret at the end, but before a trailing placeholder <br> -->
-                                    <xsl:call-template name="local:place-caret">
-                                        <xsl:with-param name="node" select="."/>
-                                        <xsl:with-param name="offset"
-                                            select="count(node()) - count(node()[last()][self::br])"/>
+                                    <xsl:call-template name="local:land-backward">
+                                        <xsl:with-param name="target" select="."/>
                                     </xsl:call-template>
                                 </xsl:for-each>
                             </xsl:when>
@@ -391,6 +455,79 @@ version="3.0">
                 </xsl:when>
                 <xsl:otherwise/>
             </xsl:choose>
+        </xsl:if>
+    </xsl:template>
+
+    <!-- a focused block image is a navigation island: plain arrow keys move to the
+         adjacent target (image <-> caret), matching text-block crossing, and
+         Backspace/Delete removes its figure. Since the image can't hold a caret,
+         these keys are the only way keyboard editing reaches or leaves it -->
+    <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:onkeydown">
+        <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:variable name="key" as="xs:string" select="string(ixsl:get($event, 'key'))"/>
+        <xsl:if test="empty(ancestor::*[@contenteditable = 'true'])
+                and not(ixsl:get($event, 'shiftKey')) and not(ixsl:get($event, 'altKey'))
+                and not(ixsl:get($event, 'ctrlKey')) and not(ixsl:get($event, 'metaKey'))">
+            <xsl:variable name="image" as="element()" select="."/>
+            <xsl:variable name="targets" as="element()*" select="local:nav-targets(.)"/>
+            <xsl:choose>
+                <xsl:when test="$key = ('ArrowDown', 'ArrowRight')">
+                    <xsl:for-each select="($targets[. &gt;&gt; $image])[1]">
+                        <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                        <xsl:call-template name="local:land-forward">
+                            <xsl:with-param name="target" select="."/>
+                        </xsl:call-template>
+                    </xsl:for-each>
+                </xsl:when>
+                <xsl:when test="$key = ('ArrowUp', 'ArrowLeft')">
+                    <xsl:for-each select="($targets[. &lt;&lt; $image])[last()]">
+                        <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                        <xsl:call-template name="local:land-backward">
+                            <xsl:with-param name="target" select="."/>
+                        </xsl:call-template>
+                    </xsl:for-each>
+                </xsl:when>
+                <!-- a selected image is deleted whole (no smaller unit, no confirm -
+                     it was explicitly selected and undo covers accidents); the caret
+                     lands on the previous target for Backspace, the next for Delete -->
+                <xsl:when test="$key = ('Backspace', 'Delete')">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:variable name="block" as="element()" select="local:block-of($image)"/>
+                    <xsl:variable name="outside" as="element()*"
+                        select="$targets[empty(. intersect $block/descendant-or-self::*)]"/>
+                    <xsl:variable name="prev" as="element()?" select="($outside[. &lt;&lt; $block])[last()]"/>
+                    <xsl:variable name="next" as="element()?" select="($outside[. &gt;&gt; $block])[1]"/>
+                    <xsl:call-template name="local:push-undo"/>
+                    <xsl:sequence select="ixsl:call($block, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+                    <xsl:for-each select="if ($key = 'Backspace') then ($prev, $next)[1] else ($next, $prev)[1]">
+                        <xsl:choose>
+                            <xsl:when test=". is $prev">
+                                <xsl:call-template name="local:land-backward">
+                                    <xsl:with-param name="target" select="."/>
+                                </xsl:call-template>
+                            </xsl:when>
+                            <xsl:otherwise>
+                                <xsl:call-template name="local:land-forward">
+                                    <xsl:with-param name="target" select="."/>
+                                </xsl:call-template>
+                            </xsl:otherwise>
+                        </xsl:choose>
+                    </xsl:for-each>
+                    <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
+                <xsl:otherwise/>
+            </xsl:choose>
+        </xsl:if>
+    </xsl:template>
+
+    <!-- a focused block image becomes the active block, so toolbar/breadcrumb resolve
+         to its figure just as they do for a focused editable host (mirrors the
+         contenteditable onfocusin above) -->
+    <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:onfocusin">
+        <xsl:if test="empty(ancestor::*[@contenteditable = 'true'])">
+            <ixsl:set-property name="rdfaEditorActiveBlock" select="." object="ixsl:window()"/>
+            <xsl:call-template name="local:update-breadcrumb"/>
         </xsl:if>
     </xsl:template>
 
@@ -1131,6 +1268,8 @@ version="3.0">
             <xsl:variable name="img" as="element()" select="local:element('img')"/>
             <ixsl:set-attribute name="src" select="$src" object="$img"/>
             <ixsl:set-attribute name="alt" select="string(ixsl:get(($dialog//input[@name = 'alt'])[1], 'value'))" object="$img"/>
+            <!-- focusable so the image is a keyboard-navigation island (see local:nav-targets) -->
+            <ixsl:set-attribute name="tabindex" select="'-1'" object="$img"/>
             <xsl:variable name="figcaption" as="element()" select="local:element('figcaption')"/>
             <ixsl:set-property name="textContent" select="string(ixsl:get(($dialog//input[@name = 'caption'])[1], 'value'))" object="$figcaption"/>
             <ixsl:set-attribute name="contenteditable" select="'true'" object="$figcaption"/>

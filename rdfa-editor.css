@@ -130,6 +130,13 @@
                 outline-offset: 2px;
             }
 
+/* A block image can't hold a caret; when focused it is the selected navigation
+   target, so it gets a stronger outline than the (caret-bearing) editable hosts */
+            .rdfa-editor-content img:focus {
+                outline: 2px solid rgba(33, 150, 243, 0.7);
+                outline-offset: 2px;
+            }
+
 /* Block chrome (drag handle) - ephemeral, data-role stripped on serialization */
             [data-role="chrome"] {
                 visibility: hidden;
