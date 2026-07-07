@@ -23,17 +23,20 @@ RDFa extraction and the document canonicalization are all XSLT.
 ## Run
 
 ```bash
-bash generate-sef.sh            # compile src/*.xsl -> dist/index.xsl.sef.json (needs xmlstarlet + npx)
-python3 -m http.server 8000     # any static server
-# open http://localhost:8000/index.html
+make up                         # build the SEF, then serve on http://localhost:8000
+# open http://localhost:8000/index.html — override the port with: make up PORT=9000
 ```
+
+`make up` runs `make sef` first (compile `src/*.xsl` → `dist/index.xsl.sef.json`, needs
+xmlstarlet + npx), then serves the repo with `python3 -m http.server`. Run `make sef`
+alone to rebuild the SEF without serving.
 
 ## Test
 
 ```bash
-npm test                        # headless XSLT suites: extractor, canonicalization, lint fixtures
-npm install && npx playwright install chromium
-npm run test:browser            # Playwright suites (serves the repo itself)
+make test                       # headless XSLT suites: extractor, canonicalization, lint fixtures
+make install                    # install Node dependencies (Playwright) for the browser tests
+make test-browser               # Playwright suites (rebuilds the SEF, serves the repo itself)
 ```
 
 ## Architecture
