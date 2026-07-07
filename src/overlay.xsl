@@ -86,6 +86,26 @@ version="3.0">
                         <input type="text" name="object" placeholder="Object IRI"/>
                         <span class="helper-text">Makes the object a resource instead of the literal value</span>
                     </fieldset>
+                    <fieldset>
+                        <label>Literal type (datatype)</label>
+                        <select name="datatype">
+                            <option value="">(plain literal)</option>
+                            <xsl:variable name="xsd" as="xs:string" select="'http://www.w3.org/2001/XMLSchema#'"/>
+                            <xsl:for-each select="'string', 'date', 'dateTime', 'time', 'integer',
+                                    'decimal', 'double', 'float', 'boolean', 'anyURI'">
+                                <option value="{$xsd || .}">xsd:<xsl:value-of select="."/></option>
+                            </xsl:for-each>
+                            <option value="{$local:custom}">-- Custom datatype --</option>
+                        </select>
+                        <input type="text" name="custom-datatype" placeholder="Datatype IRI" style="display: none;"/>
+                        <span class="helper-text">Types the literal (e.g. xsd:date, xsd:integer);
+                            mutually exclusive with a language tag</span>
+                    </fieldset>
+                    <fieldset>
+                        <label>Language (lang)</label>
+                        <input type="text" name="lang" placeholder="e.g. en, fr-CA"/>
+                        <span class="helper-text">Language tag for the literal; ignored when a datatype is set</span>
+                    </fieldset>
                 </details>
 
                 <div class="action-buttons">
@@ -110,6 +130,9 @@ version="3.0">
                 select="string(ixsl:get(($form//input[@name = 'object'])[1], 'value'))[. ne '']"/>
             <xsl:map-entry key="'value'"
                 select="string(ixsl:get(($form//input[@name = 'value'])[1], 'value'))[. ne '']"/>
+            <xsl:map-entry key="'datatype'" select="local:select-or-custom($form, 'datatype', 'custom-datatype')"/>
+            <xsl:map-entry key="'lang'"
+                select="string(ixsl:get(($form//input[@name = 'lang'])[1], 'value'))[. ne '']"/>
         </xsl:map>
     </xsl:function>
 
@@ -135,7 +158,7 @@ version="3.0">
         <xsl:for-each select="id('annotation-form', ixsl:page())">
             <xsl:variable name="form" as="element()" select="."/>
             <xsl:sequence select="ixsl:call(., 'reset', [])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:for-each select=".//input[@name = ('custom-property', 'custom-type')]">
+            <xsl:for-each select=".//input[@name = ('custom-property', 'custom-type', 'custom-datatype')]">
                 <ixsl:set-style name="display" select="'none'"/>
             </xsl:for-each>
             <xsl:for-each select=".//button[tokenize(@class) = 'remove-action']">
@@ -146,7 +169,13 @@ version="3.0">
             </xsl:for-each>
             <!-- disclose the advanced fields when the annotation carries any of them -->
             <xsl:for-each select="id('advanced-fields', ixsl:page())">
-                <ixsl:set-property name="open" select="exists($span/(@about | @resource | @typeof))" object="."/>
+                <ixsl:set-property name="open"
+                    select="exists($span/(@about | @resource | @typeof | @datatype | @lang | @xml:lang))" object="."/>
+            </xsl:for-each>
+            <!-- datatype and language are mutually exclusive (datatype wins): a datatype
+                 on the edited annotation disables the language input -->
+            <xsl:for-each select=".//input[@name = 'lang']">
+                <ixsl:set-property name="disabled" select="exists($span/@datatype)" object="."/>
             </xsl:for-each>
 
             <xsl:for-each select="$span">
@@ -171,6 +200,17 @@ version="3.0">
                 </xsl:for-each>
                 <xsl:for-each select="$form//input[@name = 'object']">
                     <ixsl:set-property name="value" select="string($span/@resource)" object="."/>
+                </xsl:for-each>
+                <xsl:for-each select="@datatype">
+                    <xsl:call-template name="local:set-select-or-custom">
+                        <xsl:with-param name="form" select="$form"/>
+                        <xsl:with-param name="select-name" select="'datatype'"/>
+                        <xsl:with-param name="custom-name" select="'custom-datatype'"/>
+                        <xsl:with-param name="value" select="string(.)"/>
+                    </xsl:call-template>
+                </xsl:for-each>
+                <xsl:for-each select="$form//input[@name = 'lang']">
+                    <ixsl:set-property name="value" select="string(($span/@lang, $span/@xml:lang)[1])" object="."/>
                 </xsl:for-each>
             </xsl:for-each>
         </xsl:for-each>
@@ -299,16 +339,25 @@ version="3.0">
     </xsl:template>
 
     <!-- the empty 'Custom' option reveals the free-text IRI input -->
-    <xsl:template match="select[@name = ('property', 'typeof')]" mode="ixsl:onchange">
+    <xsl:template match="select[@name = ('property', 'typeof', 'datatype')]" mode="ixsl:onchange">
         <xsl:variable name="custom-name" as="xs:string"
-            select="if (@name = 'property') then 'custom-property' else 'custom-type'"/>
-        <xsl:variable name="custom" as="xs:boolean" select="string(ixsl:get(., 'value')) eq $local:custom"/>
+            select="if (@name = 'property') then 'custom-property'
+                else if (@name = 'typeof') then 'custom-type'
+                else 'custom-datatype'"/>
+        <xsl:variable name="value" as="xs:string" select="string(ixsl:get(., 'value'))"/>
+        <xsl:variable name="custom" as="xs:boolean" select="$value eq $local:custom"/>
         <xsl:for-each select="ancestor::form//input[@name = $custom-name]">
             <ixsl:set-style name="display" select="if ($custom) then 'block' else 'none'"/>
             <xsl:if test="$custom">
                 <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:if>
         </xsl:for-each>
+        <!-- datatype wins over language: a chosen datatype disables the language input -->
+        <xsl:if test="@name = 'datatype'">
+            <xsl:for-each select="ancestor::form//input[@name = 'lang']">
+                <ixsl:set-property name="disabled" select="$value ne ''" object="."/>
+            </xsl:for-each>
+        </xsl:if>
     </xsl:template>
 
 </xsl:stylesheet>
