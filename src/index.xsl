@@ -33,6 +33,7 @@ version="3.0">
     <xsl:include href="annotate.xsl"/>
     <xsl:include href="edit.xsl"/>
     <xsl:include href="tables.xsl"/>
+    <xsl:include href="mention.xsl"/>
     <xsl:include href="undo.xsl"/>
     <xsl:include href="navigate.xsl"/>
 
@@ -53,6 +54,7 @@ version="3.0">
         <xsl:call-template name="local:init-overlay"/>
         <xsl:call-template name="local:init-annotate"/>
         <xsl:call-template name="local:init-editing"/>
+        <xsl:call-template name="local:init-mention"/>
         <xsl:call-template name="local:init-navigate"/>
     </xsl:template>
 

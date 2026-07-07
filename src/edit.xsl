@@ -225,6 +225,37 @@ version="3.0">
         </xsl:choose>
     </xsl:template>
 
+    <!-- show a popup below the caret; a collapsed caret in an empty block yields a
+         degenerate (all-zero) client rect, so fall back to the block's own box -->
+    <xsl:template name="local:show-at-caret">
+        <xsl:param name="element" as="element()"/>
+        <xsl:variable name="range" select="local:caret-range()"/>
+        <xsl:variable name="caret" select="$range ! ixsl:call(., 'getBoundingClientRect', [])"/>
+        <xsl:variable name="degenerate" as="xs:boolean" select="empty($caret)
+            or (ixsl:get($caret, 'width') = 0 and ixsl:get($caret, 'height') = 0
+                and ixsl:get($caret, 'left') = 0 and ixsl:get($caret, 'top') = 0)"/>
+        <xsl:variable name="block" select="local:current-block()"/>
+        <xsl:variable name="rect" select="if ($degenerate and exists($block))
+            then ixsl:call($block, 'getBoundingClientRect', []) else $caret"/>
+        <xsl:call-template name="local:show-at-point">
+            <xsl:with-param name="element" select="$element"/>
+            <xsl:with-param name="x" select="ixsl:get($rect, 'left')"/>
+            <xsl:with-param name="y" select="ixsl:get($rect, 'bottom')"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <!-- show a popup below an anchor element's box (no live caret needed) -->
+    <xsl:template name="local:show-at-element">
+        <xsl:param name="element" as="element()"/>
+        <xsl:param name="anchor" as="element()"/>
+        <xsl:variable name="rect" select="ixsl:call($anchor, 'getBoundingClientRect', [])"/>
+        <xsl:call-template name="local:show-at-point">
+            <xsl:with-param name="element" select="$element"/>
+            <xsl:with-param name="x" select="ixsl:get($rect, 'left')"/>
+            <xsl:with-param name="y" select="ixsl:get($rect, 'bottom')"/>
+        </xsl:call-template>
+    </xsl:template>
+
     <!-- ................................ init ................................ -->
 
     <xsl:template name="local:init-editing">
@@ -238,6 +269,8 @@ version="3.0">
                 <xsl:call-template name="local:render-link-dialog"/>
                 <xsl:call-template name="local:render-figure-dialog"/>
                 <xsl:call-template name="local:render-table-dialog"/>
+                <xsl:call-template name="local:render-slash-menu"/>
+                <xsl:call-template name="local:render-block-menu"/>
             </xsl:result-document>
         </xsl:for-each>
         <xsl:for-each select="local:roots()/*">
@@ -928,23 +961,29 @@ version="3.0">
         <xsl:variable name="name" as="xs:string" select="string(ixsl:get(., 'value'))"/>
         <xsl:for-each select="local:current-block()[self::p or self::h1 or self::h2 or self::h3
                 or self::blockquote or self::pre][local-name() ne $name]">
+            <xsl:call-template name="local:push-undo"/>
             <xsl:call-template name="local:convert-block">
                 <xsl:with-param name="block" select="."/>
                 <xsl:with-param name="name" select="$name"/>
             </xsl:call-template>
+            <xsl:call-template name="local:after-mutation"/>
         </xsl:for-each>
     </xsl:template>
 
     <!-- rename by rebuild: copy RDFa/lang attributes, move children (text-node
-         references survive reparenting, so the caret can be restored exactly) -->
+         references survive reparenting, so the caret can be restored exactly).
+         A pure primitive - the caller owns the undo snapshot and after-mutation
+         (so slash/markdown conversions coalesce into a single undo step) -->
     <xsl:template name="local:convert-block">
         <xsl:param name="block" as="element()"/>
         <xsl:param name="name" as="xs:string"/>
 
-        <xsl:call-template name="local:push-undo"/>
+        <!-- restore the caret only for a node that MOVES with the children (a descendant);
+             an element-level caret on the block itself dangles after replaceWith, so fall
+             back to the start of the new block (matters for empty slash/markdown blocks) -->
         <xsl:variable name="selection" select="local:selection()"/>
         <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode')[local:block-of(.) is $block] else ()"/>
+            then ixsl:get($selection, 'anchorNode')[local:block-of(.) is $block][not(. is $block)] else ()"/>
         <xsl:variable name="caret-offset" as="xs:integer"
             select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
 
@@ -975,7 +1014,6 @@ version="3.0">
                 </xsl:call-template>
             </xsl:otherwise>
         </xsl:choose>
-        <xsl:call-template name="local:after-mutation"/>
     </xsl:template>
 
     <!-- inline formatting toggles reuse the annotation wrap/unwrap machinery -->
@@ -1195,11 +1233,13 @@ version="3.0">
 
     <xsl:template match="button[contains-token(@class, 'link-cancel')
             or contains-token(@class, 'figure-cancel')
-            or contains-token(@class, 'table-cancel')]" mode="ixsl:onclick">
+            or contains-token(@class, 'table-cancel')
+            or contains-token(@class, 'mention-cancel')]" mode="ixsl:onclick">
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
 
-    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'table-dialog', 'find-dialog')]" mode="ixsl:onkeydown">
+    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'table-dialog', 'find-dialog',
+            'mention-dialog', 'slash-menu', 'block-menu')]" mode="ixsl:onkeydown">
         <xsl:if test="string(ixsl:get(ixsl:event(), 'key')) = 'Escape'">
             <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:hide-dialogs"/>
@@ -1209,7 +1249,9 @@ version="3.0">
     <!-- single teardown point for all dialogs -->
     <xsl:template name="local:hide-dialogs">
         <xsl:for-each select="id('link-dialog', ixsl:page()), id('figure-dialog', ixsl:page()),
-                id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page())">
+                id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page()),
+                id('mention-dialog', ixsl:page()), id('slash-menu', ixsl:page()),
+                id('block-menu', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
         <ixsl:set-property name="rdfaEditorEditRange" select="()" object="ixsl:window()"/>
@@ -1217,6 +1259,9 @@ version="3.0">
         <ixsl:set-property name="rdfaEditorInsertAfterBlock" select="()" object="ixsl:window()"/>
         <ixsl:set-property name="rdfaEditorFindNode" select="()" object="ixsl:window()"/>
         <ixsl:set-property name="rdfaEditorFindOffset" select="1" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorMentionRange" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorSlashBlock" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="rdfaEditorMenuBlock" select="()" object="ixsl:window()"/>
         <!-- return focus to the content -->
         <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock')[exists(local:block-of(.))]">
             <xsl:call-template name="local:focus">
@@ -1441,6 +1486,369 @@ version="3.0">
                 or contains-token(@class, 'drop-after')]">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-before' ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-after' ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+    </xsl:template>
+
+    <!-- ................................ input triggers ................................ -->
+
+    <!-- printable-character triggers (@ mention, / slash menu, markdown shorthands)
+         run at higher priority than undo.xsl's typing-coalescing onbeforeinput rule;
+         anything that is not a trigger falls through via next-match so plain typing
+         still snapshots for undo -->
+    <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:onbeforeinput" priority="1">
+        <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:variable name="type" as="xs:string" select="string(ixsl:get($event, 'inputType'))"/>
+        <xsl:variable name="data" as="xs:string" select="string((ixsl:get($event, 'data'), '')[1])"/>
+        <xsl:variable name="block" as="element()?" select="local:block-of(.)"/>
+        <xsl:variable name="range" select="local:caret-range()"/>
+        <xsl:variable name="kind" as="xs:string" select="if ($type = 'insertText'
+                and exists($block) and exists($range) and not(ixsl:get($event, 'isComposing')))
+            then local:trigger-kind(., $block, $range, $data) else ''"/>
+        <xsl:choose>
+            <xsl:when test="$kind ne ''">
+                <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:choose>
+                    <xsl:when test="$kind = 'mention'">
+                        <xsl:call-template name="local:open-mention">
+                            <xsl:with-param name="event" select="$event"/>
+                        </xsl:call-template>
+                    </xsl:when>
+                    <xsl:when test="$kind = 'slash'">
+                        <xsl:call-template name="local:open-slash"/>
+                    </xsl:when>
+                    <xsl:otherwise>
+                        <xsl:call-template name="local:apply-markdown">
+                            <xsl:with-param name="block" select="$block"/>
+                            <xsl:with-param name="kind" select="$kind"/>
+                        </xsl:call-template>
+                    </xsl:otherwise>
+                </xsl:choose>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:next-match/>
+            </xsl:otherwise>
+        </xsl:choose>
+    </xsl:template>
+
+    <!-- classify a would-be-inserted character: 'mention' (@ at a word boundary),
+         'slash' (/ in an empty block), a markdown shorthand 'md:*' completed in an
+         empty paragraph, or '' for none. @ mid-word (e.g. an email) is left literal -->
+    <xsl:function name="local:trigger-kind" as="xs:string">
+        <xsl:param name="host" as="element()"/>
+        <xsl:param name="block" as="element()"/>
+        <xsl:param name="range"/>
+        <xsl:param name="data" as="xs:string"/>
+
+        <xsl:variable name="text" as="xs:string" select="local:block-text($block)"/>
+        <xsl:variable name="container" select="ixsl:get($range, 'startContainer')"/>
+        <xsl:variable name="offset" as="xs:integer" select="xs:integer(ixsl:get($range, 'startOffset'))"/>
+        <xsl:variable name="before" as="xs:string" select="if (exists($container)
+                and ixsl:get($container, 'nodeType') = 3)
+            then substring(string(ixsl:get($container, 'nodeValue')), 1, $offset) else ''"/>
+        <xsl:variable name="prev" as="xs:string" select="substring($before, string-length($before))"/>
+        <xsl:variable name="paragraph" as="xs:boolean" select="$host is $block and exists($block/self::p)"/>
+        <xsl:sequence select="
+            if ($data = '@' and ($prev = '' or matches($prev, '\s'))) then 'mention'
+            else if ($data = '/' and $text = '') then 'slash'
+            else if ($paragraph and $data = ' ' and $text = '#') then 'md:h1'
+            else if ($paragraph and $data = ' ' and $text = '##') then 'md:h2'
+            else if ($paragraph and $data = ' ' and $text = '###') then 'md:h3'
+            else if ($paragraph and $data = ' ' and ($text = '-' or $text = '*')) then 'md:ul'
+            else if ($paragraph and $data = ' ' and $text = '1.') then 'md:ol'
+            else if ($paragraph and $data = ' ' and $text = '&gt;') then 'md:blockquote'
+            else if ($paragraph and $data = '`' and $text = '``') then 'md:pre'
+            else ''"/>
+    </xsl:function>
+
+    <xsl:template name="local:apply-markdown">
+        <xsl:param name="block" as="element()"/>
+        <xsl:param name="kind" as="xs:string"/>
+
+        <xsl:call-template name="local:push-undo"/>
+        <!-- drop the typed marker text (keep chrome), then convert the now-empty block -->
+        <xsl:for-each select="$block/node()[not(@data-role = 'chrome')]">
+            <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+        <xsl:choose>
+            <xsl:when test="$kind = ('md:ul', 'md:ol')">
+                <xsl:call-template name="local:replace-with-list">
+                    <xsl:with-param name="block" select="$block"/>
+                    <xsl:with-param name="kind" select="substring-after($kind, 'md:')"/>
+                </xsl:call-template>
+            </xsl:when>
+            <xsl:otherwise>
+                <xsl:call-template name="local:ensure-placeholder">
+                    <xsl:with-param name="host" select="$block"/>
+                </xsl:call-template>
+                <xsl:call-template name="local:convert-block">
+                    <xsl:with-param name="block" select="$block"/>
+                    <xsl:with-param name="name" select="substring-after($kind, 'md:')"/>
+                </xsl:call-template>
+            </xsl:otherwise>
+        </xsl:choose>
+        <xsl:call-template name="local:after-mutation"/>
+    </xsl:template>
+
+    <!-- swap a block for a fresh single-item list of the given kind, caret in the item -->
+    <xsl:template name="local:replace-with-list">
+        <xsl:param name="block" as="element()"/>
+        <xsl:param name="kind" as="xs:string"/>
+
+        <xsl:variable name="list" as="element()" select="local:element($kind)"/>
+        <xsl:variable name="li" as="element()" select="local:element('li')"/>
+        <ixsl:set-attribute name="contenteditable" select="'true'" object="$li"/>
+        <xsl:sequence select="ixsl:call($list, 'appendChild', [ $li ])[current-date() lt xs:date('2000-01-01')]"/>
+        <xsl:sequence select="ixsl:call($block, 'replaceWith', [ $list ])[current-date() lt xs:date('2000-01-01')]"/>
+        <xsl:call-template name="local:inject-chrome">
+            <xsl:with-param name="block" select="$list"/>
+        </xsl:call-template>
+        <xsl:call-template name="local:focus-caret">
+            <xsl:with-param name="node" select="$li"/>
+            <xsl:with-param name="offset" select="0"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <!-- ................................ slash menu ................................ -->
+
+    <xsl:template name="local:render-slash-menu">
+        <div id="slash-menu" class="rdfa-editor-ui" role="listbox" aria-label="Insert block" style="display: none;">
+            <input type="text" class="slash-filter" placeholder="Filter blocks..." aria-label="Filter blocks"/>
+            <ul class="slash-items">
+                <li class="slash-item" data-command="p" role="option" aria-selected="true">Paragraph</li>
+                <li class="slash-item" data-command="h1" role="option">Heading 1</li>
+                <li class="slash-item" data-command="h2" role="option">Heading 2</li>
+                <li class="slash-item" data-command="h3" role="option">Heading 3</li>
+                <li class="slash-item" data-command="blockquote" role="option">Quote</li>
+                <li class="slash-item" data-command="pre" role="option">Code</li>
+                <li class="slash-item" data-command="ul" role="option">Bulleted list</li>
+                <li class="slash-item" data-command="ol" role="option">Numbered list</li>
+                <li class="slash-item" data-command="figure" role="option">Figure&#x2026;</li>
+                <li class="slash-item" data-command="table" role="option">Table&#x2026;</li>
+            </ul>
+        </div>
+    </xsl:template>
+
+    <xsl:template name="local:open-slash">
+        <xsl:variable name="block" as="element()?" select="local:current-block()"/>
+        <xsl:if test="exists($block)">
+            <ixsl:set-property name="rdfaEditorSlashBlock" select="$block" object="ixsl:window()"/>
+            <xsl:variable name="menu" as="element()" select="id('slash-menu', ixsl:page())"/>
+            <xsl:for-each select="$menu//input[contains-token(@class, 'slash-filter')]">
+                <ixsl:set-property name="value" select="''" object="."/>
+            </xsl:for-each>
+            <xsl:variable name="items" as="element()*" select="$menu//li[contains-token(@class, 'slash-item')]"/>
+            <xsl:for-each select="$items">
+                <ixsl:set-style name="display" select="'block'"/>
+                <ixsl:remove-attribute name="aria-selected"/>
+            </xsl:for-each>
+            <xsl:for-each select="$items[1]">
+                <ixsl:set-attribute name="aria-selected" select="'true'"/>
+            </xsl:for-each>
+            <xsl:call-template name="local:show-at-caret">
+                <xsl:with-param name="element" select="$menu"/>
+            </xsl:call-template>
+            <xsl:for-each select="($menu//input[contains-token(@class, 'slash-filter')])[1]">
+                <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
+            </xsl:for-each>
+        </xsl:if>
+    </xsl:template>
+
+    <xsl:template name="local:hide-slash-menu">
+        <xsl:for-each select="id('slash-menu', ixsl:page())">
+            <ixsl:set-style name="display" select="'none'"/>
+        </xsl:for-each>
+        <ixsl:set-property name="rdfaEditorSlashBlock" select="()" object="ixsl:window()"/>
+    </xsl:template>
+
+    <xsl:template name="local:run-slash-command">
+        <xsl:param name="command" as="xs:string"/>
+        <xsl:variable name="block" as="element()?" select="ixsl:get(ixsl:window(), 'rdfaEditorSlashBlock')"/>
+        <xsl:call-template name="local:hide-slash-menu"/>
+        <xsl:for-each select="$block">
+            <xsl:choose>
+                <xsl:when test="$command = ('p', 'h1', 'h2', 'h3', 'blockquote', 'pre')">
+                    <xsl:call-template name="local:push-undo"/>
+                    <xsl:call-template name="local:convert-block">
+                        <xsl:with-param name="block" select="."/>
+                        <xsl:with-param name="name" select="$command"/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
+                <xsl:when test="$command = ('ul', 'ol')">
+                    <xsl:call-template name="local:push-undo"/>
+                    <xsl:call-template name="local:replace-with-list">
+                        <xsl:with-param name="block" select="."/>
+                        <xsl:with-param name="kind" select="$command"/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
+                <xsl:when test="$command = 'figure'">
+                    <ixsl:set-property name="rdfaEditorInsertAfterBlock" select="." object="ixsl:window()"/>
+                    <xsl:variable name="dialog" as="element()" select="id('figure-dialog', ixsl:page())"/>
+                    <xsl:for-each select="$dialog//input">
+                        <ixsl:set-property name="value" select="''" object="."/>
+                    </xsl:for-each>
+                    <xsl:call-template name="local:show-at-element">
+                        <xsl:with-param name="element" select="$dialog"/>
+                        <xsl:with-param name="anchor" select="."/>
+                    </xsl:call-template>
+                    <xsl:for-each select="($dialog//input[@name = 'src'])[1]">
+                        <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    </xsl:for-each>
+                </xsl:when>
+                <xsl:when test="$command = 'table'">
+                    <ixsl:set-property name="rdfaEditorInsertAfterBlock" select="." object="ixsl:window()"/>
+                    <xsl:variable name="dialog" as="element()" select="id('table-dialog', ixsl:page())"/>
+                    <xsl:call-template name="local:show-at-element">
+                        <xsl:with-param name="element" select="$dialog"/>
+                        <xsl:with-param name="anchor" select="."/>
+                    </xsl:call-template>
+                    <xsl:for-each select="($dialog//input[@name = 'rows'])[1]">
+                        <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    </xsl:for-each>
+                </xsl:when>
+            </xsl:choose>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match="input[contains-token(@class, 'slash-filter')]" mode="ixsl:oninput">
+        <xsl:variable name="q" as="xs:string" select="lower-case(normalize-space(string(ixsl:get(., 'value'))))"/>
+        <xsl:variable name="items" as="element()*"
+            select="id('slash-menu', ixsl:page())//li[contains-token(@class, 'slash-item')]"/>
+        <xsl:variable name="visible" as="element()*"
+            select="$items[$q = '' or contains(lower-case(string(.)), $q)]"/>
+        <xsl:for-each select="$items">
+            <ixsl:set-style name="display" select="if (. intersect $visible) then 'block' else 'none'"/>
+            <ixsl:remove-attribute name="aria-selected"/>
+        </xsl:for-each>
+        <xsl:for-each select="$visible[1]">
+            <ixsl:set-attribute name="aria-selected" select="'true'"/>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match="input[contains-token(@class, 'slash-filter')]" mode="ixsl:onkeydown">
+        <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:variable name="key" as="xs:string" select="string(ixsl:get($event, 'key'))"/>
+        <xsl:variable name="items" as="element()*"
+            select="id('slash-menu', ixsl:page())//li[contains-token(@class, 'slash-item')]
+                [ixsl:get(., 'style.display') ne 'none']"/>
+        <xsl:variable name="current" as="element()?" select="$items[@aria-selected = 'true'][1]"/>
+        <xsl:choose>
+            <xsl:when test="$key = 'Escape'">
+                <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:call-template name="local:hide-slash-menu"/>
+            </xsl:when>
+            <xsl:when test="$key = 'Enter'">
+                <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:for-each select="($current, $items[1])[1]">
+                    <xsl:call-template name="local:run-slash-command">
+                        <xsl:with-param name="command" select="string(@data-command)"/>
+                    </xsl:call-template>
+                </xsl:for-each>
+            </xsl:when>
+            <xsl:when test="$key = ('ArrowDown', 'ArrowUp')">
+                <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:variable name="pos" as="xs:integer"
+                    select="if (exists($current)) then count($items[. &lt;&lt; $current]) + 1 else 1"/>
+                <xsl:variable name="next" as="xs:integer" select="if ($key = 'ArrowDown')
+                    then min(($pos + 1, count($items))) else max(($pos - 1, 1))"/>
+                <xsl:for-each select="$items">
+                    <ixsl:remove-attribute name="aria-selected"/>
+                </xsl:for-each>
+                <xsl:for-each select="$items[$next]">
+                    <ixsl:set-attribute name="aria-selected" select="'true'"/>
+                </xsl:for-each>
+            </xsl:when>
+            <xsl:otherwise/>
+        </xsl:choose>
+    </xsl:template>
+
+    <xsl:template match="li[contains-token(@class, 'slash-item')]" mode="ixsl:onclick">
+        <xsl:call-template name="local:run-slash-command">
+            <xsl:with-param name="command" select="string(@data-command)"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <!-- ................................ block handle menu ................................ -->
+
+    <xsl:template name="local:render-block-menu">
+        <div id="block-menu" class="rdfa-editor-ui" role="menu" aria-label="Block actions" style="display: none;">
+            <div class="block-menu-label">Turn into</div>
+            <button type="button" class="block-turn" data-name="p" role="menuitem">Paragraph</button>
+            <button type="button" class="block-turn" data-name="h1" role="menuitem">Heading 1</button>
+            <button type="button" class="block-turn" data-name="h2" role="menuitem">Heading 2</button>
+            <button type="button" class="block-turn" data-name="h3" role="menuitem">Heading 3</button>
+            <button type="button" class="block-turn" data-name="blockquote" role="menuitem">Quote</button>
+            <button type="button" class="block-turn" data-name="pre" role="menuitem">Code</button>
+            <div class="block-menu-sep"></div>
+            <button type="button" class="block-duplicate" role="menuitem">Duplicate</button>
+            <button type="button" class="block-delete btn-danger" role="menuitem">Delete</button>
+        </div>
+    </xsl:template>
+
+    <!-- plain click on the gutter handle opens the block menu; mousedown/mouseup still
+         arm/disarm draggable, and a real drag fires no click -->
+    <xsl:template match="span[contains-token(@class, 'drag-handle')]" mode="ixsl:onclick">
+        <xsl:for-each select="local:block-of(.)">
+            <ixsl:set-property name="rdfaEditorMenuBlock" select="." object="ixsl:window()"/>
+            <!-- turn-into only applies to text blocks; lists/figures/tables lock structure -->
+            <xsl:variable name="text-block" as="xs:boolean"
+                select="exists(self::p | self::h1 | self::h2 | self::h3 | self::blockquote | self::pre)"/>
+            <xsl:for-each select="id('block-menu', ixsl:page())//button[contains-token(@class, 'block-turn')]">
+                <ixsl:set-property name="disabled" select="not($text-block)" object="."/>
+            </xsl:for-each>
+        </xsl:for-each>
+        <xsl:call-template name="local:show-at">
+            <xsl:with-param name="element" select="id('block-menu', ixsl:page())"/>
+            <xsl:with-param name="event" select="ixsl:event()"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <xsl:template match="button[contains-token(@class, 'block-turn')]" mode="ixsl:onclick">
+        <xsl:variable name="name" as="xs:string" select="string(@data-name)"/>
+        <xsl:variable name="block" as="element()?" select="ixsl:get(ixsl:window(), 'rdfaEditorMenuBlock')"/>
+        <xsl:call-template name="local:hide-dialogs"/>
+        <xsl:for-each select="$block[self::p or self::h1 or self::h2 or self::h3
+                or self::blockquote or self::pre][local-name() ne $name]">
+            <xsl:call-template name="local:push-undo"/>
+            <xsl:call-template name="local:convert-block">
+                <xsl:with-param name="block" select="."/>
+                <xsl:with-param name="name" select="$name"/>
+            </xsl:call-template>
+            <xsl:call-template name="local:after-mutation"/>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match="button[contains-token(@class, 'block-duplicate')]" mode="ixsl:onclick">
+        <xsl:variable name="block" as="element()?" select="ixsl:get(ixsl:window(), 'rdfaEditorMenuBlock')"/>
+        <xsl:call-template name="local:hide-dialogs"/>
+        <xsl:for-each select="$block">
+            <xsl:call-template name="local:push-undo"/>
+            <!-- deep clone keeps chrome + contenteditable; ixsl delegates events, so no re-init -->
+            <xsl:variable name="clone" as="element()" select="ixsl:call(., 'cloneNode', [ true() ])"/>
+            <xsl:sequence select="ixsl:call(., 'after', [ $clone ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:after-mutation"/>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match="button[contains-token(@class, 'block-delete')]" mode="ixsl:onclick">
+        <xsl:variable name="block" as="element()?" select="ixsl:get(ixsl:window(), 'rdfaEditorMenuBlock')"/>
+        <xsl:call-template name="local:hide-dialogs"/>
+        <xsl:for-each select="$block">
+            <xsl:variable name="confirmed" as="xs:boolean" select="local:block-text(.) = ''
+                or ixsl:call(ixsl:window(), 'confirm', [ 'Delete this block?' ])"/>
+            <xsl:if test="$confirmed">
+                <xsl:call-template name="local:push-undo"/>
+                <xsl:variable name="prev" as="element()?" select="preceding-sibling::*[1]"/>
+                <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+                <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+                <xsl:for-each select="($prev/descendant-or-self::*[@contenteditable = 'true'])[last()]">
+                    <xsl:call-template name="local:focus">
+                        <xsl:with-param name="element" select="."/>
+                    </xsl:call-template>
+                </xsl:for-each>
+                <xsl:call-template name="local:after-mutation"/>
+            </xsl:if>
         </xsl:for-each>
     </xsl:template>
 
