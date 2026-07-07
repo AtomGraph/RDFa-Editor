@@ -11,7 +11,6 @@ The prototype (through commit `b8466cf`) is functionally rich: structured-block 
 - Element allowlist question: canonicalization currently passes unknown elements through (shallow-copy) — decide pass-through vs allowlist for embedded content (iframe/object/embed/form should not survive).
 
 ### A2. Editing completeness
-- **Tables** (deferred from round 1; WYMEditor supports them; old IMPLEMENTATION-PLAN scoped add/remove rows/cols, structure locked, only cells editable).
 - **HTML paste** with sanitization: currently plain-text only. We already own the cleanup machinery — parse `clipboardData` `text/html` via `parse-xml`/fragment parsing and run it through `mode="canonical"` + the new sanitization rules; insert clean fragment. (Word/Google-Docs paste is the single biggest prod-usability item.)
 - Nested lists (indent/outdent via Tab/Shift+Tab in `li`), `ul`↔`ol` conversion of an existing list.
 - h4–h6 in the block-type select (cheap); `code`/`sub`/`sup` inline toggles (cheap — the `format-inline` machinery is generic).
@@ -36,7 +35,7 @@ The prototype (through commit `b8466cf`) is functionally rich: structured-block 
 - Packaging: CSS lives in the demo `index.html` — extract `rdfa-editor.css`; demo page vs library separation; README/integration docs; versioning.
 - Namespace: `local:`/`urn:rdfa-editor:*` fine internally; consider a stable public namespace for a distributable component.
 
-## B. LinkedDataHub embedding contract (WYMEditor replacement) — ships as `ldh/MIGRATION.md` in this repo
+## B. LinkedDataHub embedding contract (WYMEditor replacement) — ships as `docs/ldh/MIGRATION.md` in this repo
 
 Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/atomgraph/linkeddatahub/xsl/bootstrap/2.3.2/`):
 
@@ -54,13 +53,14 @@ Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/ato
 ## C. Milestones
 
 - **M1 — Hardening (THIS ROUND, implemented)**: sanitization + HTML paste + a11y/keys + undo caret restoration + in-repo tests/CI + CSS extraction + README; migration plan document in `ldh/`.
-- **M2 — Multi-instance component** (DONE): `.rdfa-editor-content` regions, region-keyed undo, scoped ToC/source, `rdfaEditor*` state prefix, `.rdfa-editor-ui` CSS scoping; LDH integration compile-proven (ldh/MIGRATION.md §10).
+- **M2 — Multi-instance component** (DONE): `.rdfa-editor-content` regions, region-keyed undo, scoped ToC/source, `rdfaEditor*` state prefix, `.rdfa-editor-ui` CSS scoping; LDH integration compile-proven (docs/ldh/MIGRATION.md §10).
+- **Tables** (DONE): composite table blocks — rows×cols insert dialog (optional header row + caption), positional row/column operations gated on `local:has-spans`, Tab/Shift+Tab + Enter cell traversal that grows the grid at its bottom edge (`src/tables.xsl`).
 - **M3 — LDH swap**: the contract above (LDH-side patches + build wiring + e2e in an LDH dev instance).
 - **M4 — Vocabulary UX**: typeahead over ontology terms from `/ns`, schema.org vocab, domain/range-aware ranking.
-- **M5 — Editing completeness**: tables (add/remove rows/cols, cells editable), nested lists, h4–h6, code/sub/sup, image upload via LDH, cross-node find, i18n strings, Firefox/Safari passes, touch fallback.
+- **M5 — Editing completeness**: nested lists, h4–h6, code/sub/sup, image upload via LDH, cross-node find, i18n strings, Firefox/Safari passes, touch fallback.
 - **Beyond**: `@rel`/`@rev` extraction, v6 in-place document editing (PUT canonical XHTML), review/comments.
 
-**User decisions:** LDH materials in a separate folder of this repo (`ldh/`); feature flag deferred (documented); tables = follow-up (M5); this round = migration plan doc + M1 implementation.
+**User decisions:** LDH materials in a separate folder of this repo (`docs/ldh/`); feature flag deferred (documented); this round = migration plan doc + M1 implementation.
 
 ## D. M1 implementation detail
 
@@ -97,9 +97,9 @@ Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/ato
 - `tests/browser/{editor,features,fixes}.mjs` (ported suites; `PORT`/`BASE_URL` env); `package.json` (private; devDep `playwright`; scripts `test` → run-tests.sh, `test:browser`).
 - `.github/workflows/ci.yml`: setup-node, `npm ci`, `npx playwright install chromium --with-deps`, `python3 -m http.server` background, run both.
 - **`rdfa-editor.css`**: all editor-contract styles move out of index.html (overlay/statement/dialogs/buttons, chrome + gutter, DnD marks, ToC drawer, breadcrumb/crumbs, lint badge + `.rdfa-invalid`, toolbar, `#content *[property]`-family RDFa highlighting, scroll-margin, focus outline, modal); demo-only styles stay (body/nav/test-section/demo content box).
-- `README.md`: overview, quickstart, test commands, architecture pointer, `ldh/MIGRATION.md` pointer.
+- `README.md`: overview, quickstart, test commands, architecture pointer, `docs/ldh/MIGRATION.md` pointer.
 
-### D6. `ldh/MIGRATION.md`
+### D6. `docs/ldh/MIGRATION.md`
 The section-B contract expanded into a step-by-step LDH patch plan: default.xsl form-control swap; form.xsl RenderRowForm init + FormPreSubmit serialization templates; functions.xsl `ol`+`lt` expectations (children only, no wrapper div); layout.xsl asset gate (CSS-only, WYMEditor/jQuery removable at cutover); translations.rdf strings; deferred feature-flag options; build wiring (modules copied into the LDH webapp tree, `xsl:import`ed from client.xsl, compiled by the existing pom `xslt3-he` step); conflict-audit checklist (unnamed-mode `match="/"`, body keydown, host event templates, `xsl:output`, `id('content')` singletons); prerequisites (M2 multi-instance, M4 typeahead).
 
 ## Phases + gates

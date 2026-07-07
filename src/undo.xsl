@@ -11,8 +11,8 @@ version="3.0">
 
 <!--
     Unified snapshot undo/redo: one whole-document history over #content innerHTML.
-    Every mutating handler pushes a snapshot first (see the push-point inventory in
-    UNDO-NAVIGATION-PLAN.md) and calls local:after-mutation last; plain typing is
+    Every mutating handler pushes a snapshot first and calls local:after-mutation last;
+    plain typing is
     coalesced into ~1s bursts via ixsl:onbeforeinput. Ctrl/Cmd+Z and Shift+Z / Ctrl+Y
     are intercepted in the keydown dispatcher (edit.xsl) - native undo is replaced.
 

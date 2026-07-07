@@ -52,5 +52,5 @@ preloads the vocabulary documents into the SaxonJS document pool (see `index.htm
 ## Embedding in LinkedDataHub
 
 The plan for replacing LinkedDataHub's WYMEditor with this editor lives in
-[`ldh/MIGRATION.md`](ldh/MIGRATION.md). The overall roadmap is in
-[`ROADMAP.md`](ROADMAP.md).
+[`docs/ldh/MIGRATION.md`](docs/ldh/MIGRATION.md). The overall roadmap is in
+[`docs/ROADMAP.md`](docs/ROADMAP.md).
