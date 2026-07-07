@@ -36,7 +36,10 @@ version="3.0">
                 <ixsl:set-property name="rdfaEditorEditingSpan" select="$annotation" object="ixsl:window()"/>
                 <xsl:call-template name="local:populate-form">
                     <xsl:with-param name="span" select="$annotation"/>
-                    <xsl:with-param name="value" select="string(($annotation/@content, $annotation)[1])"/>
+                    <!-- rdfa:literal-value, not string(): a block annotation contains a
+                         chrome span whose ⠿ text would otherwise leak into the value -->
+                    <xsl:with-param name="value" select="if (exists($annotation/@content))
+                        then string($annotation/@content) else rdfa:literal-value($annotation)"/>
                 </xsl:call-template>
                 <xsl:call-template name="local:show-overlay">
                     <xsl:with-param name="event" select="$event"/>
@@ -144,7 +147,8 @@ version="3.0">
                 <xsl:call-template name="local:apply-annotation">
                     <xsl:with-param name="target" select="$editing"/>
                     <xsl:with-param name="values" select="$values"/>
-                    <xsl:with-param name="reference-text" select="string($editing)"/>
+                    <!-- chrome-excluded, so an unchanged block value doesn't spuriously emit @content -->
+                    <xsl:with-param name="reference-text" select="rdfa:literal-value($editing)"/>
                 </xsl:call-template>
                 <xsl:call-template name="local:after-mutation"/>
                 <xsl:call-template name="local:hide-overlay"/>

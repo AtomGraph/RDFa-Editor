@@ -331,6 +331,9 @@ results.blockAnnotation = {
         getComputedStyle(document.getElementById('overlay')).display !== 'none'),
     propertyPrefilled: await page.evaluate(() =>
         document.querySelector('#overlay select[name=property]').value === 'http://purl.org/dc/terms/title'),
+    // the value field must not leak the block's chrome (⠿) glyph
+    valueClean: await page.evaluate(() =>
+        document.querySelector('#overlay input[name=value]').value === 'Demo document'),
     removeShown: await page.evaluate(() =>
         getComputedStyle(document.querySelector('#overlay button.remove-action')).display !== 'none'),
 };
