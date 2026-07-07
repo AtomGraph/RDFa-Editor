@@ -9,7 +9,7 @@ const page = await browser.newPage();
 page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text()); });
 page.on('pageerror', err => errors.push(String(err)));
 
-await page.goto(BASE + '/index.html');
+await page.goto(BASE + '/tests-fixture.html');
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 15000 });
 
 // 1. gutter hover: hovering to the LEFT of a block (over the handle position) keeps it revealed

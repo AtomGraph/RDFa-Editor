@@ -1,0 +1,131 @@
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
+        <title>RDFa Editor</title>
+		  <script type="text/javascript" src="lib/SaxonJS3.js"></script>
+		  <script type="text/javascript">
+				window.onload = function() {
+					// preload the vocabulary documents into the SaxonJS document pool,
+					// so doc() resolves them synchronously during initialization
+					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+					Promise.all(vocabs.map(href =>
+							SaxonJS.getResource({ location: href, type: "xml" })))
+						.then(resources => {
+							const pool = {};
+							vocabs.forEach((href, i) =>
+								pool[new URL(href, document.baseURI).href] = resources[i]);
+							return SaxonJS.transform({
+								documentPool: pool,
+								stylesheetLocation: "dist/index.xsl.sef.json",
+								initialTemplate: "main",
+								logLevel: 10
+							}, "async");
+						})
+						.catch(err => console.log("Transformation failed: " + err));
+				}
+		 </script>
+        <link rel="stylesheet" href="rdfa-editor.css" type="text/css"/>
+        <style type="text/css">
+			body {
+                font-family: "Roboto", sans-serif;
+                padding-top: 70px; /* Account for fixed navbar */
+                padding-bottom: 56px; /* Account for fixed breadcrumb bar */
+            }
+            /* Fixed Top Navbar */
+            nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                padding: 12px 20px;
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                z-index: 1000;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            /* Styling for test content */
+            .test-section {
+                margin: 20px 0;
+                padding: 15px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background-color: #fafafa;
+            }
+            .test-section h2 {
+                margin-top: 0;
+                font-size: 18px;
+                color: #555;
+            }
+            .test-section p {
+                margin: 10px 0;
+                line-height: 1.6;
+            }
+            /* Content blocks */
+            .rdfa-editor-content {
+                margin: 20px 0;
+                padding: 20px 20px 20px 40px;
+                border: 1px solid #e0e0e0;
+                border-radius: 5px;
+                background: white;
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <button id="parse-rdf" style="padding: 10px 20px; background-color: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">
+                Extract RDF
+            </button>
+        </nav>
+
+        <h1>RDFa Editor</h1>
+
+        <div class="test-section">
+            <h2>Instructions</h2>
+            <p><strong>Type</strong> anywhere in the document below — Enter splits a block, Backspace at the
+               start merges it with the previous one. Use the toolbar to change block types, format text,
+               insert lists, figures and links, or delete blocks.</p>
+            <p><strong>Right-click</strong> a text selection to annotate it with RDFa;
+               <strong>right-click an existing annotation</strong> to edit or remove it.</p>
+            <p><strong>Drag</strong> the ⠿ handle (appears on hover) to reorder blocks.
+               <strong>Source</strong> shows the canonical XHTML+RDFa; <strong>Extract RDF</strong> the triples.</p>
+        </div>
+
+        <div id="content" class="rdfa-editor-content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
+            <h1 property="http://purl.org/dc/terms/title">Demo document</h1>
+            <h2>Company</h2>
+            <p>Our company was founded by <strong>Dr. Jane Smith</strong> in 2020. She graduated
+                from <em>MIT</em> and now leads our <strong><em>innovation team</em></strong>.</p>
+            <h2>Publications</h2>
+            <p>Visit our <a href="https://example.com">official website</a> or check out
+                <a href="https://blog.example.com">our blog</a> for more information.</p>
+            <p><span property="https://schema.org/name">ACME Corporation</span> will launch a new
+                product in Q4 2024.</p>
+            <ul>
+                <li>First point</li>
+                <li>Second point with <strong>emphasis</strong></li>
+            </ul>
+            <blockquote>A quoted remark worth keeping.</blockquote>
+            <h3>Queries</h3>
+            <pre>PREFIX schema: &lt;https://schema.org/&gt;
+SELECT ?name WHERE { ?s schema:name ?name . }</pre>
+            <figure>
+                <img src="Mockup.png" alt="Editor mockup"/>
+                <figcaption>The original editor mockup</figcaption>
+            </figure>
+        </div>
+
+        <!-- a second editable region: the editor is multi-instance -->
+        <div id="notes" class="rdfa-editor-content" about="#notes">
+            <h2>Notes</h2>
+            <p>A second, independent editable region — blocks cannot be dragged between regions,
+                and undo is keyed per region.</p>
+        </div>
+
+    </body>
+</html>
