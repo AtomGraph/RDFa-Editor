@@ -10,7 +10,7 @@ page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text());
 page.on('pageerror', err => errors.push(String(err)));
 page.on('dialog', d => d.accept());
 
-await page.goto(BASE + '/tests-fixture.html');
+await page.goto(BASE + '/tests/fixture.html');
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 15000 });
 
 const caretInText = async (selector, offset = 2) => page.evaluate(([sel, off]) => {

@@ -14,7 +14,7 @@ page.on('dialog', d => d.accept());
 // the errors channel, so a datatype/language regression surfaces in CI
 const assert = (name, cond) => { results[name] = cond; if (!cond) errors.push('ASSERT FAILED: ' + name); };
 
-await page.goto(BASE + '/tests-fixture.html');
+await page.goto(BASE + '/tests/fixture.html');
 await page.waitForSelector('#overlay', { state: 'attached', timeout: 15000 })
     .catch(() => errors.push('overlay never rendered'));
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 5000 })

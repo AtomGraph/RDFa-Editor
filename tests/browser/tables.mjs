@@ -14,7 +14,7 @@ page.on('dialog', d => d.accept());
 // suite via the errors channel so logic regressions surface in CI
 const assert = (name, cond) => { results[name] = cond; if (!cond) errors.push('ASSERT FAILED: ' + name); };
 
-await page.goto(BASE + '/tests-fixture.html');
+await page.goto(BASE + '/tests/fixture.html');
 await page.waitForSelector('#edit-toolbar', { state: 'attached', timeout: 15000 })
     .catch(() => errors.push('toolbar never rendered'));
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 5000 })

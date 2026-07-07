@@ -10,7 +10,7 @@ page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text());
 page.on('pageerror', err => errors.push(String(err)));
 page.on('dialog', d => d.accept());
 
-await page.goto(BASE + '/tests-fixture.html');
+await page.goto(BASE + '/tests/fixture.html');
 await page.waitForSelector('#breadcrumb', { state: 'attached', timeout: 15000 })
     .catch(() => errors.push('breadcrumb never rendered'));
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 5000 })
@@ -218,7 +218,7 @@ results.breadcrumb = await page.evaluate(() => ({
     subject: document.getElementById('breadcrumb-subject').textContent,
 }));
 results.breadcrumb.pathOk = /content›p›strong/.test(results.breadcrumb.path.replace(/\s/g, ''));
-results.breadcrumb.subjectOk = results.breadcrumb.subject === BASE + '/index.html';
+results.breadcrumb.subjectOk = results.breadcrumb.subject === BASE + '/tests/fixture.html';
 // annotated span label
 await page.evaluate(() => {
     const span = document.querySelector('#content span[property="https://schema.org/name"]');

@@ -5,21 +5,24 @@
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
         <title>RDFa Editor</title>
-		  <script type="text/javascript" src="lib/SaxonJS3.js"></script>
+		  <script type="text/javascript" src="../lib/SaxonJS3.js"></script>
 		  <script type="text/javascript">
 				window.onload = function() {
 					// preload the vocabulary documents into the SaxonJS document pool,
 					// so doc() resolves them synchronously during initialization
+					// keys stay page-relative (matching the stylesheet's vocab-hrefs,
+					// resolved against this page); the files are fetched from ../vocabs/
+					// since this fixture lives under tests/ and the vocabs at the repo root
 					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
 					Promise.all(vocabs.map(href =>
-							SaxonJS.getResource({ location: href, type: "xml" })))
+							SaxonJS.getResource({ location: "../" + href, type: "xml" })))
 						.then(resources => {
 							const pool = {};
 							vocabs.forEach((href, i) =>
 								pool[new URL(href, document.baseURI).href] = resources[i]);
 							return SaxonJS.transform({
 								documentPool: pool,
-								stylesheetLocation: "dist/index.xsl.sef.json",
+								stylesheetLocation: "../dist/index.xsl.sef.json",
 								initialTemplate: "main",
 								logLevel: 10
 							}, "async");
@@ -27,7 +30,7 @@
 						.catch(err => console.log("Transformation failed: " + err));
 				}
 		 </script>
-        <link rel="stylesheet" href="rdfa-editor.css" type="text/css"/>
+        <link rel="stylesheet" href="../rdfa-editor.css" type="text/css"/>
         <style type="text/css">
 			body {
                 font-family: "Roboto", sans-serif;
