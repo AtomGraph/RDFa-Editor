@@ -25,7 +25,7 @@ jobs:
             - name: Assemble static site
               run: |
                   mkdir -p _site
-                  cp index.html rdfa-editor.css Mockup.png _site/
+                  cp index.html rdfa-editor.css _site/
                   cp -r lib dist vocabs _site/
             - name: Publish to gh-pages branch
               uses: peaceiris/actions-gh-pages@v4

@@ -217,19 +217,20 @@ results.link.removed = await page.evaluate(() =>
 // 11. figure insert
 await caretInText('#content > p:first-of-type');
 await page.click('#edit-toolbar button.insert-figure');
-await page.fill('#figure-dialog input[name=src]', 'Mockup.png');
+const FIG_SRC = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+await page.fill('#figure-dialog input[name=src]', FIG_SRC);
 await page.fill('#figure-dialog input[name=alt]', 'Inserted');
 await page.fill('#figure-dialog input[name=caption]', 'New figure');
 await page.click('#figure-dialog button.figure-save');
-results.figure = await page.evaluate(() => {
+results.figure = await page.evaluate(src => {
     const fig = document.querySelector('#content > p + figure');
     return {
         inserted: !!fig,
-        img: fig?.querySelector('img[src="Mockup.png"][alt="Inserted"]') != null,
+        img: fig?.querySelector(`img[src="${src}"][alt="Inserted"]`) != null,
         caption: fig?.querySelector('figcaption[contenteditable=true]')?.textContent === 'New figure',
         chrome: !!fig?.querySelector('[data-role=chrome]'),
     };
-});
+}, FIG_SRC);
 
 // 12. paste is plain-text only
 await caretInText('#content > p:first-of-type');

@@ -6,6 +6,7 @@ xmlns:ixsl="http://saxonica.com/ns/interactiveXSLT"
 xmlns:xs="http://www.w3.org/2001/XMLSchema"
 xmlns:local="urn:rdfa-editor:functions"
 xmlns:rdfa="urn:rdfa:functions"
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 extension-element-prefixes="ixsl"
 xpath-default-namespace="http://www.w3.org/1999/xhtml"
 version="3.0">
@@ -278,9 +279,10 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <!-- extract RDF/XML from the page and display it in the modal -->
+    <!-- extract RDF/XML from the page and display it in the modal, grouped one
+         rdf:Description per subject (via local:group-triples) for readability -->
     <xsl:template match="button[@id = 'parse-rdf']" mode="ixsl:onclick">
-        <xsl:variable name="rdf">
+        <xsl:variable name="rdf" as="element(rdf:RDF)">
             <xsl:call-template name="extract-rdfa">
                 <xsl:with-param name="doc" select="ixsl:page()"/>
                 <xsl:with-param name="base" select="local:document-uri()"/>
@@ -289,7 +291,7 @@ version="3.0">
 
         <xsl:call-template name="local:show-output">
             <xsl:with-param name="title" select="'Extracted RDF/XML'"/>
-            <xsl:with-param name="text" select="serialize($rdf, map{ 'method': 'xml', 'indent': true() })"/>
+            <xsl:with-param name="text" select="serialize(local:group-triples($rdf), map{ 'method': 'xml', 'indent': true() })"/>
         </xsl:call-template>
     </xsl:template>
 
