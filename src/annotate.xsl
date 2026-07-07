@@ -6,6 +6,7 @@ xmlns:ixsl="http://saxonica.com/ns/interactiveXSLT"
 xmlns:xs="http://www.w3.org/2001/XMLSchema"
 xmlns:local="urn:rdfa-editor:functions"
 xmlns:rdfa="urn:rdfa:functions"
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 extension-element-prefixes="ixsl"
 xpath-default-namespace="http://www.w3.org/1999/xhtml"
 version="3.0">
@@ -20,10 +21,13 @@ version="3.0">
     <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:oncontextmenu">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="target" select="ixsl:get($event, 'target')"/>
-        <!-- innermost annotated element strictly inside this editable root -->
+        <!-- innermost annotated element inside this editable root, plus the block
+             itself when it carries its own @property (e.g. h1[property=dct:title]) -
+             a genuine block-level annotation. A block that only declares a subject
+             (@about/@typeof/@resource) stays structural and is left to create mode. -->
         <xsl:variable name="annotation" as="element()?"
             select="($target/ancestor-or-self::*[@property or @typeof or @about or @resource]
-                intersect descendant::*)[last()]"/>
+                intersect (descendant::* | self::*[@property]))[last()]"/>
         <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
 
         <xsl:choose>
@@ -211,9 +215,22 @@ version="3.0">
     <xsl:template match="button[tokenize(@class) = 'remove-action']" mode="ixsl:onclick">
         <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorEditingSpan')">
             <xsl:call-template name="local:push-undo"/>
-            <xsl:call-template name="local:unwrap-element">
-                <xsl:with-param name="element" select="."/>
-            </xsl:call-template>
+            <xsl:choose>
+                <!-- a block carries its annotation on itself: strip the RDFa attributes
+                     but keep the block (unwrapping would dissolve the heading/paragraph) -->
+                <xsl:when test="local:block-of(.) is .">
+                    <xsl:variable name="element" select="."/>
+                    <xsl:for-each select="'about', 'typeof', 'property', 'resource', 'content', 'datatype', 'lang', 'xml:lang'">
+                        <ixsl:remove-attribute name="{.}" object="$element"/>
+                    </xsl:for-each>
+                </xsl:when>
+                <!-- an inline annotation is a wrapper element: unwrap it -->
+                <xsl:otherwise>
+                    <xsl:call-template name="local:unwrap-element">
+                        <xsl:with-param name="element" select="."/>
+                    </xsl:call-template>
+                </xsl:otherwise>
+            </xsl:choose>
             <xsl:call-template name="local:after-mutation"/>
         </xsl:for-each>
         <xsl:call-template name="local:hide-overlay"/>
@@ -278,9 +295,10 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <!-- extract RDF/XML from the page and display it in the modal -->
+    <!-- extract RDF/XML from the page and display it in the modal, grouped one
+         rdf:Description per subject (via local:group-triples) for readability -->
     <xsl:template match="button[@id = 'parse-rdf']" mode="ixsl:onclick">
-        <xsl:variable name="rdf">
+        <xsl:variable name="rdf" as="element(rdf:RDF)">
             <xsl:call-template name="extract-rdfa">
                 <xsl:with-param name="doc" select="ixsl:page()"/>
                 <xsl:with-param name="base" select="local:document-uri()"/>
@@ -289,7 +307,7 @@ version="3.0">
 
         <xsl:call-template name="local:show-output">
             <xsl:with-param name="title" select="'Extracted RDF/XML'"/>
-            <xsl:with-param name="text" select="serialize($rdf, map{ 'method': 'xml', 'indent': true() })"/>
+            <xsl:with-param name="text" select="serialize(local:group-triples($rdf), map{ 'method': 'xml', 'indent': true() })"/>
         </xsl:call-template>
     </xsl:template>
 

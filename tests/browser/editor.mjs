@@ -217,19 +217,20 @@ results.link.removed = await page.evaluate(() =>
 // 11. figure insert
 await caretInText('#content > p:first-of-type');
 await page.click('#edit-toolbar button.insert-figure');
-await page.fill('#figure-dialog input[name=src]', 'Mockup.png');
+const FIG_SRC = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+await page.fill('#figure-dialog input[name=src]', FIG_SRC);
 await page.fill('#figure-dialog input[name=alt]', 'Inserted');
 await page.fill('#figure-dialog input[name=caption]', 'New figure');
 await page.click('#figure-dialog button.figure-save');
-results.figure = await page.evaluate(() => {
+results.figure = await page.evaluate(src => {
     const fig = document.querySelector('#content > p + figure');
     return {
         inserted: !!fig,
-        img: fig?.querySelector('img[src="Mockup.png"][alt="Inserted"]') != null,
+        img: fig?.querySelector(`img[src="${src}"][alt="Inserted"]`) != null,
         caption: fig?.querySelector('figcaption[contenteditable=true]')?.textContent === 'New figure',
         chrome: !!fig?.querySelector('[data-role=chrome]'),
     };
-});
+}, FIG_SRC);
 
 // 12. paste is plain-text only
 await caretInText('#content > p:first-of-type');
@@ -318,6 +319,31 @@ results.annotation = {
     noChromeLiterals: !rdf.includes('⠿'),
     titleTriple: rdf.includes('Demo document'),
 };
+
+// 17. block-level annotation: right-click an h1 that carries its own @property
+await page.click('#output-modal .modal-close').catch(() => {});
+await page.waitForTimeout(100);
+await page.evaluate(() => window.getSelection().removeAllRanges());
+await page.locator('#content > h1').click({ button: 'right', position: { x: 60, y: 10 } });
+await page.waitForTimeout(300);
+results.blockAnnotation = {
+    editorOpened: await page.evaluate(() =>
+        getComputedStyle(document.getElementById('overlay')).display !== 'none'),
+    propertyPrefilled: await page.evaluate(() =>
+        document.querySelector('#overlay select[name=property]').value === 'http://purl.org/dc/terms/title'),
+    removeShown: await page.evaluate(() =>
+        getComputedStyle(document.querySelector('#overlay button.remove-action')).display !== 'none'),
+};
+// Remove strips the RDFa attributes but keeps the heading (does not unwrap it)
+await page.click('#overlay button.remove-action');
+await page.waitForTimeout(200);
+results.blockAnnotation.headingKept = await page.evaluate(() =>
+    !!document.querySelector('#content > h1') &&
+    document.querySelector('#content > h1').textContent.includes('Demo document'));
+results.blockAnnotation.propertyStripped = await page.evaluate(() =>
+    !document.querySelector('#content > h1')?.hasAttribute('property'));
+for (const [k, v] of Object.entries(results.blockAnnotation))
+    if (!v) errors.push('ASSERT FAILED: blockAnnotation.' + k);
 
 console.log(JSON.stringify({ results, errors }, null, 2));
 await browser.close();

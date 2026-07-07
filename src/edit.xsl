@@ -246,6 +246,7 @@ version="3.0">
             <button type="button" class="table-op" data-op="del-col" disabled="disabled" title="Delete column" aria-label="Delete column">&#x2212;C</button>
             <button type="button" class="delete-block" title="Delete block" aria-label="Delete block">&#x2715;</button>
             <button type="button" id="toc-toggle" title="Table of contents" aria-label="Table of contents">&#x2630;</button>
+            <button type="button" id="inspector-toggle" title="Properties" aria-label="Subject properties">&#x24C5;</button>
             <button type="button" id="find-open" title="Find and replace" aria-label="Find and replace">&#x1F50D;</button>
             <button type="button" id="view-source" title="Canonical XHTML+RDFa" aria-label="View canonical source">Source</button>
         </div>

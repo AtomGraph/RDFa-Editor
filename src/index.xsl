@@ -25,6 +25,7 @@ version="3.0">
 -->
 
     <xsl:include href="RDFa2RDFXML-v3.xsl"/>
+    <xsl:include href="group-sort-triples.xsl"/>
     <xsl:include href="canonical-xhtml.xsl"/>
     <xsl:include href="lint-rdfa.xsl"/>
     <xsl:include href="vocab.xsl"/>

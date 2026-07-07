@@ -7,6 +7,7 @@ xmlns:xs="http://www.w3.org/2001/XMLSchema"
 xmlns:local="urn:rdfa-editor:functions"
 xmlns:rdfa="urn:rdfa:functions"
 xmlns:lint="urn:rdfa-editor:lint"
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 extension-element-prefixes="ixsl"
 xpath-default-namespace="http://www.w3.org/1999/xhtml"
 version="3.0">
@@ -27,6 +28,12 @@ version="3.0">
                     <button type="button" id="toc-close" class="toc-close" title="Close" aria-label="Close table of contents">&#215;</button>
                     <h2>Contents</h2>
                     <div id="toc-list"/>
+                </aside>
+                <aside id="inspector-drawer" class="rdfa-editor-ui" role="complementary" aria-label="Subject properties" style="display: none;">
+                    <button type="button" id="inspector-close" class="inspector-close" title="Close" aria-label="Close properties">&#215;</button>
+                    <h2>Properties</h2>
+                    <div id="inspector-subject"/>
+                    <div id="inspector-body"/>
                 </aside>
                 <footer id="breadcrumb" class="rdfa-editor-ui" role="navigation" aria-label="Document position">
                     <div id="breadcrumb-path"/>
@@ -115,6 +122,28 @@ version="3.0">
 
     <xsl:template match="button[@id = 'toc-close']" mode="ixsl:onclick">
         <xsl:for-each select="id('toc-drawer', ixsl:page())">
+            <ixsl:set-style name="display" select="'none'"/>
+        </xsl:for-each>
+    </xsl:template>
+
+    <!-- ................................ subject inspector ................................ -->
+
+    <xsl:template match="button[@id = 'inspector-toggle']" mode="ixsl:onclick">
+        <xsl:for-each select="id('inspector-drawer', ixsl:page())">
+            <xsl:choose>
+                <xsl:when test="ixsl:get(., 'style.display') = 'none'">
+                    <ixsl:set-style name="display" select="'block'"/>
+                    <xsl:call-template name="local:sync-inspector"/>
+                </xsl:when>
+                <xsl:otherwise>
+                    <ixsl:set-style name="display" select="'none'"/>
+                </xsl:otherwise>
+            </xsl:choose>
+        </xsl:for-each>
+    </xsl:template>
+
+    <xsl:template match="button[@id = 'inspector-close']" mode="ixsl:onclick">
+        <xsl:for-each select="id('inspector-drawer', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
     </xsl:template>
@@ -276,7 +305,98 @@ version="3.0">
             </xsl:otherwise>
         </xsl:choose>
         <xsl:call-template name="local:sync-table-toolbar"/>
+        <xsl:call-template name="local:sync-inspector"/>
     </xsl:template>
+
+    <!-- the property sheet for the subject in scope at the caret. Read-only: it
+         re-presents the extractor's own output (grouped per subject) so its verdicts
+         can never drift from "Extract RDF"/lint. Only does work while the drawer is
+         open; rides local:update-breadcrumb, so it tracks the caret and refreshes
+         after every mutation (annotate/undo route through local:after-mutation). -->
+    <xsl:template name="local:sync-inspector">
+        <xsl:for-each select="id('inspector-drawer', ixsl:page())[ixsl:get(., 'style.display') ne 'none']">
+            <xsl:variable name="base" as="xs:string" select="local:document-uri()"/>
+            <xsl:variable name="leaf" select="ixsl:get(ixsl:window(), 'rdfaEditorBreadcrumbLeaf')"/>
+            <xsl:variable name="subject" as="xs:string"
+                select="((if (exists($leaf)) then rdfa:in-scope-subject($leaf, $base) else ())[. ne ''], $base)[1]"/>
+            <xsl:variable name="rdf" as="element(rdf:RDF)">
+                <xsl:call-template name="extract-rdfa">
+                    <xsl:with-param name="doc" select="ixsl:page()"/>
+                    <xsl:with-param name="base" select="$base"/>
+                </xsl:call-template>
+            </xsl:variable>
+            <xsl:variable name="desc" as="element(rdf:Description)?" select="
+                local:group-triples($rdf)/rdf:Description[
+                    (@rdf:about = $subject)
+                    or (starts-with($subject, '_:') and @rdf:nodeID = substring-after($subject, '_:'))
+                ]"/>
+
+            <xsl:for-each select="id('inspector-subject', ixsl:page())">
+                <xsl:result-document href="?." method="ixsl:replace-content">
+                    <span class="inspector-subject-iri">
+                        <xsl:value-of select="local:short-iri($subject, $base)"/>
+                    </span>
+                    <xsl:for-each select="$desc/rdf:type/@rdf:resource">
+                        <span class="inspector-type">
+                            <xsl:value-of select="local:compact-term(.)"/>
+                        </span>
+                    </xsl:for-each>
+                </xsl:result-document>
+            </xsl:for-each>
+
+            <xsl:for-each select="id('inspector-body', ixsl:page())">
+                <xsl:result-document href="?." method="ixsl:replace-content">
+                    <xsl:variable name="props" as="element()*" select="$desc/*[not(self::rdf:type)]"/>
+                    <xsl:choose>
+                        <xsl:when test="exists($props)">
+                            <xsl:for-each select="$props">
+                                <div class="inspector-row">
+                                    <span class="inspector-pred">
+                                        <xsl:value-of select="local:compact-term(namespace-uri() || local-name())"/>
+                                    </span>
+                                    <span class="inspector-obj">
+                                        <xsl:choose>
+                                            <xsl:when test="@rdf:resource">
+                                                <span class="inspector-obj-iri">
+                                                    <xsl:value-of select="local:short-iri(@rdf:resource, $base)"/>
+                                                </span>
+                                            </xsl:when>
+                                            <xsl:when test="@rdf:nodeID">
+                                                <span class="inspector-obj-iri">_:<xsl:value-of select="@rdf:nodeID"/></span>
+                                            </xsl:when>
+                                            <xsl:otherwise>
+                                                <span class="inspector-obj-lit"><xsl:value-of select="."/></span>
+                                                <xsl:if test="@rdf:datatype">
+                                                    <span class="inspector-obj-dt"><xsl:value-of select="local:compact-term(@rdf:datatype)"/></span>
+                                                </xsl:if>
+                                                <xsl:if test="@xml:lang">
+                                                    <span class="inspector-obj-lang">@<xsl:value-of select="@xml:lang"/></span>
+                                                </xsl:if>
+                                            </xsl:otherwise>
+                                        </xsl:choose>
+                                    </span>
+                                </div>
+                            </xsl:for-each>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <p class="helper-text">No properties on this subject.</p>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                </xsl:result-document>
+            </xsl:for-each>
+        </xsl:for-each>
+    </xsl:template>
+
+    <!-- readable object/subject: the document itself, a same-document fragment, or a CURIE -->
+    <xsl:function name="local:short-iri" as="xs:string">
+        <xsl:param name="iri" as="xs:string"/>
+        <xsl:param name="base" as="xs:string"/>
+        <xsl:sequence select="
+            if ($iri eq $base) then 'this document'
+            else if (starts-with($iri, '_:')) then $iri
+            else if (starts-with($iri, $base)) then substring-after($iri, $base)
+            else local:compact-term($iri)"/>
+    </xsl:function>
 
     <xsl:template match="span[contains-token(@class, 'crumb')]" mode="ixsl:onmousedown">
         <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
