@@ -291,34 +291,84 @@ version="3.0">
 
     <xsl:template name="local:render-toolbar">
         <div id="edit-toolbar" class="rdfa-editor-ui" role="toolbar" aria-label="Editing toolbar">
-            <select name="block-type" title="Block type" aria-label="Block type">
-                <option value="p">Paragraph</option>
-                <option value="h1">Heading 1</option>
-                <option value="h2">Heading 2</option>
-                <option value="h3">Heading 3</option>
-                <option value="blockquote">Quote</option>
-                <option value="pre">Preformatted</option>
-            </select>
-            <button type="button" class="format-inline" data-element="strong" title="Bold" aria-label="Bold"><strong>B</strong></button>
-            <button type="button" class="format-inline" data-element="em" title="Italic" aria-label="Italic"><em>I</em></button>
-            <button type="button" class="format-link" title="Link" aria-label="Link">&#x1F517;</button>
-            <button type="button" class="insert-block" title="Add paragraph" aria-label="Add paragraph">+ &#xB6;</button>
-            <button type="button" class="insert-list" data-list="ul" title="Bulleted list" aria-label="Bulleted list">&#x2022; List</button>
-            <button type="button" class="insert-list" data-list="ol" title="Numbered list" aria-label="Numbered list">1. List</button>
-            <button type="button" class="insert-figure" title="Insert figure" aria-label="Insert figure">&#x1F5BC;</button>
-            <button type="button" class="insert-table" title="Insert table" aria-label="Insert table">&#x229E;</button>
-            <button type="button" class="table-op" data-op="row-above" disabled="disabled" title="Insert row above" aria-label="Insert row above">&#x2191;R</button>
-            <button type="button" class="table-op" data-op="row-below" disabled="disabled" title="Insert row below" aria-label="Insert row below">&#x2193;R</button>
-            <button type="button" class="table-op" data-op="col-left" disabled="disabled" title="Insert column left" aria-label="Insert column left">&#x2190;C</button>
-            <button type="button" class="table-op" data-op="col-right" disabled="disabled" title="Insert column right" aria-label="Insert column right">&#x2192;C</button>
-            <button type="button" class="table-op" data-op="del-row" disabled="disabled" title="Delete row" aria-label="Delete row">&#x2212;R</button>
-            <button type="button" class="table-op" data-op="del-col" disabled="disabled" title="Delete column" aria-label="Delete column">&#x2212;C</button>
-            <button type="button" class="delete-block" title="Delete block" aria-label="Delete block">&#x2715;</button>
-            <button type="button" id="toc-toggle" title="Table of contents" aria-label="Table of contents">&#x2630;</button>
-            <button type="button" id="inspector-toggle" title="Properties" aria-label="Subject properties">&#x24C5;</button>
-            <button type="button" id="find-open" title="Find and replace" aria-label="Find and replace">&#x1F50D;</button>
-            <button type="button" id="view-source" title="Canonical XHTML+RDFa" aria-label="View canonical source">Source</button>
+            <div class="tb-group" role="group" aria-label="Block">
+                <select name="block-type" title="Block type" aria-label="Block type">
+                    <option value="p">Paragraph</option>
+                    <option value="h1">Heading 1</option>
+                    <option value="h2">Heading 2</option>
+                    <option value="h3">Heading 3</option>
+                    <option value="blockquote">Quote</option>
+                    <option value="pre">Preformatted</option>
+                </select>
+            </div>
+            <div class="tb-group" role="group" aria-label="Text">
+                <button type="button" class="format-inline" data-element="strong" aria-pressed="false" title="Bold" aria-label="Bold"><strong>B</strong></button>
+                <button type="button" class="format-inline" data-element="em" aria-pressed="false" title="Italic" aria-label="Italic"><em>I</em></button>
+                <button type="button" class="format-link" aria-pressed="false" title="Link" aria-label="Link">&#x1F517;</button>
+            </div>
+            <div class="tb-group" role="group" aria-label="Blocks">
+                <button type="button" class="insert-block" title="Add paragraph" aria-label="Add paragraph">+ &#xB6;</button>
+                <button type="button" class="insert-list" data-list="ul" aria-pressed="false" title="Bulleted list" aria-label="Bulleted list">&#x2022; List</button>
+                <button type="button" class="insert-list" data-list="ol" aria-pressed="false" title="Numbered list" aria-label="Numbered list">1. List</button>
+            </div>
+            <div class="tb-group" role="group" aria-label="Insert">
+                <button type="button" class="insert-figure" title="Insert figure" aria-label="Insert figure">&#x1F5BC;</button>
+                <button type="button" class="insert-table" title="Insert table" aria-label="Insert table">&#x229E;</button>
+            </div>
+            <div class="tb-group table-ops" role="group" aria-label="Table operations">
+                <button type="button" class="table-op" data-op="row-above" disabled="disabled" title="Insert row above" aria-label="Insert row above">&#x2191;R</button>
+                <button type="button" class="table-op" data-op="row-below" disabled="disabled" title="Insert row below" aria-label="Insert row below">&#x2193;R</button>
+                <button type="button" class="table-op" data-op="col-left" disabled="disabled" title="Insert column left" aria-label="Insert column left">&#x2190;C</button>
+                <button type="button" class="table-op" data-op="col-right" disabled="disabled" title="Insert column right" aria-label="Insert column right">&#x2192;C</button>
+                <button type="button" class="table-op" data-op="del-row" disabled="disabled" title="Delete row" aria-label="Delete row">&#x2212;R</button>
+                <button type="button" class="table-op" data-op="del-col" disabled="disabled" title="Delete column" aria-label="Delete column">&#x2212;C</button>
+            </div>
+            <div class="tb-group" role="group" aria-label="Block actions">
+                <button type="button" class="delete-block" title="Delete block" aria-label="Delete block">&#x2715;</button>
+            </div>
+            <div class="tb-group" role="group" aria-label="View">
+                <button type="button" id="toc-toggle" title="Table of contents" aria-label="Table of contents">&#x2630;</button>
+                <button type="button" id="inspector-toggle" title="Properties" aria-label="Subject properties">&#x24C5;</button>
+                <button type="button" id="find-open" title="Find and replace" aria-label="Find and replace">&#x1F50D;</button>
+                <button type="button" id="view-source" title="Canonical XHTML+RDFa" aria-label="View canonical source">Source</button>
+            </div>
         </div>
+    </xsl:template>
+
+    <!-- caret-contextual toolbar state, riding local:update-breadcrumb (the single
+         caret-awareness choke point) alongside local:sync-table-toolbar: the inline
+         toggles reflect the elements the caret sits inside (strong/em/link/list) and
+         the block-type select follows the current convertible block kind -->
+    <xsl:template name="local:sync-format-toolbar">
+        <xsl:variable name="leaf" as="element()?" select="ixsl:get(ixsl:window(), 'rdfaEditorBreadcrumbLeaf')"/>
+        <xsl:variable name="host" as="element()?" select="$leaf ! local:host-of(.)"/>
+        <!-- inline element toggles: strong / em (mirrors the format-inline click handler) -->
+        <xsl:for-each select="id('edit-toolbar', ixsl:page())//button[@data-element]">
+            <xsl:variable name="name" as="xs:string" select="string(@data-element)"/>
+            <xsl:variable name="on" as="xs:boolean" select="exists($host)
+                and exists($leaf/ancestor-or-self::*[local-name() = $name] intersect $host/descendant::*)"/>
+            <ixsl:set-attribute name="aria-pressed" select="if ($on) then 'true' else 'false'" object="."/>
+        </xsl:for-each>
+        <!-- link toggle -->
+        <xsl:for-each select="id('edit-toolbar', ixsl:page())//button[contains-token(@class, 'format-link')]">
+            <xsl:variable name="on" as="xs:boolean" select="exists($host)
+                and exists($leaf/ancestor-or-self::a intersect $host/descendant::*)"/>
+            <ixsl:set-attribute name="aria-pressed" select="if ($on) then 'true' else 'false'" object="."/>
+        </xsl:for-each>
+        <!-- list toggles: only the innermost enclosing list lights (never both) -->
+        <xsl:variable name="list" as="element()?" select="$leaf/ancestor-or-self::*[self::ul or self::ol][1]"/>
+        <xsl:for-each select="id('edit-toolbar', ixsl:page())//button[@data-list]">
+            <xsl:variable name="on" as="xs:boolean" select="exists($list) and local-name($list) = string(@data-list)"/>
+            <ixsl:set-attribute name="aria-pressed" select="if ($on) then 'true' else 'false'" object="."/>
+        </xsl:for-each>
+        <!-- block-type select follows a convertible current block; other containers leave it as-is -->
+        <xsl:variable name="block" as="element()?" select="$leaf ! local:block-of(.)"/>
+        <xsl:for-each select="$block[self::p or self::h1 or self::h2 or self::h3 or self::blockquote or self::pre]">
+            <xsl:variable name="kind" as="xs:string" select="local-name(.)"/>
+            <xsl:for-each select="id('edit-toolbar', ixsl:page())//select[@name = 'block-type']">
+                <ixsl:set-property name="value" select="$kind" object="."/>
+            </xsl:for-each>
+        </xsl:for-each>
     </xsl:template>
 
     <!-- ................................ keyboard ................................ -->

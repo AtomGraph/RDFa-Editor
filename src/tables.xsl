@@ -483,6 +483,11 @@ version="3.0">
         <xsl:for-each select="id('edit-toolbar', ixsl:page())//button[contains-token(@class, 'table-op')]">
             <ixsl:set-property name="disabled" select="not($enabled)" object="."/>
         </xsl:for-each>
+        <!-- the whole cluster switches on when the caret is in a table -->
+        <xsl:for-each select="id('edit-toolbar', ixsl:page())//*[contains-token(@class, 'table-ops')]">
+            <ixsl:set-attribute name="class"
+                select="if ($enabled) then 'tb-group table-ops active' else 'tb-group table-ops'" object="."/>
+        </xsl:for-each>
     </xsl:template>
 
 </xsl:stylesheet>
