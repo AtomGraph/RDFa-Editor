@@ -51,8 +51,9 @@ version="3.0">
         | @src[matches(normalize-space(.), '^data:', 'i')][not(matches(normalize-space(.), '^data:image/', 'i'))]"
         mode="canonical"/>
 
-    <!-- C2: editing-state and styling-hook attributes never serialize -->
-    <xsl:template match="@contenteditable | @draggable | @class | @id | @style
+    <!-- C2: editing-state and styling-hook attributes never serialize (tabindex is
+         injected to make block images focusable navigation islands) -->
+    <xsl:template match="@contenteditable | @draggable | @class | @id | @style | @tabindex
         | @*[starts-with(name(), 'aria-')] | @*[starts-with(name(), 'data-')]" mode="canonical"/>
 
     <!-- C3/C4: presentational aliases to their semantic elements -->
