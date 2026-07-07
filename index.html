@@ -77,6 +77,28 @@
                 box-sizing: border-box;
             }
 
+            /* Site footer — host-page chrome (outside #content), resource/attribution links */
+            .site-footer {
+                padding: 24px 48px;
+                border-top: 1px solid #e0e0e0;
+                background: #fafafa;
+                text-align: center;
+                color: #777;
+                font-size: 13px;
+            }
+            .site-footer-tagline { margin: 0 0 10px 0; }
+            .site-footer ul {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px 20px;
+                justify-content: center;
+            }
+            .site-footer a { color: #1976d2; text-decoration: none; }
+            .site-footer a:hover { text-decoration: underline; }
+
             /* Help modal — host-page only; reuses the editor's .modal-content look */
             #help-modal {
                 position: fixed;
@@ -234,6 +256,16 @@ Object      Ada Lovelace</pre>
                 standards that hold it all together. This guide is shared by
                 <span property="http://schema.org/publisher" typeof="http://schema.org/Organization"><span property="http://schema.org/name">the open web community</span></span>.</p>
         </div>
+
+        <footer class="site-footer">
+            <p class="site-footer-tagline">A client-side XHTML+RDFa editor, rendered entirely by XSLT.</p>
+            <ul>
+                <li><a href="https://github.com/AtomGraph">AtomGraph</a></li>
+                <li><a href="https://www.w3.org/TR/xslt-30/">XSLT 3.0</a></li>
+                <li><a href="https://www.saxonica.com/html/saxonjs/index.html">SaxonJS</a></li>
+                <li><a href="https://github.com/AtomGraph/RDFa-Editor">Code</a></li>
+            </ul>
+        </footer>
 
         <div id="help-modal" class="rdfa-editor-ui" style="display: none;" onclick="if (event.target === this) closeHelp();">
             <div class="modal-content">
