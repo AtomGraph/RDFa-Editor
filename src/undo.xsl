@@ -111,9 +111,9 @@ version="3.0">
                 <ixsl:set-property name="textContent" select="''" object="id('rdfa-editor-redo-stack', ixsl:page())"/>
             </xsl:if>
         </xsl:for-each>
-        <ixsl:set-property name="rdfaEditorLastUndoTime"
-            select="ixsl:call(ixsl:get(ixsl:window(), 'Date'), 'now', [])" object="ixsl:window()"/>
-        <ixsl:set-property name="rdfaEditorLastUndoHost" select="$host" object="ixsl:window()"/>
+        <ixsl:set-property name="lastUndoTime"
+            select="ixsl:call(ixsl:get(ixsl:window(), 'Date'), 'now', [])" object="local:editor-state()"/>
+        <ixsl:set-property name="lastUndoHost" select="$host" object="local:editor-state()"/>
     </xsl:template>
 
     <!-- undo and redo are the same move with the stacks swapped: pop $from,
@@ -182,9 +182,9 @@ version="3.0">
         <xsl:for-each select="('activeBlock', 'editingSpan', 'draggedBlock', 'editRange', 'editingLink',
                 'insertAfterBlock', 'range', 'breadcrumbLeaf', 'findNode', 'lastUndoHost',
                 'draggedSectionHeading')">
-            <ixsl:set-property name="{.}" select="()" object="ixsl:window()"/>
+            <ixsl:set-property name="{.}" select="()" object="local:editor-state()"/>
         </xsl:for-each>
-        <ixsl:set-property name="rdfaEditorLastUndoTime" select="0" object="ixsl:window()"/>
+        <ixsl:set-property name="lastUndoTime" select="0" object="local:editor-state()"/>
         <!-- snapshots taken mid-drag may carry transient drag state -->
         <xsl:call-template name="local:clear-drop-marks"/>
         <xsl:for-each select="$root/*[@draggable]">
@@ -244,8 +244,8 @@ version="3.0">
                          is stable across event invocations in SaxonJS (probed), so it cannot
                          detect burst boundaries -->
                     <xsl:variable name="now" as="xs:double" select="ixsl:call(ixsl:get(ixsl:window(), 'Date'), 'now', [])"/>
-                    <xsl:if test="$now - xs:double((ixsl:get(ixsl:window(), 'rdfaEditorLastUndoTime'), 0)[1]) gt 1000
-                            or not(ixsl:get(ixsl:window(), 'rdfaEditorLastUndoHost') ! (. is current()))">
+                    <xsl:if test="$now - xs:double((ixsl:get(local:editor-state(), 'lastUndoTime'), 0)[1]) gt 1000
+                            or not(ixsl:get(local:editor-state(), 'lastUndoHost') ! (. is current()))">
                         <xsl:call-template name="local:push-undo">
                             <xsl:with-param name="host" select="."/>
                         </xsl:call-template>

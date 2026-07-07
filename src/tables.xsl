@@ -35,7 +35,7 @@ version="3.0">
         <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
             then ixsl:get($selection, 'anchorNode') else ()"/>
         <xsl:sequence select="($anchor ! local:cell-of(.),
-            ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock') ! local:cell-of(.))[1][exists(local:block-of(.))]"/>
+            ixsl:get(local:editor-state(), 'activeBlock') ! local:cell-of(.))[1][exists(local:block-of(.))]"/>
     </xsl:function>
 
     <xsl:function name="local:table-of" as="element()?">
@@ -135,8 +135,8 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'insert-table')]" mode="ixsl:onclick">
-        <ixsl:set-property name="rdfaEditorInsertAfterBlock"
-            select="(local:current-block(), local:active-root()/*[last()])[1]" object="ixsl:window()"/>
+        <ixsl:set-property name="insertAfterBlock"
+            select="(local:current-block(), local:active-root()/*[last()])[1]" object="local:editor-state()"/>
         <xsl:variable name="dialog" as="element()" select="id('table-dialog', ixsl:page())"/>
         <xsl:for-each select="($dialog//input[@name = 'rows'])[1], ($dialog//input[@name = 'cols'])[1]">
             <ixsl:set-property name="value" select="'3'" object="."/>
@@ -198,8 +198,8 @@ version="3.0">
             </xsl:for-each>
             <xsl:sequence select="ixsl:call($table, 'appendChild', [ $tbody ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:choose>
-                <xsl:when test="exists(ixsl:get(ixsl:window(), 'rdfaEditorInsertAfterBlock'))">
-                    <xsl:sequence select="ixsl:call(ixsl:get(ixsl:window(), 'rdfaEditorInsertAfterBlock'), 'after', [ $table ])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:when test="exists(ixsl:get(local:editor-state(), 'insertAfterBlock'))">
+                    <xsl:sequence select="ixsl:call(ixsl:get(local:editor-state(), 'insertAfterBlock'), 'after', [ $table ])[current-date() lt xs:date('2000-01-01')]"/>
                 </xsl:when>
                 <xsl:otherwise>
                     <xsl:for-each select="local:active-root()">
@@ -341,7 +341,7 @@ version="3.0">
             <xsl:if test="$section[self::thead or self::tbody or self::tfoot] and empty($section/tr)">
                 <xsl:sequence select="ixsl:call($section, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:if>
-            <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+            <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
             <xsl:for-each select="(($target/(td | th))[$i], ($target/(td | th))[last()])[1]">
                 <xsl:call-template name="local:focus-caret">
                     <xsl:with-param name="node" select="."/>
@@ -368,7 +368,7 @@ version="3.0">
             <xsl:for-each select="$victims">
                 <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:for-each>
-            <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+            <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
             <xsl:for-each select="(($row/(td | th))[$i], ($row/(td | th))[last()])[1]">
                 <xsl:call-template name="local:focus-caret">
                     <xsl:with-param name="node" select="."/>

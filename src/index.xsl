@@ -41,13 +41,16 @@ version="3.0">
          documents into the SaxonJS document pool (SaxonJS.getResource +
          documentPool), keyed by page-relative URI -->
     <xsl:template name="main">
+        <!-- all editor state lives on a single window.rdfaEditor container (mirrors
+             LinkedDataHub's window.LinkedDataHub); reached everywhere via local:editor-state() -->
+        <ixsl:set-property name="rdfaEditor" select="ixsl:call(ixsl:window(), 'Object', [])" object="ixsl:window()"/>
         <xsl:for-each select="('editingSpan', 'range', 'activeBlock', 'draggedBlock',
                 'editRange', 'editingLink', 'insertAfterBlock', 'lastUndoHost',
-                'breadcrumbLeaf', 'draggedSectionHeading', 'findNode')">
-            <ixsl:set-property name="{.}" select="()" object="ixsl:window()"/>
+                'breadcrumbLeaf', 'draggedSectionHeading', 'findNode', 'tocRoot')">
+            <ixsl:set-property name="{.}" select="()" object="local:editor-state()"/>
         </xsl:for-each>
-        <ixsl:set-property name="rdfaEditorLastUndoTime" select="0" object="ixsl:window()"/>
-        <ixsl:set-property name="rdfaEditorFindOffset" select="1" object="ixsl:window()"/>
+        <ixsl:set-property name="lastUndoTime" select="0" object="local:editor-state()"/>
+        <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
 
         <xsl:call-template name="local:init-undo"/>
         <xsl:call-template name="local:init-overlay"/>
@@ -55,5 +58,11 @@ version="3.0">
         <xsl:call-template name="local:init-editing"/>
         <xsl:call-template name="local:init-navigate"/>
     </xsl:template>
+
+    <!-- the single window.rdfaEditor container that holds all mutable editor state;
+         every read/write of that state goes through this accessor -->
+    <xsl:function name="local:editor-state">
+        <xsl:sequence select="ixsl:get(ixsl:window(), 'rdfaEditor')"/>
+    </xsl:function>
 
 </xsl:stylesheet>
