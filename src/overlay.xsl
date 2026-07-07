@@ -312,10 +312,10 @@ version="3.0">
         <xsl:for-each select="id('overlay', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
-        <ixsl:set-property name="rdfaEditorEditingSpan" select="()" object="ixsl:window()"/>
-        <ixsl:set-property name="rdfaEditorRange" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="editingSpan" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="range" select="()" object="local:editor-state()"/>
         <!-- return focus to the content -->
-        <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock')[exists(local:block-of(.))]">
+        <xsl:for-each select="ixsl:get(local:editor-state(), 'activeBlock')[exists(local:block-of(.))]">
             <xsl:call-template name="local:focus">
                 <xsl:with-param name="element" select="."/>
             </xsl:call-template>

@@ -45,7 +45,7 @@ version="3.0">
         <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
             then ixsl:get($selection, 'anchorNode') else ()"/>
         <xsl:sequence select="($anchor ! local:root-of(.),
-            ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock') ! local:root-of(.), local:roots()[1])[1]"/>
+            ixsl:get(local:editor-state(), 'activeBlock') ! local:root-of(.), local:roots()[1])[1]"/>
     </xsl:function>
 
     <!-- the top-level block containing a node -->
@@ -76,7 +76,7 @@ version="3.0">
         <xsl:variable name="selection" select="local:selection()"/>
         <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
             then ixsl:get($selection, 'anchorNode') else ()"/>
-        <xsl:sequence select="($anchor ! local:block-of(.), ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock') ! local:block-of(.))[1]"/>
+        <xsl:sequence select="($anchor ! local:block-of(.), ixsl:get(local:editor-state(), 'activeBlock') ! local:block-of(.))[1]"/>
     </xsl:function>
 
     <xsl:function name="local:chrome-count" as="xs:integer">
@@ -340,7 +340,7 @@ version="3.0">
          toggles reflect the elements the caret sits inside (strong/em/link/list) and
          the block-type select follows the current convertible block kind -->
     <xsl:template name="local:sync-format-toolbar">
-        <xsl:variable name="leaf" as="element()?" select="ixsl:get(ixsl:window(), 'rdfaEditorBreadcrumbLeaf')"/>
+        <xsl:variable name="leaf" as="element()?" select="ixsl:get(local:editor-state(), 'breadcrumbLeaf')"/>
         <xsl:variable name="host" as="element()?" select="$leaf ! local:host-of(.)"/>
         <!-- inline element toggles: strong / em (mirrors the format-inline click handler) -->
         <xsl:for-each select="id('edit-toolbar', ixsl:page())//button[@data-element]">
@@ -549,7 +549,7 @@ version="3.0">
                     <xsl:variable name="next" as="element()?" select="($outside[. &gt;&gt; $block])[1]"/>
                     <xsl:call-template name="local:push-undo"/>
                     <xsl:sequence select="ixsl:call($block, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
-                    <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+                    <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
                     <xsl:for-each select="if ($key = 'Backspace') then ($prev, $next)[1] else ($next, $prev)[1]">
                         <xsl:choose>
                             <xsl:when test=". is $prev">
@@ -576,7 +576,7 @@ version="3.0">
          contenteditable onfocusin above) -->
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:onfocusin">
         <xsl:if test="empty(ancestor::*[@contenteditable = 'true'])">
-            <ixsl:set-property name="rdfaEditorActiveBlock" select="." object="ixsl:window()"/>
+            <ixsl:set-property name="activeBlock" select="." object="local:editor-state()"/>
             <xsl:call-template name="local:update-breadcrumb"/>
         </xsl:if>
     </xsl:template>
@@ -759,7 +759,7 @@ version="3.0">
                         <xsl:when test="exists($prev) and local:block-text($host) = ''">
                             <xsl:call-template name="local:push-undo"/>
                             <xsl:sequence select="ixsl:call($host, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
-                            <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+                            <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
                             <xsl:variable name="prev-host" as="element()?"
                                 select="($prev/descendant-or-self::*[@contenteditable = 'true'])[last()]"/>
                             <xsl:for-each select="$prev-host">
@@ -791,7 +791,7 @@ version="3.0">
             <xsl:sequence select="ixsl:call($prev, 'appendChild', [ ixsl:get($host, 'firstChild') ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
         <xsl:sequence select="ixsl:call($host, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
-        <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
         <xsl:call-template name="local:focus-caret">
     <xsl:with-param name="node" select="$prev"/>
     <xsl:with-param name="offset" select="$index"/>
@@ -962,7 +962,7 @@ version="3.0">
 
     <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:onfocusin">
         <xsl:if test="exists(local:block-of(.))">
-            <ixsl:set-property name="rdfaEditorActiveBlock" select="." object="ixsl:window()"/>
+            <ixsl:set-property name="activeBlock" select="." object="local:editor-state()"/>
             <xsl:call-template name="local:update-breadcrumb"/>
         </xsl:if>
     </xsl:template>
@@ -1007,7 +1007,7 @@ version="3.0">
             <xsl:sequence select="ixsl:call($new, 'appendChild', [ ixsl:get($block, 'firstChild') ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
         <xsl:sequence select="ixsl:call($block, 'replaceWith', [ $new ])[current-date() lt xs:date('2000-01-01')]"/>
-        <ixsl:set-property name="rdfaEditorActiveBlock" select="$new" object="ixsl:window()"/>
+        <ixsl:set-property name="activeBlock" select="$new" object="local:editor-state()"/>
         <xsl:call-template name="local:focus">
             <xsl:with-param name="element" select="$new"/>
         </xsl:call-template>
@@ -1113,7 +1113,7 @@ version="3.0">
                 <xsl:call-template name="local:push-undo"/>
                 <xsl:variable name="prev" as="element()?" select="preceding-sibling::*[1]"/>
                 <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
-                <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
+                <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
                 <xsl:for-each select="($prev/descendant-or-self::*[@contenteditable = 'true'])[last()]">
                     <xsl:call-template name="local:focus">
                         <xsl:with-param name="element" select="."/>
@@ -1138,7 +1138,7 @@ version="3.0">
                 <xsl:choose>
                     <!-- caret inside a link: edit it -->
                     <xsl:when test="exists($link)">
-                        <ixsl:set-property name="rdfaEditorEditingLink" select="$link" object="ixsl:window()"/>
+                        <ixsl:set-property name="editingLink" select="$link" object="local:editor-state()"/>
                         <xsl:call-template name="local:open-link-dialog">
                             <xsl:with-param name="event" select="$event"/>
                             <xsl:with-param name="href" select="string($link/@href)"/>
@@ -1147,8 +1147,8 @@ version="3.0">
                     </xsl:when>
                     <!-- selection: create one -->
                     <xsl:when test="not(ixsl:get($selection, 'isCollapsed'))">
-                        <ixsl:set-property name="rdfaEditorEditRange" select="$range" object="ixsl:window()"/>
-                        <ixsl:set-property name="rdfaEditorEditingLink" select="()" object="ixsl:window()"/>
+                        <ixsl:set-property name="editRange" select="$range" object="local:editor-state()"/>
+                        <ixsl:set-property name="editingLink" select="()" object="local:editor-state()"/>
                         <xsl:call-template name="local:open-link-dialog">
                             <xsl:with-param name="event" select="$event"/>
                             <xsl:with-param name="href" select="''"/>
@@ -1199,7 +1199,7 @@ version="3.0">
         <xsl:variable name="href" as="xs:string"
             select="string(ixsl:get((ancestor::div[@id = 'link-dialog']//input[@name = 'href'])[1], 'value'))"/>
         <xsl:if test="$href ne ''">
-            <xsl:variable name="editing" select="ixsl:get(ixsl:window(), 'rdfaEditorEditingLink')"/>
+            <xsl:variable name="editing" select="ixsl:get(local:editor-state(), 'editingLink')"/>
             <xsl:choose>
                 <xsl:when test="exists($editing)">
                     <xsl:call-template name="local:push-undo"/>
@@ -1214,7 +1214,7 @@ version="3.0">
                         select="$snapshot-root ! string(ixsl:get(., 'innerHTML'))"/>
                     <xsl:variable name="wrapped" as="element()?">
                         <xsl:call-template name="local:wrap-range">
-                            <xsl:with-param name="range" select="ixsl:get(ixsl:window(), 'rdfaEditorEditRange')"/>
+                            <xsl:with-param name="range" select="ixsl:get(local:editor-state(), 'editRange')"/>
                             <xsl:with-param name="name" select="'a'"/>
                         </xsl:call-template>
                     </xsl:variable>
@@ -1233,7 +1233,7 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'link-remove')]" mode="ixsl:onclick">
-        <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorEditingLink')">
+        <xsl:for-each select="ixsl:get(local:editor-state(), 'editingLink')">
             <xsl:call-template name="local:push-undo"/>
             <xsl:call-template name="local:unwrap-element">
                 <xsl:with-param name="element" select="."/>
@@ -1262,13 +1262,13 @@ version="3.0">
                 id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
-        <ixsl:set-property name="rdfaEditorEditRange" select="()" object="ixsl:window()"/>
-        <ixsl:set-property name="rdfaEditorEditingLink" select="()" object="ixsl:window()"/>
-        <ixsl:set-property name="rdfaEditorInsertAfterBlock" select="()" object="ixsl:window()"/>
-        <ixsl:set-property name="rdfaEditorFindNode" select="()" object="ixsl:window()"/>
-        <ixsl:set-property name="rdfaEditorFindOffset" select="1" object="ixsl:window()"/>
+        <ixsl:set-property name="editRange" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="editingLink" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="insertAfterBlock" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="findNode" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
         <!-- return focus to the content -->
-        <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorActiveBlock')[exists(local:block-of(.))]">
+        <xsl:for-each select="ixsl:get(local:editor-state(), 'activeBlock')[exists(local:block-of(.))]">
             <xsl:call-template name="local:focus">
                 <xsl:with-param name="element" select="."/>
             </xsl:call-template>
@@ -1278,8 +1278,8 @@ version="3.0">
     <!-- ................................ figure dialog ................................ -->
 
     <xsl:template match="button[contains-token(@class, 'insert-figure')]" mode="ixsl:onclick">
-        <ixsl:set-property name="rdfaEditorInsertAfterBlock"
-            select="(local:current-block(), local:active-root()/*[last()])[1]" object="ixsl:window()"/>
+        <ixsl:set-property name="insertAfterBlock"
+            select="(local:current-block(), local:active-root()/*[last()])[1]" object="local:editor-state()"/>
         <xsl:variable name="dialog" as="element()" select="id('figure-dialog', ixsl:page())"/>
         <xsl:for-each select="$dialog//input">
             <ixsl:set-property name="value" select="''" object="."/>
@@ -1326,8 +1326,8 @@ version="3.0">
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $img ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $figcaption ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:choose>
-                <xsl:when test="exists(ixsl:get(ixsl:window(), 'rdfaEditorInsertAfterBlock'))">
-                    <xsl:sequence select="ixsl:call(ixsl:get(ixsl:window(), 'rdfaEditorInsertAfterBlock'), 'after', [ $figure ])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:when test="exists(ixsl:get(local:editor-state(), 'insertAfterBlock'))">
+                    <xsl:sequence select="ixsl:call(ixsl:get(local:editor-state(), 'insertAfterBlock'), 'after', [ $figure ])[current-date() lt xs:date('2000-01-01')]"/>
                 </xsl:when>
                 <xsl:otherwise>
                     <xsl:for-each select="local:active-root()">
@@ -1364,7 +1364,7 @@ version="3.0">
 
     <xsl:template match="*[parent::*[contains-token(@class, 'rdfa-editor-content')]][@draggable = 'true']" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
-        <ixsl:set-property name="rdfaEditorDraggedBlock" select="." object="ixsl:window()"/>
+        <ixsl:set-property name="draggedBlock" select="." object="local:editor-state()"/>
         <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
         <xsl:sequence select="ixsl:call($transfer, 'setData', [ 'application/x-rdfa-editor-block', '' ])[current-date() lt xs:date('2000-01-01')]"/>
         <xsl:sequence select="ixsl:call($transfer, 'setDragImage', [ ., 0, 0 ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -1388,7 +1388,7 @@ version="3.0">
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
         <xsl:for-each select="local:block-of(.)">
-            <ixsl:set-property name="rdfaEditorDraggedBlock" select="." object="ixsl:window()"/>
+            <ixsl:set-property name="draggedBlock" select="." object="local:editor-state()"/>
             <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
             <xsl:sequence select="ixsl:call($transfer, 'setData', [ 'application/x-rdfa-editor-block', '' ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call($transfer, 'setDragImage', [ ., 0, 0 ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -1398,7 +1398,7 @@ version="3.0">
 
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')] | *[contains-token(@class, 'rdfa-editor-content')]//*" mode="ixsl:ondragover">
         <xsl:variable name="event" select="ixsl:event()"/>
-        <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'rdfaEditorDraggedBlock')"/>
+        <xsl:variable name="dragged" select="ixsl:get(local:editor-state(), 'draggedBlock')"/>
         <xsl:variable name="target" as="element()?" select="local:drop-target-of(., $event)"/>
         <xsl:if test="exists($dragged) and exists($target)
                 and local:has-transfer-type($event, 'application/x-rdfa-editor-block')">
@@ -1412,7 +1412,7 @@ version="3.0">
 
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')] | *[contains-token(@class, 'rdfa-editor-content')]//*" mode="ixsl:ondrop">
         <xsl:variable name="event" select="ixsl:event()"/>
-        <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'rdfaEditorDraggedBlock')"/>
+        <xsl:variable name="dragged" select="ixsl:get(local:editor-state(), 'draggedBlock')"/>
         <xsl:variable name="target" as="element()?" select="local:drop-target-of(., $event)"/>
         <xsl:if test="exists($dragged) and exists($target)
                 and local:has-transfer-type($event, 'application/x-rdfa-editor-block')">
@@ -1432,7 +1432,7 @@ version="3.0">
             <ixsl:remove-attribute name="draggable"/>
         </xsl:for-each>
         <xsl:call-template name="local:clear-drop-marks"/>
-        <ixsl:set-property name="rdfaEditorDraggedBlock" select="()" object="ixsl:window()"/>
+        <ixsl:set-property name="draggedBlock" select="()" object="local:editor-state()"/>
     </xsl:template>
 
     <!-- dataTransfer.types marshals to an XDM array or sequence of strings -->
@@ -1450,7 +1450,7 @@ version="3.0">
     <xsl:function name="local:drop-target-of" as="element()?">
         <xsl:param name="hit"/>
         <xsl:param name="event"/>
-        <xsl:variable name="dragged" select="ixsl:get(ixsl:window(), 'rdfaEditorDraggedBlock')"/>
+        <xsl:variable name="dragged" select="ixsl:get(local:editor-state(), 'draggedBlock')"/>
         <!-- blocks never move between editable regions -->
         <xsl:variable name="root" as="element()?"
             select="($dragged ! local:root-of(.), local:root-of($hit))[1]"/>

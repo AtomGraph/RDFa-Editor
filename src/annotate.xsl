@@ -33,7 +33,7 @@ version="3.0">
         <xsl:choose>
             <!-- edit mode -->
             <xsl:when test="exists($annotation)">
-                <ixsl:set-property name="rdfaEditorEditingSpan" select="$annotation" object="ixsl:window()"/>
+                <ixsl:set-property name="editingSpan" select="$annotation" object="local:editor-state()"/>
                 <xsl:call-template name="local:populate-form">
                     <xsl:with-param name="span" select="$annotation"/>
                     <!-- rdfa:literal-value, not string(): a block annotation contains a
@@ -55,8 +55,8 @@ version="3.0">
                     <xsl:variable name="range" select="local:caret-range()"/>
                     <xsl:choose>
                         <xsl:when test="local:selection-valid($range)">
-                            <ixsl:set-property name="rdfaEditorRange" select="$range" object="ixsl:window()"/>
-                            <ixsl:set-property name="rdfaEditorEditingSpan" select="()" object="ixsl:window()"/>
+                            <ixsl:set-property name="range" select="$range" object="local:editor-state()"/>
+                            <ixsl:set-property name="editingSpan" select="()" object="local:editor-state()"/>
                             <xsl:call-template name="local:show-selection-hint">
                                 <xsl:with-param name="range" select="$range"/>
                             </xsl:call-template>
@@ -139,7 +139,7 @@ version="3.0">
 
     <xsl:template match="button[tokenize(@class) = 'spo-action']" mode="ixsl:onclick">
         <xsl:variable name="values" as="map(xs:string, xs:string?)" select="local:form-values(ancestor::form)"/>
-        <xsl:variable name="editing" select="ixsl:get(ixsl:window(), 'rdfaEditorEditingSpan')"/>
+        <xsl:variable name="editing" select="ixsl:get(local:editor-state(), 'editingSpan')"/>
 
         <xsl:choose>
             <xsl:when test="exists($editing)">
@@ -154,7 +154,7 @@ version="3.0">
                 <xsl:call-template name="local:hide-overlay"/>
             </xsl:when>
             <xsl:otherwise>
-                <xsl:variable name="range" select="ixsl:get(ixsl:window(), 'rdfaEditorRange')"/>
+                <xsl:variable name="range" select="ixsl:get(local:editor-state(), 'range')"/>
                 <xsl:variable name="reference-text" as="xs:string" select="string(ixsl:call($range, 'toString', []))"/>
                 <!-- capture pre-wrap state; push only when the wrap succeeded -->
                 <xsl:variable name="snapshot-root" as="element()?" select="local:active-root()"/>
@@ -217,7 +217,7 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="button[tokenize(@class) = 'remove-action']" mode="ixsl:onclick">
-        <xsl:for-each select="ixsl:get(ixsl:window(), 'rdfaEditorEditingSpan')">
+        <xsl:for-each select="ixsl:get(local:editor-state(), 'editingSpan')">
             <xsl:call-template name="local:push-undo"/>
             <xsl:choose>
                 <!-- a block carries its annotation on itself: strip the RDFa attributes
