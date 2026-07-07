@@ -21,7 +21,7 @@ jobs:
             - name: Install xmlstarlet (entity expansion in generate-sef.sh)
               run: sudo apt-get update && sudo apt-get install -y xmlstarlet
             - name: Build SEF (fresh dist/ from src/)
-              run: bash generate-sef.sh
+              run: make sef
             - name: Assemble static site
               run: |
                   mkdir -p _site

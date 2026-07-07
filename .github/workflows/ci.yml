@@ -13,10 +13,10 @@ jobs:
             - name: Install xmlstarlet (entity expansion in generate-sef.sh)
               run: sudo apt-get update && sudo apt-get install -y xmlstarlet
             - name: Headless XSLT test suites (extractor, canonical, lint)
-              run: bash tests/run-tests.sh
-            - name: Rebuild SEF (catches src/dist drift)
-              run: bash generate-sef.sh
-            - run: npm install
-            - run: npx playwright install --with-deps chromium
-            - name: Browser test suites
-              run: npm run test:browser
+              run: make test
+            - name: Install Node dependencies
+              run: make install
+            - name: Install Playwright browser
+              run: npx playwright install --with-deps chromium
+            - name: Browser test suites (make test-browser rebuilds the SEF first)
+              run: make test-browser
