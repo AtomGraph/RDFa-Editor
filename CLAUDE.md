@@ -38,12 +38,14 @@ The editor **emits absolute IRIs** in RDFa attributes (LinkedDataHub v6 conventi
 ## Commands
 
 ```bash
-bash generate-sef.sh        # c14n-expand src/*.xsl → build/, compile → dist/index.xsl.sef.json, copy vocabs/
-bash tests/run-tests.sh     # headless extractor suite (fixtures → RDF/XML → canonical triples → diff)
-python3 -m http.server 8000 # then open http://localhost:8000/index.html
+make up                     # build the SEF, then serve on http://localhost:8000 (override: make up PORT=9000)
+make sef                    # compile src/*.xsl → dist/index.xsl.sef.json + copy vocabs
+make test                   # headless suites (extractor, canonical, lint); make test-browser for the Playwright suites
 ```
 
-Run `generate-sef.sh` after any XSLT change; run the tests after any extractor change.
+The targets wrap the underlying scripts (`bash generate-sef.sh`, `bash tests/run-tests.sh`, `python3 -m http.server 8000`). `dist/` is a **generated** build artifact (compiled SEF + copied vocabs) and is gitignored — the SEF also bakes in a `buildDateTime`, so it is never byte-stable; `make sef` reproduces it. Serving directly with `python3 -m http.server` needs a prior `make sef`.
+
+Run `make sef` after any XSLT change; run the tests after any extractor change.
 
 ## Key constraints
 
