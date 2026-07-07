@@ -173,6 +173,7 @@ version="3.0">
             <xsl:result-document href="?." method="ixsl:append-content">
                 <xsl:call-template name="local:render-link-dialog"/>
                 <xsl:call-template name="local:render-figure-dialog"/>
+                <xsl:call-template name="local:render-table-dialog"/>
             </xsl:result-document>
         </xsl:for-each>
         <xsl:for-each select="local:roots()/*">
@@ -188,7 +189,8 @@ version="3.0">
 
         <xsl:for-each select="$block[self::p or self::h1 or self::h2 or self::h3
                 or self::blockquote or self::pre],
-                $block[self::ul or self::ol]/li, $block[self::figure]/figcaption">
+                $block[self::ul or self::ol]/li, $block[self::figure]/figcaption,
+                $block[self::table]/(caption, ((thead | tbody | tfoot)/tr, tr)/(td | th))">
             <ixsl:set-attribute name="contenteditable" select="'true'"/>
         </xsl:for-each>
         <xsl:call-template name="local:inject-chrome">
@@ -235,6 +237,13 @@ version="3.0">
             <button type="button" class="insert-list" data-list="ul" title="Bulleted list" aria-label="Bulleted list">&#x2022; List</button>
             <button type="button" class="insert-list" data-list="ol" title="Numbered list" aria-label="Numbered list">1. List</button>
             <button type="button" class="insert-figure" title="Insert figure" aria-label="Insert figure">&#x1F5BC;</button>
+            <button type="button" class="insert-table" title="Insert table" aria-label="Insert table">&#x229E;</button>
+            <button type="button" class="table-op" data-op="row-above" disabled="disabled" title="Insert row above" aria-label="Insert row above">&#x2191;R</button>
+            <button type="button" class="table-op" data-op="row-below" disabled="disabled" title="Insert row below" aria-label="Insert row below">&#x2193;R</button>
+            <button type="button" class="table-op" data-op="col-left" disabled="disabled" title="Insert column left" aria-label="Insert column left">&#x2190;C</button>
+            <button type="button" class="table-op" data-op="col-right" disabled="disabled" title="Insert column right" aria-label="Insert column right">&#x2192;C</button>
+            <button type="button" class="table-op" data-op="del-row" disabled="disabled" title="Delete row" aria-label="Delete row">&#x2212;R</button>
+            <button type="button" class="table-op" data-op="del-col" disabled="disabled" title="Delete column" aria-label="Delete column">&#x2212;C</button>
             <button type="button" class="delete-block" title="Delete block" aria-label="Delete block">&#x2715;</button>
             <button type="button" id="toc-toggle" title="Table of contents" aria-label="Table of contents">&#x2630;</button>
             <button type="button" id="find-open" title="Find and replace" aria-label="Find and replace">&#x1F50D;</button>
@@ -287,6 +296,14 @@ version="3.0">
                         <xsl:with-param name="element" select="$host"/>
                     </xsl:call-template>
                     <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
+                <!-- Tab walks table cells (and grows the table); native Tab everywhere else -->
+                <xsl:when test="$key = 'Tab' and (self::td or self::th or self::caption)">
+                    <xsl:call-template name="local:table-tab">
+                        <xsl:with-param name="host" select="."/>
+                        <xsl:with-param name="event" select="$event"/>
+                        <xsl:with-param name="shift" select="ixsl:get($event, 'shiftKey') = true()"/>
+                    </xsl:call-template>
                 </xsl:when>
                 <!-- arrow keys cross block boundaries: each block is its own
                      contenteditable island, so the browser stops at its edges -->
@@ -404,6 +421,12 @@ version="3.0">
                     <xsl:with-param name="range" select="$range"/>
                 </xsl:call-template>
             </xsl:when>
+            <!-- E2b: Enter in a table cell steps down the column, growing the table -->
+            <xsl:when test="$host/self::td or $host/self::th">
+                <xsl:call-template name="local:table-enter">
+                    <xsl:with-param name="host" select="$host"/>
+                </xsl:call-template>
+            </xsl:when>
             <!-- E4: Enter on the empty last item exits the list -->
             <xsl:when test="$host/self::li and local:block-text($host) = '' and empty($host/following-sibling::li)">
                 <xsl:variable name="list" as="element()" select="$host/parent::*"/>
@@ -415,8 +438,8 @@ version="3.0">
                     <xsl:with-param name="after" select="$list[exists(parent::*)]"/>
                 </xsl:call-template>
             </xsl:when>
-            <!-- E6: Enter in the caption starts a paragraph after the figure -->
-            <xsl:when test="$host/self::figcaption">
+            <!-- E6: Enter in a figure/table caption starts a paragraph after the block -->
+            <xsl:when test="$host/self::figcaption or $host/self::caption">
                 <xsl:call-template name="local:insert-empty-paragraph">
                     <xsl:with-param name="after" select="local:block-of($host)"/>
                 </xsl:call-template>
@@ -527,8 +550,9 @@ version="3.0">
                         <xsl:call-template name="local:after-mutation"/>
                     </xsl:for-each>
                 </xsl:when>
-                <!-- B6 -->
-                <xsl:when test="$host/self::figcaption or $host/self::pre"/>
+                <!-- B6: cells, captions and pre absorb Backspace-at-start (never merge away) -->
+                <xsl:when test="$host/self::figcaption or $host/self::pre
+                        or $host/self::td or $host/self::th or $host/self::caption"/>
                 <xsl:otherwise>
                     <xsl:variable name="prev" as="element()?" select="$host/preceding-sibling::*[1]"/>
                     <xsl:choose>
@@ -549,7 +573,7 @@ version="3.0">
                             <xsl:sequence select="ixsl:call($host, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
                             <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
                             <xsl:variable name="prev-host" as="element()?"
-                                select="($prev/li[last()], $prev/figcaption, $prev)[@contenteditable = 'true'][1]"/>
+                                select="($prev/descendant-or-self::*[@contenteditable = 'true'])[last()]"/>
                             <xsl:for-each select="$prev-host">
                                 <xsl:call-template name="local:focus-caret">
     <xsl:with-param name="node" select="."/>
@@ -659,7 +683,8 @@ version="3.0">
         <xsl:choose>
             <xsl:when test="empty($clean/node()) or ixsl:get($selection, 'rangeCount') lt 1"/>
             <!-- composite hosts cannot contain blocks: flatten to text -->
-            <xsl:when test="$has-blocks and $host[self::li or self::figcaption]">
+            <xsl:when test="$has-blocks and $host[self::li or self::figcaption
+                    or self::td or self::th or self::caption]">
                 <xsl:call-template name="local:paste-text">
                     <xsl:with-param name="host" select="$host"/>
                     <xsl:with-param name="raw" select="string($carrier)"/>
@@ -901,7 +926,7 @@ version="3.0">
                 <xsl:variable name="prev" as="element()?" select="preceding-sibling::*[1]"/>
                 <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
                 <ixsl:set-property name="rdfaEditorActiveBlock" select="()" object="ixsl:window()"/>
-                <xsl:for-each select="($prev/li[last()], $prev/figcaption, $prev)[@contenteditable = 'true'][1]">
+                <xsl:for-each select="($prev/descendant-or-self::*[@contenteditable = 'true'])[last()]">
                     <xsl:call-template name="local:focus">
                         <xsl:with-param name="element" select="."/>
                     </xsl:call-template>
@@ -1031,11 +1056,12 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'link-cancel')
-            or contains-token(@class, 'figure-cancel')]" mode="ixsl:onclick">
+            or contains-token(@class, 'figure-cancel')
+            or contains-token(@class, 'table-cancel')]" mode="ixsl:onclick">
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
 
-    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'find-dialog')]" mode="ixsl:onkeydown">
+    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'table-dialog', 'find-dialog')]" mode="ixsl:onkeydown">
         <xsl:if test="string(ixsl:get(ixsl:event(), 'key')) = 'Escape'">
             <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:hide-dialogs"/>
@@ -1045,7 +1071,7 @@ version="3.0">
     <!-- single teardown point for all dialogs -->
     <xsl:template name="local:hide-dialogs">
         <xsl:for-each select="id('link-dialog', ixsl:page()), id('figure-dialog', ixsl:page()),
-                id('find-dialog', ixsl:page())">
+                id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
         <ixsl:set-property name="rdfaEditorEditRange" select="()" object="ixsl:window()"/>

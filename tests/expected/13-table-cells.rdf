@@ -1,0 +1,9 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:schema="http://schema.org/">
+    <rdf:Description rdf:about="http://example.org/product">
+        <rdf:type rdf:resource="http://schema.org/Product"/>
+        <schema:name>Widget</schema:name>
+        <schema:price>9.99</schema:price>
+        <schema:sku>W-123</schema:sku>
+    </rdf:Description>
+</rdf:RDF>

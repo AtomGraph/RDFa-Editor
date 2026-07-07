@@ -275,6 +275,7 @@ version="3.0">
                 </xsl:for-each>
             </xsl:otherwise>
         </xsl:choose>
+        <xsl:call-template name="local:sync-table-toolbar"/>
     </xsl:template>
 
     <xsl:template match="span[contains-token(@class, 'crumb')]" mode="ixsl:onmousedown">
