@@ -305,6 +305,7 @@ version="3.0">
             </xsl:otherwise>
         </xsl:choose>
         <xsl:call-template name="local:sync-table-toolbar"/>
+        <xsl:call-template name="local:sync-format-toolbar"/>
         <xsl:call-template name="local:sync-inspector"/>
     </xsl:template>
 
