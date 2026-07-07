@@ -96,7 +96,7 @@ version="3.0">
 
         <xsl:for-each select="$target">
             <xsl:variable name="element" select="."/>
-            <xsl:for-each select="'about', 'typeof', 'property', 'resource', 'content'">
+            <xsl:for-each select="'about', 'typeof', 'property', 'resource', 'content', 'datatype', 'lang', 'xml:lang'">
                 <ixsl:remove-attribute name="{.}" object="$element"/>
             </xsl:for-each>
 
@@ -114,6 +114,18 @@ version="3.0">
             </xsl:if>
             <xsl:if test="exists($values?value[. ne $reference-text]) and empty($values?object)">
                 <ixsl:set-attribute name="content" select="$values?value"/>
+            </xsl:if>
+            <!-- literal-type markup only when the object is a literal; @datatype wins over
+                 @lang (RDFa: a datatype forces a typed literal and language is ignored) -->
+            <xsl:if test="empty($values?object)">
+                <xsl:choose>
+                    <xsl:when test="exists($values?datatype)">
+                        <ixsl:set-attribute name="datatype" select="$values?datatype"/>
+                    </xsl:when>
+                    <xsl:when test="exists($values?lang)">
+                        <ixsl:set-attribute name="lang" select="$values?lang"/>
+                    </xsl:when>
+                </xsl:choose>
             </xsl:if>
         </xsl:for-each>
     </xsl:template>
