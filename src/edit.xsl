@@ -941,7 +941,54 @@ version="3.0">
                         <xsl:with-param name="item" select="$host"/>
                     </xsl:call-template>
                 </xsl:when>
-                <!-- B5: the first item of a top-level list is inert -->
+                <!-- B4c: the first item of a list nested in a container (cell,
+                     quote, dd) merges into the preceding line inside it; the
+                     emptied list goes and the container collapses back to a text
+                     host - composites (table, figure) stay hard boundaries -->
+                <xsl:when test="$host/self::li
+                        and $host/parent::*/parent::*[not(contains-token(@class, 'rdfa-editor-content'))]
+                        and exists(local:last-host-in($host/parent::*/preceding-sibling::*[not(@data-role)][1]
+                            [not(self::table or self::figure)]))">
+                    <xsl:variable name="list" as="element()" select="$host/parent::*"/>
+                    <xsl:variable name="container" as="element()" select="$list/parent::*"/>
+                    <!-- the caret target must survive the merge AND the collapse
+                         unwrap (text-node references ride through both moves) -->
+                    <xsl:variable name="first-text" select="($host//text()[not(ancestor::*[@data-role])])[1]"/>
+                    <xsl:call-template name="local:push-undo">
+                        <xsl:with-param name="host" select="$host"/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:merge-into-previous">
+                        <xsl:with-param name="host" select="$host"/>
+                        <xsl:with-param name="prev" select="local:last-host-in(
+                            $list/preceding-sibling::*[not(@data-role)][1])"/>
+                    </xsl:call-template>
+                    <xsl:if test="empty($list/li)">
+                        <xsl:sequence select="ixsl:call($list, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    </xsl:if>
+                    <xsl:call-template name="local:collapse-container">
+                        <xsl:with-param name="container" select="$container"/>
+                    </xsl:call-template>
+                    <xsl:choose>
+                        <xsl:when test="exists($first-text)">
+                            <xsl:call-template name="local:focus-caret">
+                                <xsl:with-param name="node" select="$first-text"/>
+                                <xsl:with-param name="offset" select="0"/>
+                            </xsl:call-template>
+                        </xsl:when>
+                        <xsl:otherwise>
+                            <xsl:for-each select="local:last-host-in($container)">
+                                <xsl:call-template name="local:focus-caret">
+                                    <xsl:with-param name="node" select="."/>
+                                    <xsl:with-param name="offset"
+                                        select="count(node()) - count(node()[last()][self::br])"/>
+                                </xsl:call-template>
+                            </xsl:for-each>
+                        </xsl:otherwise>
+                    </xsl:choose>
+                    <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
+                <!-- B5: the first item of a top-level list (or of a list with
+                     nothing mergeable before it) is inert -->
                 <xsl:when test="$host/self::li"/>
                 <!-- B6: cells, captions and pre absorb Backspace-at-start (never merge away) -->
                 <xsl:when test="$host/self::figcaption or $host/self::pre

@@ -324,6 +324,48 @@ await page.keyboard.press(undoKey); // the list insert
 results.insertListInCell.undone = await page.evaluate(() =>
     ![...document.querySelectorAll('#content td')].some(t => t.querySelector(':scope > ol')));
 
+// Backspace at the start of the first item of a cell-nested list merges it back
+// into the preceding line and dissolves the list (B4c)
+await page.evaluate(() => {
+    const td = [...document.querySelectorAll('#content td')]
+        .find(t => t.textContent.includes('Plain cell'));
+    td.focus();
+    window.getSelection().collapse([...td.childNodes].find(n => n.nodeType === 3), 2);
+});
+await page.click('#edit-toolbar button.insert-list[data-list=ol]');
+await page.keyboard.type('item text');
+await page.evaluate(() => {
+    const li = [...document.querySelectorAll('#content td li')]
+        .find(l => l.textContent.includes('item text'));
+    li.focus();
+    window.getSelection().collapse([...li.childNodes].find(n => n.nodeType === 3), 0);
+});
+await page.keyboard.press('Backspace');
+results.backspaceDissolvesCellList = await page.evaluate(() => {
+    const td = [...document.querySelectorAll('#content td')]
+        .find(t => t.textContent.includes('Plain cell'));
+    return {
+        listGone: !td.querySelector('ol'),
+        textMerged: td.textContent.includes('Plain cellitem text'),
+        cellCollapsed: td.getAttribute('contenteditable') === 'true',
+        noRunWrapperLeft: !td.querySelector('p.rdfa-editor-run'),
+        caretAtJunction: td.contains(window.getSelection().anchorNode),
+    };
+});
+// typing continues seamlessly at the junction
+await page.keyboard.type('Z');
+results.backspaceDissolvesCellList.typableAfter = await page.evaluate(() =>
+    [...document.querySelectorAll('#content td')].some(t => t.textContent.includes('Plain cellZitem text')));
+await page.waitForTimeout(1100);
+await page.keyboard.press(undoKey); // the Z burst
+await page.keyboard.press(undoKey); // the dissolve
+await page.keyboard.press(undoKey); // the item typing
+await page.keyboard.press(undoKey); // the list insert
+results.backspaceDissolvesCellList.undoUnwinds = await page.evaluate(() =>
+    [...document.querySelectorAll('#content td')].some(t =>
+        t.getAttribute('contenteditable') === 'true' && t.textContent.trim() === 'Plain cell'
+        && !t.querySelector('ol')));
+
 // with the caret in a list item, the list nests inside the item
 await caretInLi('Plain item', 1);
 await page.click('#edit-toolbar button.insert-list[data-list=ul]');
