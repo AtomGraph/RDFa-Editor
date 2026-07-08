@@ -85,6 +85,12 @@
                 width: 2.25em;
             }
 
+/* the editing-DOM run wrapper (mixed flow content, e.g. <li>text<ul>...) renders
+   like the bare inline run it stands for; unwrapped again at canonicalization */
+            .rdfa-editor-content p.rdfa-editor-run {
+                margin: 0;
+            }
+
 .rdfa-editor-content figure {
                 margin: 16px 0;
             }

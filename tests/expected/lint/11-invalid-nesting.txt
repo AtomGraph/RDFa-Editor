@@ -1,0 +1,6 @@
+stray-text b1.1 'blockquote' allows no text content - stray text will be wrapped by canonicalization
+invalid-nesting b1.2.1 'ul' is not allowed inside 'p'
+invalid-nesting b1.3.1 'p' is not allowed inside 'ul'
+prohibited-nesting b1.4.1.1.1 'a' must not appear inside 'a' (XHTML 1.0 Appendix B)
+prohibited-nesting b1.5.1.1 'img' must not appear inside 'pre' (XHTML 1.0 Appendix B)
+unknown-element b1.6 element 'video' is outside the XHTML content model - preserved, but its nesting is unvalidated

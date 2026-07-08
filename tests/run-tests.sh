@@ -48,7 +48,7 @@ done
 
 for fixture in tests/fixtures/canonical/*.xhtml; do
     name=$(basename "$fixture" .xhtml)
-    if ! npx xslt3-he -xsl:src/canonical-xhtml.xsl -s:"$fixture" -it:canonical-xhtml -o:"$tmp/c-$name.xhtml" 2>"$tmp/c-$name.err"; then
+    if ! npx xslt3-he -xsl:tests/canonical-driver.xsl -s:"$fixture" -it:canonical-xhtml -o:"$tmp/c-$name.xhtml" 2>"$tmp/c-$name.err"; then
         echo "FAIL canonical/$name (transform error)"
         cat "$tmp/c-$name.err"
         fail=1

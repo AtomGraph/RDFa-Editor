@@ -16,6 +16,7 @@ version="3.0">
 
     Modules:
     - RDFa2RDFXML-v3.xsl   RDFa 1.1 to RDF/XML extraction (pure XSLT, tested headless)
+    - content-model.xsl    XHTML Strict content model as data (pure XSLT, include-free)
     - canonical-xhtml.xsl  canonical serialization form (pure XSLT, tested headless)
     - vocab.xsl            generic ontology RDF/XML to dropdown options
     - overlay.xsl          annotation form: rendering, reading, populating, visibility
@@ -26,8 +27,10 @@ version="3.0">
 
     <xsl:include href="RDFa2RDFXML-v3.xsl"/>
     <xsl:include href="group-sort-triples.xsl"/>
+    <xsl:include href="content-model.xsl"/>
     <xsl:include href="canonical-xhtml.xsl"/>
     <xsl:include href="lint-rdfa.xsl"/>
+    <xsl:include href="lint-xhtml.xsl"/>
     <xsl:include href="vocab.xsl"/>
     <xsl:include href="overlay.xsl"/>
     <xsl:include href="annotate.xsl"/>

@@ -311,7 +311,7 @@ version="3.0">
             </xsl:choose>
         </xsl:for-each>
         <xsl:variable name="j" as="xs:integer" select="$i + (if ($before) then 0 else 1)"/>
-        <xsl:for-each select="($cell/parent::tr/(td | th))[$j]">
+        <xsl:for-each select="local:first-host-in(($cell/parent::tr/(td | th))[$j])">
             <xsl:call-template name="local:focus-caret">
                 <xsl:with-param name="node" select="."/>
                 <xsl:with-param name="offset" select="0"/>
@@ -342,7 +342,8 @@ version="3.0">
                 <xsl:sequence select="ixsl:call($section, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:if>
             <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
-            <xsl:for-each select="(($target/(td | th))[$i], ($target/(td | th))[last()])[1]">
+            <xsl:for-each select="local:first-host-in(
+                    (($target/(td | th))[$i], ($target/(td | th))[last()])[1])">
                 <xsl:call-template name="local:focus-caret">
                     <xsl:with-param name="node" select="."/>
                     <xsl:with-param name="offset" select="0"/>
@@ -369,7 +370,8 @@ version="3.0">
                 <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:for-each>
             <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
-            <xsl:for-each select="(($row/(td | th))[$i], ($row/(td | th))[last()])[1]">
+            <xsl:for-each select="local:first-host-in(
+                    (($row/(td | th))[$i], ($row/(td | th))[last()])[1])">
                 <xsl:call-template name="local:focus-caret">
                     <xsl:with-param name="node" select="."/>
                     <xsl:with-param name="offset" select="0"/>
@@ -394,7 +396,7 @@ version="3.0">
         <xsl:variable name="cells" as="element()*" select="local:table-cells($table)"/>
         <xsl:choose>
             <xsl:when test="$shift">
-                <xsl:for-each select="($cells[. &lt;&lt; $host])[last()]">
+                <xsl:for-each select="local:last-host-in(($cells[. &lt;&lt; $host])[last()])">
                     <!-- caret at the end, but before a trailing placeholder <br> -->
                     <xsl:call-template name="local:focus-caret">
                         <xsl:with-param name="node" select="."/>
@@ -403,7 +405,7 @@ version="3.0">
                 </xsl:for-each>
             </xsl:when>
             <xsl:when test="exists(($cells[. &gt;&gt; $host])[1])">
-                <xsl:for-each select="($cells[. &gt;&gt; $host])[1]">
+                <xsl:for-each select="local:first-host-in(($cells[. &gt;&gt; $host])[1])">
                     <xsl:call-template name="local:focus-caret">
                         <xsl:with-param name="node" select="."/>
                         <xsl:with-param name="offset" select="0"/>
@@ -450,7 +452,8 @@ version="3.0">
         <xsl:variable name="next" as="element()?" select="(local:table-rows($table)[. &gt;&gt; $row])[1]"/>
         <xsl:choose>
             <xsl:when test="exists($next)">
-                <xsl:for-each select="(($next/(td | th))[$i], ($next/(td | th))[last()])[1]">
+                <xsl:for-each select="local:first-host-in(
+                        (($next/(td | th))[$i], ($next/(td | th))[last()])[1])">
                     <xsl:call-template name="local:focus-caret">
                         <xsl:with-param name="node" select="."/>
                         <xsl:with-param name="offset" select="0"/>

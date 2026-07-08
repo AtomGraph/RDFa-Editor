@@ -254,7 +254,7 @@ await page.click('#overlay button.spo-action');
 await page.waitForTimeout(200);
 results.lint.badgeShown = await page.evaluate(() =>
     getComputedStyle(document.getElementById('lint-badge')).display !== 'none'
-    && document.getElementById('lint-badge').textContent === '1 RDFa issue');
+    && document.getElementById('lint-badge').textContent === '1 issue');
 results.lint.squiggle = await page.evaluate(() =>
     document.querySelector('#content span[property="nmae"]')?.classList.contains('rdfa-invalid') === true);
 await page.click('#lint-badge');
