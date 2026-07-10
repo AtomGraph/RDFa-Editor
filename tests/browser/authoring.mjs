@@ -26,6 +26,13 @@ const caretIn = (selector, offset = 2) => page.evaluate(([sel, off]) => {
     const t = [...host.childNodes].find(n => n.nodeType === 3 && n.textContent.trim().length > 2);
     window.getSelection().collapse(t, off === -1 ? t.textContent.length : off);
 }, [selector, offset]);
+const paste = (selector, html, plain) => page.evaluate(([sel, h, p]) => {
+    const dt = new DataTransfer();
+    if (h) dt.setData('text/html', h);
+    if (p) dt.setData('text/plain', p);
+    document.querySelector(sel).dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }));
+}, [selector, html, plain]);
 // caret inside the editable host whose DIRECT text carries the needle (a leaf li,
 // or the run wrapper of a container item)
 const caretInLi = (needle, offset = 0) => page.evaluate(([txt, off]) => {
@@ -400,6 +407,139 @@ results.liInCellTab = await page.evaluate(([rows]) => {
         noRowGrowth: document.querySelectorAll('#content table tr').length === rows,
     };
 }, [rowsBefore]);
+
+// ==== F. review-fix regressions ====================================================
+await load();
+
+// F1: region-boundary clamp - Tab/quote in a region embedded in host-page
+// li/table/blockquote must not touch the host structures
+await caretIn('#embedded > p', 2);
+const hostShape = () => page.evaluate(() => ({
+    rows: document.querySelectorAll('#host-table tr').length,
+    items: document.querySelectorAll('#host-list > li').length,
+    regionInPlace: !!document.querySelector('#host-list > li > #embedded'),
+    hostQuote: !!document.querySelector('body > blockquote > #host-table'),
+}));
+const before = await hostShape();
+await page.keyboard.press('Tab');
+await page.keyboard.press('Shift+Tab');
+results.regionClamp = { hostUntouchedByTab: JSON.stringify(await hostShape()) === JSON.stringify(before) };
+// the quote toggle must not read the host-page blockquote as "pressed"
+await caretIn('#embedded > p', 2);
+await page.waitForTimeout(100);
+results.regionClamp.hostQuoteNotPressed = await page.evaluate(() =>
+    document.querySelector('#edit-toolbar button.format-quote').getAttribute('aria-pressed') === 'false');
+// toggling wraps INSIDE the region, never dissolves the host quote
+await page.click('#edit-toolbar button.format-quote');
+Object.assign(results.regionClamp, await page.evaluate(() => ({
+    wrappedInRegion: !!document.querySelector('#embedded > blockquote > p'),
+    hostQuoteIntact: !!document.querySelector('body > blockquote > #host-table'),
+})));
+await page.keyboard.press(undoKey);
+
+// F2: B2b composite boundary - Backspace after a quote ENDING in a table is inert
+await caretIn('#content > blockquote > p', -1);
+await paste('#content > blockquote > p', '<table><tr><td>qcell</td></tr></table>');
+await page.evaluate(() => { // drop the empty split half so the table is the quote's last block (B3)
+    const p = [...document.querySelectorAll('#content > blockquote > p')].pop();
+    p.focus();
+    window.getSelection().collapse(p, 0);
+});
+await page.keyboard.press('Backspace');
+await caretIn('#content > blockquote + p', 0);
+await page.keyboard.press('Backspace');
+results.compositeBoundary = await page.evaluate(() => ({
+    quoteEndsWithTable: !!document.querySelector('#content > blockquote > table:last-child'),
+    hostStays: [...document.querySelectorAll('#content > p')]
+        .some(p => [...p.childNodes].some(n => n.nodeType === 3 && n.textContent.includes('Before'))),
+    cellClean: [...document.querySelectorAll('#content blockquote td')]
+        .every(td => !td.textContent.includes('Before')),
+}));
+
+// F3: E4b in a cell - exiting a sole-item list stays INSIDE the cell
+await load();
+await page.evaluate(() => {
+    const td = [...document.querySelectorAll('#content td')].find(t => t.textContent.includes('Plain cell'));
+    td.focus();
+    window.getSelection().collapse([...td.childNodes].find(n => n.nodeType === 3), 2);
+});
+const regionBlocks = await page.evaluate(() => document.getElementById('content').children.length);
+await page.click('#edit-toolbar button.insert-list[data-list=ul]');
+await page.keyboard.press('Enter'); // E4b on the empty sole item
+results.cellListExit = await page.evaluate(([n]) => {
+    const td = [...document.querySelectorAll('#content td')].find(t => t.textContent.includes('Plain cell'));
+    return {
+        paragraphInCell: !!td.querySelector(':scope > p:not(.rdfa-editor-run)'),
+        listGone: !td.querySelector('ul'),
+        caretInCell: td.contains(window.getSelection().anchorNode),
+        noRegionEndParagraph: document.getElementById('content').children.length === n,
+    };
+}, [regionBlocks]);
+await page.keyboard.press(undoKey);
+await page.keyboard.press(undoKey);
+
+// F4: E6 nested - Enter in the figcaption of a figure pasted into an item
+// starts the paragraph INSIDE the item, after the figure
+await load();
+await caretInLi('Plain item', -1);
+await paste('#content > ul > li',
+    '<figure><img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="nested"/><figcaption>nested cap</figcaption></figure>');
+await page.evaluate(() => {
+    const cap = [...document.querySelectorAll('#content li figcaption')]
+        .find(c => c.textContent.includes('nested cap'));
+    cap.focus();
+    window.getSelection().collapse([...cap.childNodes].find(n => n.nodeType === 3), 2);
+});
+await page.keyboard.press('Enter');
+results.nestedCaptionEnter = await page.evaluate(() => {
+    const li = [...document.querySelectorAll('#content > ul > li')]
+        .find(l => l.querySelector(':scope > figure'));
+    return {
+        paragraphInItem: !!li?.querySelector(':scope > figure + p'),
+        caretInItem: li?.contains(window.getSelection().anchorNode),
+    };
+});
+
+// F5: bare image island deletes ALONE, not its whole list
+await load();
+await caretInLi('Plain item', -1);
+await paste('#content > ul > li',
+    '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="island"/><ul><li>survivor</li></ul>');
+await page.evaluate(() => {
+    const img = [...document.querySelectorAll('#content li > img')].find(i => i.alt === 'island');
+    img.focus();
+});
+await page.keyboard.press('Delete');
+results.islandDelete = await page.evaluate(() => ({
+    imageGone: ![...document.querySelectorAll('#content img')].some(i => i.alt === 'island'),
+    listSurvives: [...document.querySelectorAll('#content li')].some(l => l.textContent.includes('survivor')),
+    outerListSurvives: [...document.querySelectorAll('#content > ul > li')].some(l => l.textContent.includes('Plain item')),
+}));
+
+// F6: converting a nested host keeps the caret position
+await load();
+await caretIn('#content > blockquote > p', 4);
+await page.evaluate(() => {
+    const s = document.querySelector('#edit-toolbar select[name=block-type]');
+    s.value = 'h2'; s.dispatchEvent(new Event('change', { bubbles: true }));
+});
+results.nestedConvertCaret = await page.evaluate(() => {
+    const h2 = document.querySelector('#content > blockquote > h2');
+    const sel = window.getSelection();
+    return { converted: !!h2, caretKept: h2?.contains(sel.anchorNode) && sel.anchorOffset === 4 };
+});
+
+// F7: inserting at a figcaption nests inside the caption, not into the figure
+await load();
+await caretIn('#content figcaption', 2);
+await page.click('#edit-toolbar button.insert-list[data-list=ol]');
+results.figcaptionInsert = await page.evaluate(() => {
+    const fig = document.querySelector('#content > figure');
+    return {
+        nestedInCaption: !!fig.querySelector(':scope > figcaption > ol > li'),
+        figureNotGrown: fig.querySelectorAll(':scope > *:not([data-role])').length === 2, // img + figcaption
+    };
+});
 
 console.log(JSON.stringify({ results, errors: errors.slice(0, 5) }, null, 2));
 await browser.close();

@@ -60,18 +60,19 @@ version="3.0">
         <xsl:apply-templates select="$nodes" mode="cm-normalize"/>
     </xsl:function>
 
-    <!-- block/@data-role/unknown children pass through (the wrapper is inline-only,
-         so only known-inline content may be pulled into it - an unknown element like
-         an RDFa-bearing article stays bare and lint reports it); adjacent runs of
-         anything else with substance (an element or non-whitespace text) get wrapped;
-         whitespace-only runs between blocks stay bare. The one grouping axis shared
-         by the entry coercion, N2 and the paste handler (edit.xsl) -->
+    <!-- the wrapper is inline-only, so only text and KNOWN-INLINE elements may be
+         pulled into it; everything else passes through bare - blocks and ephemera
+         by design, and both unknown elements (an RDFa-bearing article) and known
+         non-inline strays (an li outside any list) stay put for lint to report
+         rather than being wrapped into fresh invalid nesting. Adjacent runs with
+         substance (an element or non-whitespace text) get wrapped; whitespace-only
+         runs between blocks stay bare. The one grouping axis shared by the entry
+         coercion, N2 and the paste handler (edit.xsl) -->
     <xsl:function name="cm:wrap-inline-runs" as="node()*">
         <xsl:param name="kids" as="node()*"/>
         <xsl:param name="wrapper" as="xs:string"/>
         <xsl:for-each-group select="$kids"
-                group-adjacent="boolean(self::*[cm:block(local-name(.)) or @data-role
-                    or not(cm:known(local-name(.)))])">
+                group-adjacent="boolean(self::*[not(cm:inline(local-name(.))) or @data-role])">
             <xsl:choose>
                 <xsl:when test="current-grouping-key()">
                     <xsl:sequence select="current-group()"/>
@@ -222,35 +223,35 @@ version="3.0">
     </xsl:template>
 
     <!-- N1: blocks inside an inline-only element (p, h1-h6, dt, caption, pre, inlines).
-         An RDFa-bearing parent stays whole - its block children demote to span with
-         all attributes kept, so the extracted literal and triples are unchanged. A
+         Matches EVERY inline-only element and decides on the PROCESSED children, so
+         blocks surfaced by inner splits are handled in the same bottom-up pass (one
+         invocation reaches the fixed point). An RDFa-bearing parent stays whole -
+         its block children demote to inline via mode="cm-demote" (recursive, all
+         attributes kept), so the extracted literal and triples are unchanged. A
          plain parent splits around its block children; inline runs keep a shell
-         copying the name and language; whitespace-only residue between blocks drops -->
-    <xsl:template match="*[cm:inline-only(local-name(.))][*[cm:block(local-name(.))]]" mode="cm-normalize">
+         copying ALL attributes (safe: this branch is non-RDFa by construction, so
+         nothing duplicates a triple - an <a href> split by a block keeps its target
+         on both halves); whitespace-only residue between blocks drops -->
+    <xsl:template match="*[cm:inline-only(local-name(.))]" mode="cm-normalize">
         <xsl:variable name="name" as="xs:string" select="local-name(.)"/>
         <xsl:variable name="kids" as="node()*">
             <xsl:apply-templates select="node()" mode="#current"/>
         </xsl:variable>
         <xsl:choose>
+            <xsl:when test="empty($kids/self::*[cm:block(local-name(.))])">
+                <xsl:copy>
+                    <xsl:copy-of select="@*"/>
+                    <xsl:sequence select="$kids"/>
+                </xsl:copy>
+            </xsl:when>
             <xsl:when test="@property or @about or @typeof or @resource or @content or @datatype">
                 <xsl:copy>
                     <xsl:copy-of select="@*"/>
-                    <xsl:for-each select="$kids">
-                        <xsl:choose>
-                            <xsl:when test="self::*[cm:block(local-name(.))]">
-                                <span>
-                                    <xsl:copy-of select="@* | node()"/>
-                                </span>
-                            </xsl:when>
-                            <xsl:otherwise>
-                                <xsl:copy-of select="."/>
-                            </xsl:otherwise>
-                        </xsl:choose>
-                    </xsl:for-each>
+                    <xsl:apply-templates select="$kids" mode="cm-demote"/>
                 </xsl:copy>
             </xsl:when>
             <xsl:otherwise>
-                <xsl:variable name="lang" as="attribute()*" select="@lang | @xml:lang"/>
+                <xsl:variable name="attributes" as="attribute()*" select="@*"/>
                 <xsl:for-each-group select="$kids"
                         group-adjacent="boolean(self::*[cm:block(local-name(.))])">
                     <xsl:choose>
@@ -259,7 +260,7 @@ version="3.0">
                         </xsl:when>
                         <xsl:when test="exists(current-group()[self::* or self::text()[normalize-space()]])">
                             <xsl:element name="{$name}">
-                                <xsl:copy-of select="$lang"/>
+                                <xsl:copy-of select="$attributes"/>
                                 <xsl:sequence select="current-group()"/>
                             </xsl:element>
                         </xsl:when>
@@ -268,6 +269,20 @@ version="3.0">
                 </xsl:for-each-group>
             </xsl:otherwise>
         </xsl:choose>
+    </xsl:template>
+
+    <!-- inline demotion for content preserved inside an RDFa-bearing inline-only
+         element: every known non-inline element renames to span (all attributes
+         kept), recursively - a demoted list becomes nested spans, never a bare li
+         inside a span. Text, inline and unknown elements pass through with their
+         children demoted likewise -->
+    <xsl:mode name="cm-demote" on-no-match="shallow-copy"/>
+
+    <xsl:template match="*[cm:known(local-name(.))][not(cm:inline(local-name(.)))]" mode="cm-demote">
+        <span>
+            <xsl:copy-of select="@*"/>
+            <xsl:apply-templates select="node()" mode="#current"/>
+        </span>
     </xsl:template>
 
     <!-- N2: blockquote (and noscript) is block-only per Strict - stray text/inline

@@ -73,7 +73,9 @@ version="3.0">
         map:entry('a',          map{ 'children': $cm:a-children, 'text': true() }),
         map:entry('blockquote', map{ 'children': $cm:Block-children, 'text': false() }),
         map:entry('noscript',   map{ 'children': $cm:Block-children, 'text': false() }),
-        map:entry('form',       map{ 'children': $cm:Block-children, 'text': false() }),
+        (: %form.content; = (%block; | %misc;)* - unlike %Block;, it excludes form
+           (forms must not be nested) :)
+        map:entry('form',       map{ 'children': ($cm:block-set, $cm:misc), 'text': false() }),
         map:entry('fieldset',   map{ 'children': ('legend', $cm:Flow-children), 'text': true() }),
         map:entry('button',     map{ 'children': ('p', $cm:heading, 'div', $cm:lists, $cm:blocktext,
                                     'table', $cm:special, $cm:fontstyle, $cm:phrase, $cm:misc), 'text': true() }),
@@ -117,7 +119,8 @@ version="3.0">
         'button':   'button',
         'form':     ('button', 'form'),
         'fieldset': 'button',
-        'iframe':   'button'
+        'iframe':   'button',
+        'isindex':  'button'
     }"/>
 
     <!-- ................. predicates ................. -->

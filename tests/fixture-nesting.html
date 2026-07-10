@@ -61,5 +61,28 @@
                 <figcaption>A caption for gestures</figcaption>
             </figure>
         </div>
+
+        <!-- an embedded region wrapped in host-page structures: editor gesture
+             ancestor walks (Tab item/cell lookup, quote toggle) must clamp at the
+             region root and never mutate the host li/table/blockquote -->
+        <blockquote>
+            <table id="host-table">
+                <tbody>
+                    <tr>
+                        <td>
+                            <ul id="host-list">
+                                <li>host item before</li>
+                                <li>
+                                    <div id="embedded" class="rdfa-editor-content" about="#embedded">
+                                        <p>Embedded paragraph.</p>
+                                        <blockquote><p>Embedded quote.</p></blockquote>
+                                    </div>
+                                </li>
+                            </ul>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </blockquote>
     </body>
 </html>

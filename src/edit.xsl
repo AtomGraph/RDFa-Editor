@@ -62,10 +62,11 @@ version="3.0">
     </xsl:function>
 
     <!-- the list item a node sits in (the host may be a nested block inside a
-         container item): the unit Tab indent/outdent acts on -->
+         container item): the unit Tab indent/outdent acts on. Clamped at the
+         region root - a host-page li wrapping an embedded region is not ours -->
     <xsl:function name="local:item-of" as="element()?">
         <xsl:param name="node"/>
-        <xsl:sequence select="$node/ancestor-or-self::li[1]"/>
+        <xsl:sequence select="$node/ancestor-or-self::li[exists(local:block-of(.))][1]"/>
     </xsl:function>
 
     <!-- the first/last editable host within an element (the element itself when it
@@ -78,6 +79,17 @@ version="3.0">
     <xsl:function name="local:last-host-in" as="element()?">
         <xsl:param name="element" as="element()?"/>
         <xsl:sequence select="($element/descendant-or-self::*[@contenteditable = 'true'])[last()]"/>
+    </xsl:function>
+
+    <!-- the merge target for Backspace joins: the last editable host within an
+         element, unless it sits inside a composite (table, figure) at or below
+         the element - composites are hard boundaries (B3/B6), so an empty result
+         leaves the gesture inert -->
+    <xsl:function name="local:merge-host-in" as="element()?">
+        <xsl:param name="element" as="element()?"/>
+        <xsl:sequence select="local:last-host-in($element)
+            [empty(ancestor-or-self::*[self::table or self::figure]
+                intersect $element/descendant-or-self::*)]"/>
     </xsl:function>
 
     <!-- keyboard-navigation stops within a region, in document order: the editable
@@ -495,10 +507,11 @@ version="3.0">
             <xsl:variable name="on" as="xs:boolean" select="exists($list) and local-name($list) = string(@data-list)"/>
             <ixsl:set-attribute name="aria-pressed" select="if ($on) then 'true' else 'false'" object="."/>
         </xsl:for-each>
-        <!-- quote toggle: pressed inside a blockquote, disabled where neither
+        <!-- quote toggle: pressed inside a blockquote (of this region - host-page
+             quotes around an embedded region don't count), disabled where neither
              pressed nor a valid wrap target exists -->
         <xsl:variable name="in-quote" as="xs:boolean"
-            select="exists($host) and exists($leaf/ancestor-or-self::blockquote)"/>
+            select="exists($host) and exists($leaf/ancestor-or-self::blockquote[exists(local:block-of(.))])"/>
         <xsl:variable name="wrappable" as="xs:boolean" select="exists($host[cm:block(local-name(.))]
             [parent::*[contains-token(@class, 'rdfa-editor-content')]
                 or cm:allows-child(local-name(parent::*), 'blockquote')])"/>
@@ -572,8 +585,11 @@ version="3.0">
                      nested in an item traverses); native Tab everywhere else -->
                 <xsl:when test="$key = 'Tab'">
                     <xsl:variable name="item" as="element()?" select="local:item-of(.)"/>
+                    <!-- clamped at the region root: a host-page cell wrapping an
+                         embedded region must never be traversed or grown -->
                     <xsl:variable name="cell" as="element()?"
-                        select="ancestor-or-self::*[self::td or self::th or self::caption][1]"/>
+                        select="ancestor-or-self::*[self::td or self::th or self::caption]
+                            [exists(local:block-of(.))][1]"/>
                     <xsl:choose>
                         <xsl:when test="exists($item) and (empty($cell)
                                 or exists($item/ancestor::* intersect $cell))">
@@ -713,19 +729,30 @@ version="3.0">
                         </xsl:call-template>
                     </xsl:for-each>
                 </xsl:when>
-                <!-- a selected image is deleted whole (no smaller unit, no confirm -
-                     it was explicitly selected and undo covers accidents); the caret
-                     lands on the previous target for Backspace, the next for Delete -->
+                <!-- a selected image is deleted whole with its FIGURE when it has one
+                     (no smaller unit, no confirm - it was explicitly selected and
+                     undo covers accidents); a bare island in a mixed container is
+                     deleted alone, never its whole list/table. The caret lands on
+                     the previous target for Backspace, the next for Delete -->
                 <xsl:when test="$key = ('Backspace', 'Delete')">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
-                    <xsl:variable name="block" as="element()" select="local:block-of($image)"/>
+                    <xsl:variable name="victim" as="element()"
+                        select="($image/ancestor-or-self::figure[exists(local:block-of(.))][1], $image)[1]"/>
+                    <xsl:variable name="container" as="element()?" select="$victim/parent::*"/>
                     <xsl:variable name="outside" as="element()*"
-                        select="$targets[empty(. intersect $block/descendant-or-self::*)]"/>
-                    <xsl:variable name="prev" as="element()?" select="($outside[. &lt;&lt; $block])[last()]"/>
-                    <xsl:variable name="next" as="element()?" select="($outside[. &gt;&gt; $block])[1]"/>
+                        select="$targets[empty(. intersect $victim/descendant-or-self::*)]"/>
+                    <xsl:variable name="prev" as="element()?" select="($outside[. &lt;&lt; $victim])[last()]"/>
+                    <xsl:variable name="next" as="element()?" select="($outside[. &gt;&gt; $victim])[1]"/>
                     <xsl:call-template name="local:push-undo"/>
-                    <xsl:sequence select="ixsl:call($block, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:sequence select="ixsl:call($victim, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <ixsl:set-property name="activeBlock" select="()" object="local:editor-state()"/>
+                    <!-- a mixed container that just lost its only nested block
+                         becomes a plain text host again -->
+                    <xsl:for-each select="$container[not(contains-token(@class, 'rdfa-editor-content'))]">
+                        <xsl:call-template name="local:collapse-container">
+                            <xsl:with-param name="container" select="."/>
+                        </xsl:call-template>
+                    </xsl:for-each>
                     <xsl:for-each select="if ($key = 'Backspace') then ($prev, $next)[1] else ($next, $prev)[1]">
                         <xsl:choose>
                             <xsl:when test=". is $prev">
@@ -799,21 +826,25 @@ version="3.0">
                     <xsl:with-param name="item" select="$host"/>
                 </xsl:call-template>
             </xsl:when>
-            <!-- E4b: Enter on the empty last item of a top-level list exits it -->
+            <!-- E4b: Enter on the empty last item of a list exits it - the paragraph
+                 anchors after the list BEFORE anything is removed (a sole-item list
+                 disappears with it), so the exit lands where the list was: at the
+                 region for top-level lists, inside the cell/quote for nested ones -->
             <xsl:when test="$host/self::li and local:block-text($host) = '' and empty($host/following-sibling::li)">
                 <xsl:variable name="list" as="element()" select="$host/parent::*"/>
+                <xsl:call-template name="local:insert-empty-paragraph">
+                    <xsl:with-param name="after" select="$list"/>
+                </xsl:call-template>
                 <xsl:sequence select="ixsl:call($host, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
                 <xsl:if test="empty($list/li)">
                     <xsl:sequence select="ixsl:call($list, 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
                 </xsl:if>
-                <xsl:call-template name="local:insert-empty-paragraph">
-                    <xsl:with-param name="after" select="$list[exists(parent::*)]"/>
-                </xsl:call-template>
             </xsl:when>
-            <!-- E6: Enter in a figure/table caption starts a paragraph after the block -->
+            <!-- E6: Enter in a figure/table caption starts a paragraph after the
+                 figure/table itself - which may be nested inside an item or cell -->
             <xsl:when test="$host/self::figcaption or $host/self::caption">
                 <xsl:call-template name="local:insert-empty-paragraph">
-                    <xsl:with-param name="after" select="local:block-of($host)"/>
+                    <xsl:with-param name="after" select="$host/parent::*"/>
                 </xsl:call-template>
             </xsl:when>
             <!-- E3/E5/E7/E8: split, never through an annotation (the split point moves
@@ -922,9 +953,10 @@ version="3.0">
             <xsl:choose>
                 <!-- B4: a list item merges into the visually preceding line - the
                      deepest last host of the previous item (which may be a container
-                     holding a nested list) -->
+                     holding a nested list); a previous item ending in a composite
+                     is a hard boundary (merge-host-in returns nothing - inert) -->
                 <xsl:when test="$host/self::li and exists($host/preceding-sibling::li)">
-                    <xsl:for-each select="local:last-host-in($host/preceding-sibling::li[1])">
+                    <xsl:for-each select="local:merge-host-in($host/preceding-sibling::li[1])">
                         <xsl:call-template name="local:push-undo">
                             <xsl:with-param name="host" select="$host"/>
                         </xsl:call-template>
@@ -947,8 +979,7 @@ version="3.0">
                      host - composites (table, figure) stay hard boundaries -->
                 <xsl:when test="$host/self::li
                         and $host/parent::*/parent::*[not(contains-token(@class, 'rdfa-editor-content'))]
-                        and exists(local:last-host-in($host/parent::*/preceding-sibling::*[not(@data-role)][1]
-                            [not(self::table or self::figure)]))">
+                        and exists(local:merge-host-in($host/parent::*/preceding-sibling::*[not(@data-role)][1]))">
                     <xsl:variable name="list" as="element()" select="$host/parent::*"/>
                     <xsl:variable name="container" as="element()" select="$list/parent::*"/>
                     <!-- the caret target must survive the merge AND the collapse
@@ -959,7 +990,7 @@ version="3.0">
                     </xsl:call-template>
                     <xsl:call-template name="local:merge-into-previous">
                         <xsl:with-param name="host" select="$host"/>
-                        <xsl:with-param name="prev" select="local:last-host-in(
+                        <xsl:with-param name="prev" select="local:merge-host-in(
                             $list/preceding-sibling::*[not(@data-role)][1])"/>
                     </xsl:call-template>
                     <xsl:if test="empty($list/li)">
@@ -1010,9 +1041,10 @@ version="3.0">
                         <!-- B2b: a preceding non-composite container (blockquote,
                              list) merges into its last editable host, never into
                              the container itself (bare text there would be invalid;
-                             tables and figures stay hard boundaries - B3) -->
+                             tables and figures stay hard boundaries - B3 - even
+                             nested at the container's tail: merge-host-in) -->
                         <xsl:when test="$prev[self::blockquote or self::ul or self::ol or self::dl]">
-                            <xsl:for-each select="local:last-host-in($prev)">
+                            <xsl:for-each select="local:merge-host-in($prev)">
                                 <xsl:call-template name="local:push-undo">
                                     <xsl:with-param name="host" select="$host"/>
                                 </xsl:call-template>
@@ -1556,7 +1588,10 @@ version="3.0">
 
     <xsl:template match="button[contains-token(@class, 'format-quote')]" mode="ixsl:onclick">
         <xsl:variable name="host" as="element()?" select="local:current-host()[exists(local:block-of(.))]"/>
-        <xsl:variable name="quote" as="element()?" select="$host/ancestor-or-self::blockquote[1]"/>
+        <!-- clamped at the region root: a host-page blockquote wrapping an
+             embedded region is not ours to unwrap -->
+        <xsl:variable name="quote" as="element()?"
+            select="$host/ancestor-or-self::blockquote[exists(local:block-of(.))][1]"/>
         <xsl:choose>
             <xsl:when test="exists($quote)">
                 <xsl:call-template name="local:unwrap-blockquote">
@@ -1598,8 +1633,10 @@ version="3.0">
             <xsl:with-param name="snapshot" select="$snapshot"/>
         </xsl:call-template>
         <xsl:variable name="selection" select="local:selection()"/>
+        <!-- host-of, not block-of: $block may be a nested host (a paragraph in a
+             quote or cell) whose top-level block is the container -->
         <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode')[local:block-of(.) is $block] else ()"/>
+            then ixsl:get($selection, 'anchorNode')[local:host-of(.) is $block] else ()"/>
         <xsl:variable name="caret-offset" as="xs:integer"
             select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
 
@@ -1687,7 +1724,10 @@ version="3.0">
 
         <xsl:variable name="host" as="element()?" select="local:current-host()[exists(local:block-of(.))]"/>
         <xsl:choose>
-            <xsl:when test="$host[parent::*[contains-token(@class, 'rdfa-editor-content')]
+            <!-- not inside a figure: the figure is a locked composite, so a block
+                 inserted at its caption nests INSIDE the figcaption (flow branch)
+                 rather than growing the figure's children -->
+            <xsl:when test="$host[not(parent::figure)][parent::*[contains-token(@class, 'rdfa-editor-content')]
                     or cm:allows-child(local-name(parent::*), local-name($node))]">
                 <xsl:sequence select="ixsl:call($host, 'after', [ $node ])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:when>
