@@ -553,6 +553,22 @@ version="3.0">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:call-template name="local:apply-redo"/>
                 </xsl:when>
+                <!-- Ctrl/Cmd+A escalates Docs-style: native select-all already scopes
+                     to the host (stage 1); once the host is fully selected (or the
+                     selection already spans hosts) the whole region is selected
+                     instead - never the host page -->
+                <xsl:when test="$chord and lower-case($key) = 'a' and not(ixsl:get($event, 'shiftKey'))">
+                    <xsl:variable name="range" select="local:caret-range()"/>
+                    <xsl:if test="local:selection-crosses-hosts()
+                            or (exists($range) and local:host-fully-selected(., $range))">
+                        <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                        <xsl:for-each select="local:root-of(.)">
+                            <xsl:call-template name="local:select-region">
+                                <xsl:with-param name="region" select="."/>
+                            </xsl:call-template>
+                        </xsl:for-each>
+                    </xsl:if>
+                </xsl:when>
                 <!-- other ctrl/meta chords stay native (copy, paste, browser find) -->
                 <xsl:when test="ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey')"/>
                 <!-- Escape closes the annotation overlay / dialogs even while focus
@@ -562,6 +578,23 @@ version="3.0">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:call-template name="local:hide-overlay"/>
                     <xsl:call-template name="local:hide-dialogs"/>
+                </xsl:when>
+                <!-- a selection spanning hosts: Backspace/Delete run the editor's own
+                     delete (the browser refuses to edit across host boundaries), the
+                     other editing keys are suppressed so the selection cannot be
+                     half-edited; plain arrows stay native (they collapse it) and the
+                     chord cases above keep copy native -->
+                <xsl:when test="local:selection-crosses-hosts()">
+                    <xsl:choose>
+                        <xsl:when test="$key = ('Backspace', 'Delete')">
+                            <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                            <xsl:call-template name="local:delete-cross-host-selection"/>
+                        </xsl:when>
+                        <xsl:when test="string-length($key) = 1 or $key = ('Enter', 'Tab')">
+                            <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                        </xsl:when>
+                        <xsl:otherwise/>
+                    </xsl:choose>
                 </xsl:when>
                 <!-- Alt+Arrow moves the current block (keyboard alternative to drag-and-drop) -->
                 <xsl:when test="ixsl:get($event, 'altKey') and $key = ('ArrowUp', 'ArrowDown')">
@@ -678,22 +711,49 @@ version="3.0">
         </xsl:if>
     </xsl:template>
 
-    <!-- undo chords also work with focus on the page background -->
+    <!-- undo chords also work with focus on the page background, and a mouse sweep
+         from the background leaves focus there: the cross-host gestures must fire
+         from body too. Plain Ctrl+A without a region-engaging selection stays
+         native - whole-page select-all is never hijacked on a host page -->
     <xsl:template match="body" mode="ixsl:onkeydown">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="key" as="xs:string" select="string(ixsl:get($event, 'key'))"/>
         <xsl:variable name="chord" as="xs:boolean"
             select="(ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey')) and not(ixsl:get($event, 'altKey'))"/>
-        <xsl:if test="ixsl:call(ixsl:get($event, 'target'), 'isSameNode', [ . ]) and $chord">
+        <xsl:if test="ixsl:call(ixsl:get($event, 'target'), 'isSameNode', [ . ])">
             <xsl:choose>
-                <xsl:when test="lower-case($key) = 'z' and not(ixsl:get($event, 'shiftKey'))">
+                <xsl:when test="$chord and lower-case($key) = 'z' and not(ixsl:get($event, 'shiftKey'))">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:call-template name="local:apply-undo"/>
                 </xsl:when>
-                <xsl:when test="(lower-case($key) = 'z' and ixsl:get($event, 'shiftKey'))
-                        or (lower-case($key) = 'y' and not(ixsl:get($event, 'shiftKey')))">
+                <xsl:when test="$chord and ((lower-case($key) = 'z' and ixsl:get($event, 'shiftKey'))
+                        or (lower-case($key) = 'y' and not(ixsl:get($event, 'shiftKey'))))">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:call-template name="local:apply-redo"/>
+                </xsl:when>
+                <!-- Docs-style: select-all from the page background selects editor
+                     content, never the page - the swept region when a cross-host
+                     selection exists, else the active region (selection anchor,
+                     last focused host, first region). Native page select-all only
+                     when no editable region exists at all -->
+                <xsl:when test="$chord and lower-case($key) = 'a' and not(ixsl:get($event, 'shiftKey'))">
+                    <xsl:variable name="range" select="local:caret-range()"/>
+                    <xsl:variable name="region" as="element()?" select="
+                        if (local:selection-crosses-hosts())
+                        then (local:root-of(ixsl:get($range, 'startContainer')),
+                            local:roots()[ixsl:call($range, 'intersectsNode', [ . ])])[1]
+                        else local:active-root()"/>
+                    <xsl:for-each select="$region">
+                        <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                        <xsl:call-template name="local:select-region">
+                            <xsl:with-param name="region" select="."/>
+                        </xsl:call-template>
+                    </xsl:for-each>
+                </xsl:when>
+                <xsl:when test="not($chord) and $key = ('Backspace', 'Delete')
+                        and local:selection-crosses-hosts()">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:delete-cross-host-selection"/>
                 </xsl:when>
                 <xsl:otherwise/>
             </xsl:choose>
@@ -707,6 +767,19 @@ version="3.0">
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:onkeydown">
         <xsl:variable name="event" select="ixsl:event()"/>
         <xsl:variable name="key" as="xs:string" select="string(ixsl:get($event, 'key'))"/>
+        <!-- Ctrl/Cmd+A on a selected image selects its whole region: the image is
+             its own fully-selected unit, so this is stage 2 directly -->
+        <xsl:if test="empty(ancestor::*[@contenteditable = 'true'])
+                and (ixsl:get($event, 'ctrlKey') or ixsl:get($event, 'metaKey'))
+                and not(ixsl:get($event, 'altKey')) and not(ixsl:get($event, 'shiftKey'))
+                and lower-case($key) = 'a'">
+            <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:for-each select="local:root-of(.)">
+                <xsl:call-template name="local:select-region">
+                    <xsl:with-param name="region" select="."/>
+                </xsl:call-template>
+            </xsl:for-each>
+        </xsl:if>
         <xsl:if test="empty(ancestor::*[@contenteditable = 'true'])
                 and not(ixsl:get($event, 'shiftKey')) and not(ixsl:get($event, 'altKey'))
                 and not(ixsl:get($event, 'ctrlKey')) and not(ixsl:get($event, 'metaKey'))">
@@ -734,6 +807,12 @@ version="3.0">
                      undo covers accidents); a bare island in a mixed container is
                      deleted alone, never its whole list/table. The caret lands on
                      the previous target for Backspace, the next for Delete -->
+                <!-- with a cross-host selection painted (Ctrl+A from the image), the
+                     selection wins over the island: the delete machine runs instead -->
+                <xsl:when test="$key = ('Backspace', 'Delete') and local:selection-crosses-hosts()">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:delete-cross-host-selection"/>
+                </xsl:when>
                 <xsl:when test="$key = ('Backspace', 'Delete')">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:variable name="victim" as="element()"
@@ -1269,7 +1348,10 @@ version="3.0">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:variable name="html" as="xs:string"
                 select="string(ixsl:call(ixsl:get($event, 'clipboardData'), 'getData', [ 'text/html' ]))"/>
+            <!-- pasting over a cross-host selection is inert this iteration: the
+                 paste machines would raw-deleteContents across hosts -->
             <xsl:choose>
+                <xsl:when test="local:selection-crosses-hosts()"/>
                 <!-- formatted paste through the canonical (sanitizing) pipeline -->
                 <xsl:when test="$html ne '' and not(self::pre)">
                     <xsl:call-template name="local:paste-html">
