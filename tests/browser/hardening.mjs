@@ -75,7 +75,7 @@ await page.keyboard.press('Control+z');
 results.pasteBlocks.singleUndoReverts = await page.evaluate(bc =>
     document.getElementById('content').children.length === bc, blocksBefore);
 
-// paste blocks into li -> flattened text
+// paste blocks into li -> nested inside the item (li is %Flow; per XHTML Strict)
 await page.evaluate(() => {
     const li = document.querySelector('#content li');
     li.focus();
@@ -83,14 +83,18 @@ await page.evaluate(() => {
 });
 await paste('#content li', '<p>flat one</p><p>flat two</p>', '');
 results.pasteLi = await page.evaluate(() => {
-    const ul = document.querySelector('#content > ul');
+    const li = [...document.querySelectorAll('#content li')].find(l => l.textContent.includes('flat one'));
     return {
-        noNestedBlocks: !ul.querySelector('p'),
-        textFlattened: ul.textContent.includes('flat one') && ul.textContent.includes('flat two'),
+        blocksNested: !!li && li.querySelectorAll(':scope > p').length >= 2,
+        liIsContainer: li?.getAttribute('contenteditable') !== 'true',
+        headRunEditable: li?.querySelector(':scope > p.rdfa-editor-run')?.getAttribute('contenteditable') === 'true',
+        textKept: li?.textContent.includes('flat one') && li?.textContent.includes('flat two'),
     };
 });
-await page.evaluate(() => document.querySelector('#content li').focus());
+await page.evaluate(() => document.querySelector('#content [contenteditable=true]').focus());
 await page.keyboard.press('Control+z');
+results.pasteLi.singleUndoReverts = await page.evaluate(() =>
+    ![...document.querySelectorAll('#content li')].some(l => l.textContent.includes('flat one')));
 
 // ---- P3: a11y/keys ----
 // Escape closes the find dialog
@@ -136,7 +140,7 @@ results.aria = await page.evaluate(() => ({
 }));
 
 // ---- P4: undo caret restoration ----
-await caretInText('#content > blockquote', 4);
+await caretInText('#content > blockquote > p', 4);
 await page.keyboard.type('ZZZ');
 await page.waitForTimeout(1100);
 await caretInText('#content > p:first-of-type', 1); // move caret elsewhere

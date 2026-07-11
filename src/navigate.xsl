@@ -441,15 +441,16 @@ version="3.0">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'rdfa-invalid' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
         <xsl:variable name="lintable" as="element()*" select="local:roots() ! lint:lintable(.)"/>
-        <xsl:for-each select="$lintable[exists(lint:element-issues(.))]">
+        <xsl:for-each select="$lintable[exists((lint:element-issues(.), lint:nesting-issues(.)))]">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'add', [ 'rdfa-invalid' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
-        <xsl:variable name="count" as="xs:integer" select="count($lintable ! lint:element-issues(.))"/>
+        <xsl:variable name="count" as="xs:integer"
+            select="count($lintable ! (lint:element-issues(.), lint:nesting-issues(.)))"/>
         <xsl:for-each select="id('lint-badge', ixsl:page())">
             <xsl:choose>
                 <xsl:when test="$count gt 0">
                     <ixsl:set-property name="textContent"
-                        select="$count || ' RDFa issue' || (if ($count gt 1) then 's' else '')" object="."/>
+                        select="$count || ' issue' || (if ($count gt 1) then 's' else '')" object="."/>
                     <ixsl:set-style name="display" select="'inline-block'"/>
                 </xsl:when>
                 <xsl:otherwise>
@@ -461,10 +462,10 @@ version="3.0">
 
     <xsl:template match="button[@id = 'lint-badge']" mode="ixsl:onclick">
         <xsl:variable name="lines" as="xs:string*"
-            select="local:roots() ! lint:lintable(.) ! lint:element-issues(.)
+            select="local:roots() ! lint:lintable(.) ! (lint:element-issues(.), lint:nesting-issues(.))
                 ! (string(@code) || ' &#x2014; ' || normalize-space(string(.)))"/>
         <xsl:call-template name="local:show-output">
-            <xsl:with-param name="title" select="'RDFa validation issues'"/>
+            <xsl:with-param name="title" select="'Validation issues'"/>
             <xsl:with-param name="text" select="string-join($lines, '&#10;')"/>
         </xsl:call-template>
     </xsl:template>
