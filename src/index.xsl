@@ -23,6 +23,7 @@ version="3.0">
     - annotate.xsl         right-click dispatch, apply/remove annotation, extraction modal
     - edit.xsl             XHTML editing: blocks, keyboard, toolbar, dialogs, drag-and-drop
     - tables.xsl           table blocks: insert dialog, row/column operations, cell traversal
+    - select.xsl           region-scoped select-all and cross-host selection delete
 -->
 
     <xsl:include href="RDFa2RDFXML-v3.xsl"/>
@@ -36,6 +37,7 @@ version="3.0">
     <xsl:include href="annotate.xsl"/>
     <xsl:include href="edit.xsl"/>
     <xsl:include href="tables.xsl"/>
+    <xsl:include href="select.xsl"/>
     <xsl:include href="undo.xsl"/>
     <xsl:include href="navigate.xsl"/>
 
