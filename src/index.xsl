@@ -24,6 +24,7 @@ version="3.0">
     - edit.xsl             XHTML editing: blocks, keyboard, toolbar, dialogs, drag-and-drop
     - tables.xsl           table blocks: insert dialog, row/column operations, cell traversal
     - select.xsl           region-scoped select-all and cross-host selection delete
+    - input.xsl            input triggers: slash menu and markdown shorthands
 -->
 
     <xsl:include href="RDFa2RDFXML-v3.xsl"/>
@@ -38,6 +39,7 @@ version="3.0">
     <xsl:include href="edit.xsl"/>
     <xsl:include href="tables.xsl"/>
     <xsl:include href="select.xsl"/>
+    <xsl:include href="input.xsl"/>
     <xsl:include href="undo.xsl"/>
     <xsl:include href="navigate.xsl"/>
 
@@ -50,12 +52,14 @@ version="3.0">
              LinkedDataHub's window.LinkedDataHub); reached everywhere via local:editor-state() -->
         <ixsl:set-property name="rdfaEditor" select="ixsl:call(ixsl:window(), 'Object', [])" object="ixsl:window()"/>
         <xsl:for-each select="('editingSpan', 'range', 'activeBlock', 'draggedBlock',
-                'editRange', 'editingLink', 'insertAfterBlock', 'lastUndoHost',
-                'breadcrumbLeaf', 'draggedSectionHeading', 'findNode', 'tocRoot')">
+                'editRange', 'editingLink', 'insertHost', 'lastUndoHost',
+                'breadcrumbLeaf', 'draggedSectionHeading', 'findNode', 'tocRoot',
+                'slashHost', 'sweepAnchorNode', 'sweepAnchorHost', 'sweepRegion')">
             <ixsl:set-property name="{.}" select="()" object="local:editor-state()"/>
         </xsl:for-each>
         <ixsl:set-property name="lastUndoTime" select="0" object="local:editor-state()"/>
         <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
+        <ixsl:set-property name="sweepAnchorOffset" select="0" object="local:editor-state()"/>
 
         <xsl:call-template name="local:init-undo"/>
         <xsl:call-template name="local:init-overlay"/>

@@ -254,6 +254,49 @@
                 margin-top: 14px;
             }
 
+/* Slash menu (/ to insert a block) */
+            #slash-menu {
+                background: white;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                padding: 6px;
+                min-width: 220px;
+                max-height: 320px;
+                overflow-y: auto;
+                z-index: 10000;
+            }
+
+.rdfa-editor-ui .slash-filter {
+                width: 100%;
+                padding: 7px 9px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                font-size: 14px;
+                box-sizing: border-box;
+                margin-bottom: 6px;
+            }
+
+.rdfa-editor-ui .slash-items {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+
+.rdfa-editor-ui .slash-item {
+                padding: 7px 10px;
+                border-radius: 4px;
+                font-size: 14px;
+                color: #212121;
+                cursor: pointer;
+            }
+
+.rdfa-editor-ui .slash-item:hover,
+            .rdfa-editor-ui .slash-item[aria-selected="true"] {
+                background: #e3f2fd;
+                color: #0d47a1;
+            }
+
 /* ToC jumps land below the fixed navbar */
             .rdfa-editor-content > * {
                 scroll-margin-top: 76px;

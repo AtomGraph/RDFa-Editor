@@ -282,6 +282,7 @@ version="3.0">
                 <xsl:call-template name="local:render-link-dialog"/>
                 <xsl:call-template name="local:render-figure-dialog"/>
                 <xsl:call-template name="local:render-table-dialog"/>
+                <xsl:call-template name="local:render-slash-menu"/>
             </xsl:result-document>
         </xsl:for-each>
         <xsl:for-each select="local:roots()">
@@ -579,18 +580,40 @@ version="3.0">
                     <xsl:call-template name="local:hide-overlay"/>
                     <xsl:call-template name="local:hide-dialogs"/>
                 </xsl:when>
+                <!-- Shift+Up/Down extend the selection block-granularly beyond the
+                     host: native extension clamps at host edges, and a cross-host
+                     selection cannot be extended natively at all; within the host
+                     (focus not at the facing edge) they stay native line-wise -->
+                <xsl:when test="ixsl:get($event, 'shiftKey') and not(ixsl:get($event, 'altKey'))
+                        and $key = ('ArrowUp', 'ArrowDown')
+                        and local:shift-arrow-extends(., if ($key = 'ArrowUp') then 'up' else 'down')">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:extend-selection-block-wise">
+                        <xsl:with-param name="direction" select="if ($key = 'ArrowUp') then 'up' else 'down'"/>
+                    </xsl:call-template>
+                </xsl:when>
                 <!-- a selection spanning hosts: Backspace/Delete run the editor's own
-                     delete (the browser refuses to edit across host boundaries), the
-                     other editing keys are suppressed so the selection cannot be
-                     half-edited; plain arrows stay native (they collapse it) and the
-                     chord cases above keep copy native -->
+                     delete (the browser refuses to edit across host boundaries), a
+                     printable character replaces the selection (delete, then the
+                     character lands at the machine-placed caret), Enter/Tab are
+                     suppressed so the selection cannot be half-edited; plain arrows
+                     stay native (they collapse it) and the chord cases above keep
+                     copy/cut native (canonical copy intercepts at the event level) -->
                 <xsl:when test="local:selection-crosses-hosts()">
                     <xsl:choose>
                         <xsl:when test="$key = ('Backspace', 'Delete')">
                             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                             <xsl:call-template name="local:delete-cross-host-selection"/>
                         </xsl:when>
-                        <xsl:when test="string-length($key) = 1 or $key = ('Enter', 'Tab')">
+                        <xsl:when test="string-length($key) = 1">
+                            <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                            <xsl:call-template name="local:delete-cross-host-selection"/>
+                            <xsl:call-template name="local:insert-text-at-caret">
+                                <xsl:with-param name="text" select="$key"/>
+                            </xsl:call-template>
+                            <xsl:call-template name="local:after-mutation"/>
+                        </xsl:when>
+                        <xsl:when test="$key = ('Enter', 'Tab')">
                             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                         </xsl:when>
                         <xsl:otherwise/>
@@ -754,6 +777,26 @@ version="3.0">
                         and local:selection-crosses-hosts()">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:call-template name="local:delete-cross-host-selection"/>
+                </xsl:when>
+                <!-- type-to-replace works from the page background too: the delete
+                     machine focuses a host, the character lands at its caret -->
+                <xsl:when test="not($chord) and string-length($key) = 1
+                        and local:selection-crosses-hosts()">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:delete-cross-host-selection"/>
+                    <xsl:call-template name="local:insert-text-at-caret">
+                        <xsl:with-param name="text" select="$key"/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
+                <!-- a background-ended sweep leaves focus on body: Shift+Up/Down keep
+                     extending the cross-host selection block-wise from here too -->
+                <xsl:when test="not($chord) and ixsl:get($event, 'shiftKey') and not(ixsl:get($event, 'altKey'))
+                        and $key = ('ArrowUp', 'ArrowDown') and local:selection-crosses-hosts()">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:extend-selection-block-wise">
+                        <xsl:with-param name="direction" select="if ($key = 'ArrowUp') then 'up' else 'down'"/>
+                    </xsl:call-template>
                 </xsl:when>
                 <xsl:otherwise/>
             </xsl:choose>
@@ -1716,9 +1759,12 @@ version="3.0">
         </xsl:call-template>
         <xsl:variable name="selection" select="local:selection()"/>
         <!-- host-of, not block-of: $block may be a nested host (a paragraph in a
-             quote or cell) whose top-level block is the container -->
+             quote or cell) whose top-level block is the container. Restore only a
+             node that MOVES with the children (a descendant); an element-level
+             caret on the block itself dangles after replaceWith, so it falls back
+             to the start of the new block (matters for empty-block conversions) -->
         <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode')[local:host-of(.) is $block] else ()"/>
+            then ixsl:get($selection, 'anchorNode')[local:host-of(.) is $block][not(. is $block)] else ()"/>
         <xsl:variable name="caret-offset" as="xs:integer"
             select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
 
@@ -1803,8 +1849,10 @@ version="3.0">
          dt). Chrome stays a top-level affordance -->
     <xsl:template name="local:insert-block-at-caret">
         <xsl:param name="node" as="element()"/>
+        <!-- dialog saves pass the host their dialog was opened from (the caret
+             sits in the dialog input by then); defaulted for the direct buttons -->
+        <xsl:param name="host" as="element()?" select="local:current-host()[exists(local:block-of(.))]"/>
 
-        <xsl:variable name="host" as="element()?" select="local:current-host()[exists(local:block-of(.))]"/>
         <xsl:choose>
             <!-- not inside a figure: the figure is a locked composite, so a block
                  inserted at its caption nests INSIDE the figcaption (flow branch)
@@ -2013,7 +2061,7 @@ version="3.0">
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
 
-    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'table-dialog', 'find-dialog')]" mode="ixsl:onkeydown">
+    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'table-dialog', 'find-dialog', 'slash-menu')]" mode="ixsl:onkeydown">
         <xsl:if test="string(ixsl:get(ixsl:event(), 'key')) = 'Escape'">
             <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:hide-dialogs"/>
@@ -2023,12 +2071,14 @@ version="3.0">
     <!-- single teardown point for all dialogs -->
     <xsl:template name="local:hide-dialogs">
         <xsl:for-each select="id('link-dialog', ixsl:page()), id('figure-dialog', ixsl:page()),
-                id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page())">
+                id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page()),
+                id('slash-menu', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
         <ixsl:set-property name="editRange" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="editingLink" select="()" object="local:editor-state()"/>
-        <ixsl:set-property name="insertAfterBlock" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="insertHost" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="slashHost" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="findNode" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
         <!-- return focus to the content -->
@@ -2042,8 +2092,8 @@ version="3.0">
     <!-- ................................ figure dialog ................................ -->
 
     <xsl:template match="button[contains-token(@class, 'insert-figure')]" mode="ixsl:onclick">
-        <ixsl:set-property name="insertAfterBlock"
-            select="(local:current-block(), local:active-root()/*[last()])[1]" object="local:editor-state()"/>
+        <ixsl:set-property name="insertHost"
+            select="local:current-host()[exists(local:block-of(.))]" object="local:editor-state()"/>
         <xsl:variable name="dialog" as="element()" select="id('figure-dialog', ixsl:page())"/>
         <xsl:for-each select="$dialog//input">
             <ixsl:set-property name="value" select="''" object="."/>
@@ -2089,18 +2139,13 @@ version="3.0">
             <ixsl:set-attribute name="contenteditable" select="'true'" object="$figcaption"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $img ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $figcaption ])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:choose>
-                <xsl:when test="exists(ixsl:get(local:editor-state(), 'insertAfterBlock'))">
-                    <xsl:sequence select="ixsl:call(ixsl:get(local:editor-state(), 'insertAfterBlock'), 'after', [ $figure ])[current-date() lt xs:date('2000-01-01')]"/>
-                </xsl:when>
-                <xsl:otherwise>
-                    <xsl:for-each select="local:active-root()">
-                        <xsl:sequence select="ixsl:call(., 'appendChild', [ $figure ])[current-date() lt xs:date('2000-01-01')]"/>
-                    </xsl:for-each>
-                </xsl:otherwise>
-            </xsl:choose>
-            <xsl:call-template name="local:inject-chrome">
-                <xsl:with-param name="block" select="$figure"/>
+            <!-- placed per the content model relative to the host the dialog was
+                 opened from: an empty list item or cell grows the figure INSIDE
+                 itself, a sibling where the parent admits it (chrome only when it
+                 lands top-level - the helper guards it) -->
+            <xsl:call-template name="local:insert-block-at-caret">
+                <xsl:with-param name="node" select="$figure"/>
+                <xsl:with-param name="host" select="ixsl:get(local:editor-state(), 'insertHost')[exists(local:block-of(.))]"/>
             </xsl:call-template>
             <xsl:call-template name="local:focus">
                 <xsl:with-param name="element" select="$figcaption"/>
@@ -2124,10 +2169,13 @@ version="3.0">
         <xsl:for-each select="local:block-of(.)">
             <ixsl:remove-attribute name="draggable"/>
         </xsl:for-each>
+        <xsl:call-template name="local:disarm-sweep"/>
     </xsl:template>
 
     <xsl:template match="*[parent::*[contains-token(@class, 'rdfa-editor-content')]][@draggable = 'true']" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
+        <!-- a block drag must never race an armed sweep -->
+        <xsl:call-template name="local:disarm-sweep"/>
         <ixsl:set-property name="draggedBlock" select="." object="local:editor-state()"/>
         <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
         <xsl:sequence select="ixsl:call($transfer, 'setData', [ 'application/x-rdfa-editor-block', '' ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -2151,6 +2199,7 @@ version="3.0">
          carry no block identity and snap back; treat it as dragging its block -->
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
+        <xsl:call-template name="local:disarm-sweep"/>
         <xsl:for-each select="local:block-of(.)">
             <ixsl:set-property name="draggedBlock" select="." object="local:editor-state()"/>
             <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>

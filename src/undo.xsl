@@ -180,8 +180,8 @@ version="3.0">
         <xsl:call-template name="local:hide-overlay"/>
         <xsl:call-template name="local:hide-dialogs"/>
         <xsl:for-each select="('activeBlock', 'editingSpan', 'draggedBlock', 'editRange', 'editingLink',
-                'insertAfterBlock', 'range', 'breadcrumbLeaf', 'findNode', 'lastUndoHost',
-                'draggedSectionHeading')">
+                'insertHost', 'range', 'breadcrumbLeaf', 'findNode', 'lastUndoHost',
+                'draggedSectionHeading', 'slashHost', 'sweepAnchorNode', 'sweepAnchorHost', 'sweepRegion')">
             <ixsl:set-property name="{.}" select="()" object="local:editor-state()"/>
         </xsl:for-each>
         <ixsl:set-property name="lastUndoTime" select="0" object="local:editor-state()"/>

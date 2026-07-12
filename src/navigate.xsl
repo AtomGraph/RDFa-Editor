@@ -429,6 +429,9 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="*[@contenteditable = 'true']" mode="ixsl:onmouseup">
+        <!-- innermost-match dispatch: a sweep ending over a host lands here, not
+             on the body/html disarm template (select.xsl) -->
+        <xsl:call-template name="local:disarm-sweep"/>
         <xsl:if test="exists(local:block-of(.))">
             <xsl:call-template name="local:update-breadcrumb"/>
         </xsl:if>
