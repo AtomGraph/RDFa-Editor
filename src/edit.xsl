@@ -282,6 +282,7 @@ version="3.0">
                 <xsl:call-template name="local:render-link-dialog"/>
                 <xsl:call-template name="local:render-figure-dialog"/>
                 <xsl:call-template name="local:render-table-dialog"/>
+                <xsl:call-template name="local:render-slash-menu"/>
             </xsl:result-document>
         </xsl:for-each>
         <xsl:for-each select="local:roots()">
@@ -1716,9 +1717,12 @@ version="3.0">
         </xsl:call-template>
         <xsl:variable name="selection" select="local:selection()"/>
         <!-- host-of, not block-of: $block may be a nested host (a paragraph in a
-             quote or cell) whose top-level block is the container -->
+             quote or cell) whose top-level block is the container. Restore only a
+             node that MOVES with the children (a descendant); an element-level
+             caret on the block itself dangles after replaceWith, so it falls back
+             to the start of the new block (matters for empty-block conversions) -->
         <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode')[local:host-of(.) is $block] else ()"/>
+            then ixsl:get($selection, 'anchorNode')[local:host-of(.) is $block][not(. is $block)] else ()"/>
         <xsl:variable name="caret-offset" as="xs:integer"
             select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
 
@@ -2013,7 +2017,7 @@ version="3.0">
         <xsl:call-template name="local:hide-dialogs"/>
     </xsl:template>
 
-    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'table-dialog', 'find-dialog')]" mode="ixsl:onkeydown">
+    <xsl:template match="div[@id = ('link-dialog', 'figure-dialog', 'table-dialog', 'find-dialog', 'slash-menu')]" mode="ixsl:onkeydown">
         <xsl:if test="string(ixsl:get(ixsl:event(), 'key')) = 'Escape'">
             <xsl:sequence select="ixsl:call(ixsl:event(), 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:hide-dialogs"/>
@@ -2023,12 +2027,14 @@ version="3.0">
     <!-- single teardown point for all dialogs -->
     <xsl:template name="local:hide-dialogs">
         <xsl:for-each select="id('link-dialog', ixsl:page()), id('figure-dialog', ixsl:page()),
-                id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page())">
+                id('table-dialog', ixsl:page()), id('find-dialog', ixsl:page()),
+                id('slash-menu', ixsl:page())">
             <ixsl:set-style name="display" select="'none'"/>
         </xsl:for-each>
         <ixsl:set-property name="editRange" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="editingLink" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="insertAfterBlock" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="slashHost" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="findNode" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
         <!-- return focus to the content -->

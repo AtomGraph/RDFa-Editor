@@ -243,12 +243,26 @@ version="3.0">
         <xsl:param name="element" as="element()"/>
         <xsl:param name="event"/>
 
+        <xsl:call-template name="local:show-at-point">
+            <xsl:with-param name="element" select="$element"/>
+            <xsl:with-param name="x" select="ixsl:get($event, 'clientX')"/>
+            <xsl:with-param name="y" select="ixsl:get($event, 'clientY')"/>
+        </xsl:call-template>
+    </xsl:template>
+
+    <!-- the positioning core: shared by mouse-driven dialogs (local:show-at) and the
+         caret-anchored popups (slash menu) which have no mouse event -->
+    <xsl:template name="local:show-at-point">
+        <xsl:param name="element" as="element()"/>
+        <xsl:param name="x" as="xs:double"/>
+        <xsl:param name="y" as="xs:double"/>
+
         <xsl:for-each select="$element">
             <ixsl:set-style name="display" select="'block'"/>
             <ixsl:set-style name="position" select="'absolute'"/>
 
-            <xsl:variable name="client-x" as="xs:double" select="ixsl:get($event, 'clientX')"/>
-            <xsl:variable name="client-y" as="xs:double" select="ixsl:get($event, 'clientY')"/>
+            <xsl:variable name="client-x" as="xs:double" select="$x"/>
+            <xsl:variable name="client-y" as="xs:double" select="$y"/>
             <xsl:variable name="scroll-x" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollX')"/>
             <xsl:variable name="scroll-y" as="xs:double" select="ixsl:get(ixsl:window(), 'scrollY')"/>
             <xsl:variable name="viewport-width" as="xs:double" select="ixsl:get(ixsl:window(), 'innerWidth')"/>
