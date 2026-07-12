@@ -294,7 +294,7 @@ version="3.0">
         <xsl:param name="command" as="xs:string"/>
         <xsl:variable name="host" as="element()?"
             select="ixsl:get(local:editor-state(), 'slashHost')[exists(local:block-of(.))]"/>
-        <!-- teardown first: it clears slashHost and insertAfterBlock, so the
+        <!-- teardown first: it clears slashHost and insertHost, so the
              figure/table branches re-arm them after -->
         <xsl:call-template name="local:hide-dialogs"/>
         <xsl:for-each select="$host">
@@ -324,7 +324,7 @@ version="3.0">
                     <xsl:call-template name="local:after-mutation"/>
                 </xsl:when>
                 <xsl:when test="$command = 'figure'">
-                    <ixsl:set-property name="insertAfterBlock" select="local:block-of($host)" object="local:editor-state()"/>
+                    <ixsl:set-property name="insertHost" select="$host" object="local:editor-state()"/>
                     <xsl:variable name="dialog" as="element()" select="id('figure-dialog', ixsl:page())"/>
                     <xsl:for-each select="$dialog//input">
                         <ixsl:set-property name="value" select="''" object="."/>
@@ -338,8 +338,18 @@ version="3.0">
                     </xsl:for-each>
                 </xsl:when>
                 <xsl:when test="$command = 'table'">
-                    <ixsl:set-property name="insertAfterBlock" select="local:block-of($host)" object="local:editor-state()"/>
+                    <ixsl:set-property name="insertHost" select="$host" object="local:editor-state()"/>
                     <xsl:variable name="dialog" as="element()" select="id('table-dialog', ixsl:page())"/>
+                    <!-- same defaults as the toolbar opener -->
+                    <xsl:for-each select="($dialog//input[@name = 'rows'])[1], ($dialog//input[@name = 'cols'])[1]">
+                        <ixsl:set-property name="value" select="'3'" object="."/>
+                    </xsl:for-each>
+                    <xsl:for-each select="($dialog//input[@name = 'caption'])[1]">
+                        <ixsl:set-property name="value" select="''" object="."/>
+                    </xsl:for-each>
+                    <xsl:for-each select="($dialog//input[@name = 'header-row'])[1]">
+                        <ixsl:set-property name="checked" select="true()" object="."/>
+                    </xsl:for-each>
                     <xsl:call-template name="local:show-at-element">
                         <xsl:with-param name="element" select="$dialog"/>
                         <xsl:with-param name="anchor" select="$host"/>

@@ -135,8 +135,8 @@ version="3.0">
     </xsl:template>
 
     <xsl:template match="button[contains-token(@class, 'insert-table')]" mode="ixsl:onclick">
-        <ixsl:set-property name="insertAfterBlock"
-            select="(local:current-block(), local:active-root()/*[last()])[1]" object="local:editor-state()"/>
+        <ixsl:set-property name="insertHost"
+            select="local:current-host()[exists(local:block-of(.))]" object="local:editor-state()"/>
         <xsl:variable name="dialog" as="element()" select="id('table-dialog', ixsl:page())"/>
         <xsl:for-each select="($dialog//input[@name = 'rows'])[1], ($dialog//input[@name = 'cols'])[1]">
             <ixsl:set-property name="value" select="'3'" object="."/>
@@ -197,18 +197,13 @@ version="3.0">
                 <xsl:sequence select="ixsl:call($tbody, 'appendChild', [ $tr ])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:for-each>
             <xsl:sequence select="ixsl:call($table, 'appendChild', [ $tbody ])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:choose>
-                <xsl:when test="exists(ixsl:get(local:editor-state(), 'insertAfterBlock'))">
-                    <xsl:sequence select="ixsl:call(ixsl:get(local:editor-state(), 'insertAfterBlock'), 'after', [ $table ])[current-date() lt xs:date('2000-01-01')]"/>
-                </xsl:when>
-                <xsl:otherwise>
-                    <xsl:for-each select="local:active-root()">
-                        <xsl:sequence select="ixsl:call(., 'appendChild', [ $table ])[current-date() lt xs:date('2000-01-01')]"/>
-                    </xsl:for-each>
-                </xsl:otherwise>
-            </xsl:choose>
-            <xsl:call-template name="local:inject-chrome">
-                <xsl:with-param name="block" select="$table"/>
+            <!-- placed per the content model relative to the host the dialog was
+                 opened from: an empty list item or cell grows the table INSIDE
+                 itself, a sibling where the parent admits it (chrome only when it
+                 lands top-level - the helper guards it) -->
+            <xsl:call-template name="local:insert-block-at-caret">
+                <xsl:with-param name="node" select="$table"/>
+                <xsl:with-param name="host" select="ixsl:get(local:editor-state(), 'insertHost')[exists(local:block-of(.))]"/>
             </xsl:call-template>
             <xsl:for-each select="(local:table-cells($table))[1]">
                 <xsl:call-template name="local:focus-caret">

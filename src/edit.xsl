@@ -1828,8 +1828,10 @@ version="3.0">
          dt). Chrome stays a top-level affordance -->
     <xsl:template name="local:insert-block-at-caret">
         <xsl:param name="node" as="element()"/>
+        <!-- dialog saves pass the host their dialog was opened from (the caret
+             sits in the dialog input by then); defaulted for the direct buttons -->
+        <xsl:param name="host" as="element()?" select="local:current-host()[exists(local:block-of(.))]"/>
 
-        <xsl:variable name="host" as="element()?" select="local:current-host()[exists(local:block-of(.))]"/>
         <xsl:choose>
             <!-- not inside a figure: the figure is a locked composite, so a block
                  inserted at its caption nests INSIDE the figcaption (flow branch)
@@ -2054,7 +2056,7 @@ version="3.0">
         </xsl:for-each>
         <ixsl:set-property name="editRange" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="editingLink" select="()" object="local:editor-state()"/>
-        <ixsl:set-property name="insertAfterBlock" select="()" object="local:editor-state()"/>
+        <ixsl:set-property name="insertHost" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="slashHost" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="findNode" select="()" object="local:editor-state()"/>
         <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
@@ -2069,8 +2071,8 @@ version="3.0">
     <!-- ................................ figure dialog ................................ -->
 
     <xsl:template match="button[contains-token(@class, 'insert-figure')]" mode="ixsl:onclick">
-        <ixsl:set-property name="insertAfterBlock"
-            select="(local:current-block(), local:active-root()/*[last()])[1]" object="local:editor-state()"/>
+        <ixsl:set-property name="insertHost"
+            select="local:current-host()[exists(local:block-of(.))]" object="local:editor-state()"/>
         <xsl:variable name="dialog" as="element()" select="id('figure-dialog', ixsl:page())"/>
         <xsl:for-each select="$dialog//input">
             <ixsl:set-property name="value" select="''" object="."/>
@@ -2116,18 +2118,13 @@ version="3.0">
             <ixsl:set-attribute name="contenteditable" select="'true'" object="$figcaption"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $img ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $figcaption ])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:choose>
-                <xsl:when test="exists(ixsl:get(local:editor-state(), 'insertAfterBlock'))">
-                    <xsl:sequence select="ixsl:call(ixsl:get(local:editor-state(), 'insertAfterBlock'), 'after', [ $figure ])[current-date() lt xs:date('2000-01-01')]"/>
-                </xsl:when>
-                <xsl:otherwise>
-                    <xsl:for-each select="local:active-root()">
-                        <xsl:sequence select="ixsl:call(., 'appendChild', [ $figure ])[current-date() lt xs:date('2000-01-01')]"/>
-                    </xsl:for-each>
-                </xsl:otherwise>
-            </xsl:choose>
-            <xsl:call-template name="local:inject-chrome">
-                <xsl:with-param name="block" select="$figure"/>
+            <!-- placed per the content model relative to the host the dialog was
+                 opened from: an empty list item or cell grows the figure INSIDE
+                 itself, a sibling where the parent admits it (chrome only when it
+                 lands top-level - the helper guards it) -->
+            <xsl:call-template name="local:insert-block-at-caret">
+                <xsl:with-param name="node" select="$figure"/>
+                <xsl:with-param name="host" select="ixsl:get(local:editor-state(), 'insertHost')[exists(local:block-of(.))]"/>
             </xsl:call-template>
             <xsl:call-template name="local:focus">
                 <xsl:with-param name="element" select="$figcaption"/>

@@ -171,7 +171,8 @@ await page.waitForTimeout(120);
 assert('slash.cellContext', (await shownCommands()).length === 10);
 await page.keyboard.press('Escape');
 
-// figure command routes to the existing dialog, inserting after the TOP-LEVEL block
+// figure command routes to the existing dialog; placement follows the content
+// model - a cell is %Flow;, so the figure grows INSIDE the emptied cell
 await load();
 await emptyHost('Plain cell');
 await page.keyboard.type('/');
@@ -182,11 +183,41 @@ assert('slash.figureDialogOpens', await visible('figure-dialog'));
 await page.fill('#figure-dialog input[name="src"]', 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==');
 await page.click('#figure-dialog button.figure-save');
 await page.waitForTimeout(80);
-assert('slash.figureAfterTable', await page.evaluate(() => {
-    const table = document.querySelector('#content > table');
-    return table?.nextElementSibling?.tagName === 'FIGURE';
+assert('slash.figureInsideCell', await page.evaluate(() => {
+    const td = document.querySelector('#content > table tr > td:nth-child(2)');
+    const fig = td?.querySelector(':scope > figure');
+    return !!fig && td.getAttribute('contenteditable') !== 'true'   // cell became a container
+        && !fig.querySelector('[data-role=chrome]')                  // nested: no drag handle
+        && document.querySelectorAll('#content > figure').length === 1; // only the fixture's own
 }));
 await clean('slash.figure');
+
+// the user-reported shape: a table inserted from an empty list item nests INSIDE
+// the item (li is %Flow;), never after the whole list
+await load();
+const baselineTableInLi = await page.evaluate(() => document.getElementById('content').innerHTML);
+await emptyHost('Plain item');
+await page.keyboard.type('/');
+await page.waitForTimeout(120);
+await page.click('#slash-menu li.slash-item[data-command="table"]');
+await page.waitForTimeout(80);
+assert('slash.tableDialogOpens', await visible('table-dialog'));
+await page.click('#table-dialog button.table-save'); // 3x3 defaults
+await page.waitForTimeout(80);
+assert('slash.tableInsideLi', await page.evaluate(() => {
+    const li = document.querySelector('#content > ul > li');
+    const table = li?.querySelector(':scope > table');
+    return !!table && li.getAttribute('contenteditable') !== 'true'
+        && !table.querySelector('[data-role=chrome]')
+        && document.querySelectorAll('#content > table').length === 1  // the fixture's own only
+        && table.contains(window.getSelection().anchorNode);           // caret in the first cell
+}));
+await clean('slash.tableInsideLi');
+await page.keyboard.press('Control+z');
+await page.waitForTimeout(80);
+assert('slash.tableInsideLiUndo', await page.evaluate(html =>
+    // one undo removes the table; the emptied item is a separate earlier entry
+    !document.querySelector('#content > ul > li > table'), baselineTableInLi));
 
 // ---------------------------------------------------------------- markdown rules
 

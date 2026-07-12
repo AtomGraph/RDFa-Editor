@@ -52,7 +52,7 @@ version="3.0">
              LinkedDataHub's window.LinkedDataHub); reached everywhere via local:editor-state() -->
         <ixsl:set-property name="rdfaEditor" select="ixsl:call(ixsl:window(), 'Object', [])" object="ixsl:window()"/>
         <xsl:for-each select="('editingSpan', 'range', 'activeBlock', 'draggedBlock',
-                'editRange', 'editingLink', 'insertAfterBlock', 'lastUndoHost',
+                'editRange', 'editingLink', 'insertHost', 'lastUndoHost',
                 'breadcrumbLeaf', 'draggedSectionHeading', 'findNode', 'tocRoot',
                 'slashHost')">
             <ixsl:set-property name="{.}" select="()" object="local:editor-state()"/>
