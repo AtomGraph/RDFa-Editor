@@ -54,11 +54,12 @@ version="3.0">
         <xsl:for-each select="('editingSpan', 'range', 'activeBlock', 'draggedBlock',
                 'editRange', 'editingLink', 'insertHost', 'lastUndoHost',
                 'breadcrumbLeaf', 'draggedSectionHeading', 'findNode', 'tocRoot',
-                'slashHost')">
+                'slashHost', 'sweepAnchorNode', 'sweepAnchorHost', 'sweepRegion')">
             <ixsl:set-property name="{.}" select="()" object="local:editor-state()"/>
         </xsl:for-each>
         <ixsl:set-property name="lastUndoTime" select="0" object="local:editor-state()"/>
         <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
+        <ixsl:set-property name="sweepAnchorOffset" select="0" object="local:editor-state()"/>
 
         <xsl:call-template name="local:init-undo"/>
         <xsl:call-template name="local:init-overlay"/>

@@ -454,6 +454,231 @@ results.imageCtrlA.deletesSelection = await page.evaluate(() => {
 });
 results.imageCtrlA.undoRestores = await settle('imageCtrlA', baselineI);
 
+// ==== K. real gestures: drag takeover, Shift+Click, Shift+Up/Down ==================
+// everything above builds ranges programmatically (the machinery); these cases
+// assert the GESTURES produce them. Chromium clamps a native drag-selection to
+// the host it starts in, so the select.xsl mousemove takeover is what makes
+// these pass - they fail on a build without the gesture layer.
+
+// viewport point of a character offset within the host containing needle (-1 = end)
+const pointAt = (needle, off) => page.evaluate(([n, o]) => {
+    const host = [...document.querySelectorAll('[contenteditable=true]')]
+        .find(el => [...el.childNodes].some(t => t.nodeType === 3 && t.textContent.includes(n)));
+    const t = [...host.childNodes].find(t => t.nodeType === 3 && t.textContent.includes(n));
+    const r = document.createRange();
+    r.setStart(t, o === -1 ? t.textContent.length : o);
+    r.collapse(true);
+    const rect = r.getBoundingClientRect();
+    return { x: rect.x, y: rect.y + rect.height / 2 };
+}, [needle, off]);
+
+const dragReal = async (from, to) => {
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++)
+        await page.mouse.move(from.x + (to.x - from.x) * i / 8, from.y + (to.y - from.y) * i / 8);
+    await page.mouse.up();
+};
+
+// anchor/focus hosts and range text; sel.toString() truncates at the first host
+// boundary in Chromium, so extent is asserted via the RANGE
+const selInfo = () => page.evaluate(() => {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return { crosses: false, rangeText: '' };
+    const hostOf = n => { const el = n.nodeType === 1 ? n : n.parentElement; return el.closest('[contenteditable=true]'); };
+    const a = hostOf(sel.anchorNode), f = hostOf(sel.focusNode);
+    return {
+        collapsed: sel.isCollapsed,
+        crosses: !sel.isCollapsed && (a !== f || !a || !f),
+        anchorText: a ? a.textContent.replace(/⠿/g, '').trim() : '(region)',
+        focusText: f ? f.textContent.replace(/⠿/g, '').trim() : '(region)',
+        rangeText: sel.getRangeAt(0).toString().replace(/⠿/g, ''),
+        disarmed: window.rdfaEditor.sweepAnchorNode == null,
+    };
+});
+
+// K1: a real drag across three blocks paints one selection
+await load();
+{
+    await dragReal(await pointAt('Intro paragraph', 6), await pointAt('Sub two', 4));
+    const s = await selInfo();
+    results.realDrag = {
+        crosses: s.crosses,
+        spansBlocks: s.rangeText.includes('paragraph.') && s.rangeText.includes('Plain item')
+            && s.rangeText.includes('Sub one'),
+        disarmedOnMouseup: s.disarmed,
+    };
+}
+
+// K2: real drag + Backspace = the same edge-remnant merge as the programmatic sweep
+// (pointer-to-offset resolution is approximate: assertions tolerate a char or two)
+await load();
+const baselineK = await baselineOf();
+{
+    await dragReal(await pointAt('Intro paragraph', 6), await pointAt('Plain item', 6));
+    await page.keyboard.press('Backspace');
+    results.realDragDelete = await page.evaluate(() => {
+        const region = document.getElementById('content');
+        const p = [...region.querySelectorAll(':scope > p')].find(x => x.textContent.includes('Intro'));
+        const items = [...region.querySelector(':scope > ul').children].filter(c => c.tagName === 'LI');
+        const sel = window.getSelection();
+        const text = p ? p.textContent.replace(/⠿/g, '') : '';
+        return {
+            merged: !!p && text.startsWith('Intro') && text.endsWith('item')
+                && !text.includes('paragraph'),
+            firstItemGone: items.length === 2 && items[0].textContent.includes('Mixed item'),
+            caretCollapsed: sel.rangeCount === 1 && sel.isCollapsed,
+        };
+    });
+    results.realDragDelete.undoRestores = await settle('realDragDelete', baselineK);
+}
+
+// K3: a backward (upward) drag keeps the anchor fixed - Docs semantics
+await load();
+{
+    await dragReal(await pointAt('Plain item', 6), await pointAt('Intro paragraph', 6));
+    const s = await selInfo();
+    results.backwardDrag = {
+        crosses: s.crosses,
+        anchorStaysAtStart: s.anchorText.includes('Plain item'),
+        focusAtDragEnd: s.focusText.includes('Intro'),
+    };
+    await page.keyboard.press('Delete');
+    results.backwardDrag.deletes = await page.evaluate(() => {
+        const p = [...document.querySelectorAll('#content > p')].find(x => x.textContent.includes('Intro'));
+        return !!p && p.textContent.endsWith('item') && !p.textContent.includes('paragraph');
+    });
+    results.backwardDrag.undoRestores = await settle('backwardDrag', baselineK);
+}
+
+// K4: an in-host drag stays native and confined
+await load();
+{
+    await dragReal(await pointAt('Intro paragraph', 0), await pointAt('Intro paragraph', 10));
+    const s = await selInfo();
+    results.inHostDrag = {
+        selected: !s.collapsed && s.rangeText.length > 0,
+        confined: !s.crosses && s.anchorText.includes('Intro') && s.focusText.includes('Intro'),
+        disarmedOnMouseup: s.disarmed,
+    };
+}
+
+// K5: a drag from the region's gutter (padding, left of the text) sweeps blocks
+await load();
+{
+    const from = await page.evaluate(() => {
+        const region = document.getElementById('content');
+        const p = [...region.children].find(b => b.textContent.includes('Intro paragraph'));
+        const rp = p.getBoundingClientRect();
+        return { x: region.getBoundingClientRect().x + 8, y: rp.y + rp.height / 2 };
+    });
+    await dragReal(from, await pointAt('Plain item', 6));
+    results.gutterDrag = { crosses: (await selInfo()).crosses };
+}
+
+// K6: Shift+Click extends from the caret; a second Shift+Click keeps the anchor
+await load();
+{
+    await caretIn('Intro paragraph', 6);
+    await page.keyboard.down('Shift');
+    await page.mouse.click(...Object.values(await pointAt('Plain item', 6)));
+    await page.keyboard.up('Shift');
+    const first = await selInfo();
+    await page.keyboard.down('Shift');
+    await page.mouse.click(...Object.values(await pointAt('Bare quote', 5)));
+    await page.keyboard.up('Shift');
+    const second = await selInfo();
+    results.shiftClick = {
+        extends: first.crosses && first.anchorText.includes('Intro'),
+        anchorSurvivesSecond: second.crosses && second.anchorText.includes('Intro')
+            && second.focusText.includes('Bare quote'),
+    };
+}
+
+// K7: Shift+Click then typing replaces the selection (one undo entry)
+await load();
+{
+    await caretIn('Intro paragraph', 6);
+    await page.keyboard.down('Shift');
+    await page.mouse.click(...Object.values(await pointAt('Plain item', 6)));
+    await page.keyboard.up('Shift');
+    await page.keyboard.press('X');
+    results.shiftClickType = await page.evaluate(() => {
+        const p = [...document.querySelectorAll('#content > p')].find(x => x.textContent.includes('Intro'));
+        const sel = window.getSelection();
+        const text = p ? p.textContent.replace(/⠿/g, '') : '';
+        return {
+            replaced: !!p && text.startsWith('Intro') && text.includes('X')
+                && !text.includes('paragraph'),
+            caretCollapsed: sel.rangeCount === 1 && sel.isCollapsed,
+        };
+    });
+    results.shiftClickType.undoRestores = await settle('shiftClickType', baselineK);
+}
+
+// K8: Shift+Down at the host end steps block-wise; Shift+Up steps back
+await load();
+{
+    await caretIn('Intro paragraph', -1);
+    await page.keyboard.press('Shift+ArrowDown');
+    const one = await selInfo();
+    await page.keyboard.press('Shift+ArrowDown');
+    const two = await selInfo();
+    await page.keyboard.press('Shift+ArrowUp');
+    const back = await selInfo();
+    results.shiftArrows = {
+        firstCrosses: one.crosses,
+        secondTakesList: two.rangeText.includes('Plain item') && two.rangeText.includes('Sub two'),
+        upReleasesList: !back.rangeText.includes('Plain item'),
+        baselineIntact: await page.evaluate(html =>
+            document.getElementById('content').innerHTML === html, baselineK),
+    };
+}
+
+// K9: a drag toward another region clamps to the region it started in
+await load();
+{
+    const to = await page.evaluate(() => {
+        const p = [...document.querySelectorAll('#embedded [contenteditable=true]')]
+            .find(el => el.textContent.includes('Embedded paragraph'));
+        const r = p.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await dragReal(await pointAt('Intro paragraph', 6), to);
+    // Chromium may remap the region-level focus to the nearest editing position
+    // INSIDE the region - equally clamped; assert containment, not identity
+    results.dragRegionClamp = await page.evaluate(() => {
+        const sel = window.getSelection();
+        const embedded = document.getElementById('embedded');
+        const region = document.getElementById('content');
+        return {
+            crosses: !sel.isCollapsed,
+            clampedToStartRegion: sel.focusNode === region || region.contains(sel.focusNode),
+            embeddedUntouched: !sel.getRangeAt(0).intersectsNode(embedded),
+        };
+    });
+}
+
+// K10: a press on the drag handle never arms a sweep (block reordering intact)
+await load();
+{
+    const handle = await page.evaluate(() => {
+        const h = document.querySelector('#content > h1 > [data-role=chrome]');
+        const r = h.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await page.mouse.move(handle.x, handle.y);
+    await page.mouse.down();
+    const to = await pointAt('Plain item', 6);
+    for (let i = 1; i <= 4; i++)
+        await page.mouse.move(handle.x + (to.x - handle.x) * i / 4, handle.y + (to.y - handle.y) * i / 4);
+    results.handleNotHijacked = {
+        neverArmed: await page.evaluate(() => window.rdfaEditor.sweepAnchorNode == null),
+        noSweepSelection: !(await selInfo()).crosses,
+    };
+    await page.mouse.up();
+}
+
 console.log(JSON.stringify({ results, errors: errors.slice(0, 5) }, null, 2));
 await browser.close();
 const flat = JSON.stringify(results);

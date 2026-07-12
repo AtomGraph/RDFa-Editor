@@ -580,6 +580,18 @@ version="3.0">
                     <xsl:call-template name="local:hide-overlay"/>
                     <xsl:call-template name="local:hide-dialogs"/>
                 </xsl:when>
+                <!-- Shift+Up/Down extend the selection block-granularly beyond the
+                     host: native extension clamps at host edges, and a cross-host
+                     selection cannot be extended natively at all; within the host
+                     (focus not at the facing edge) they stay native line-wise -->
+                <xsl:when test="ixsl:get($event, 'shiftKey') and not(ixsl:get($event, 'altKey'))
+                        and $key = ('ArrowUp', 'ArrowDown')
+                        and local:shift-arrow-extends(., if ($key = 'ArrowUp') then 'up' else 'down')">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:extend-selection-block-wise">
+                        <xsl:with-param name="direction" select="if ($key = 'ArrowUp') then 'up' else 'down'"/>
+                    </xsl:call-template>
+                </xsl:when>
                 <!-- a selection spanning hosts: Backspace/Delete run the editor's own
                      delete (the browser refuses to edit across host boundaries), a
                      printable character replaces the selection (delete, then the
@@ -776,6 +788,15 @@ version="3.0">
                         <xsl:with-param name="text" select="$key"/>
                     </xsl:call-template>
                     <xsl:call-template name="local:after-mutation"/>
+                </xsl:when>
+                <!-- a background-ended sweep leaves focus on body: Shift+Up/Down keep
+                     extending the cross-host selection block-wise from here too -->
+                <xsl:when test="not($chord) and ixsl:get($event, 'shiftKey') and not(ixsl:get($event, 'altKey'))
+                        and $key = ('ArrowUp', 'ArrowDown') and local:selection-crosses-hosts()">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:extend-selection-block-wise">
+                        <xsl:with-param name="direction" select="if ($key = 'ArrowUp') then 'up' else 'down'"/>
+                    </xsl:call-template>
                 </xsl:when>
                 <xsl:otherwise/>
             </xsl:choose>
@@ -2148,10 +2169,13 @@ version="3.0">
         <xsl:for-each select="local:block-of(.)">
             <ixsl:remove-attribute name="draggable"/>
         </xsl:for-each>
+        <xsl:call-template name="local:disarm-sweep"/>
     </xsl:template>
 
     <xsl:template match="*[parent::*[contains-token(@class, 'rdfa-editor-content')]][@draggable = 'true']" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
+        <!-- a block drag must never race an armed sweep -->
+        <xsl:call-template name="local:disarm-sweep"/>
         <ixsl:set-property name="draggedBlock" select="." object="local:editor-state()"/>
         <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
         <xsl:sequence select="ixsl:call($transfer, 'setData', [ 'application/x-rdfa-editor-block', '' ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -2175,6 +2199,7 @@ version="3.0">
          carry no block identity and snap back; treat it as dragging its block -->
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
+        <xsl:call-template name="local:disarm-sweep"/>
         <xsl:for-each select="local:block-of(.)">
             <ixsl:set-property name="draggedBlock" select="." object="local:editor-state()"/>
             <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
