@@ -101,6 +101,88 @@ version="3.0">
         </xsl:if>
     </xsl:template>
 
+    <!-- a clone of $range clamped to $region: boundaries outside the region (page
+         content, another region) move to the region's extremes, and a boundary
+         inside chrome moves out of the ephemeral subtree (the handle is not
+         content). Shared by the delete machine and canonical copy -->
+    <xsl:function name="local:clamped-range" as="item()">
+        <xsl:param name="range"/>
+        <xsl:param name="region" as="element()"/>
+        <xsl:variable name="all" as="element()*" select="$region/*[not(@data-role)]"/>
+        <xsl:variable name="work" select="ixsl:call($range, 'cloneRange', [])"/>
+        <xsl:if test="not(local:root-of(ixsl:get($work, 'startContainer')) is $region)">
+            <xsl:sequence select="ixsl:call($work, 'setStartBefore', [ $all[1] ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:if>
+        <xsl:if test="not(local:root-of(ixsl:get($work, 'endContainer')) is $region)">
+            <xsl:sequence select="ixsl:call($work, 'setEndAfter', [ $all[last()] ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:if>
+        <xsl:for-each select="(ixsl:get($work, 'startContainer')/ancestor-or-self::*[@data-role])[1]">
+            <xsl:sequence select="ixsl:call($work, 'setStartAfter', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+        <xsl:for-each select="(ixsl:get($work, 'endContainer')/ancestor-or-self::*[@data-role])[1]">
+            <xsl:sequence select="ixsl:call($work, 'setEndBefore', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+        <xsl:sequence select="$work"/>
+    </xsl:function>
+
+    <!-- ................................ canonical copy / cut ................................ -->
+
+    <!-- a cross-host selection is copied in its storage form: the editing DOM
+         (chrome, contenteditable, marker classes) would otherwise travel to the
+         clipboard's HTML flavor. The fragment runs the same canonical +
+         cm-normalize pipeline as paste, in reverse; RDFa attributes survive, so
+         annotated content round-trips between documents. Within-host copy stays
+         native. The union match covers both dispatch shapes: the focused host,
+         or body after a background-origin sweep -->
+    <xsl:template match="*[@contenteditable = 'true'] | body" mode="ixsl:oncopy">
+        <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:if test="local:selection-crosses-hosts()">
+            <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:copy-selection">
+                <xsl:with-param name="event" select="$event"/>
+            </xsl:call-template>
+        </xsl:if>
+    </xsl:template>
+
+    <!-- cut = canonical copy + the delete machine (one region-keyed undo entry) -->
+    <xsl:template match="*[@contenteditable = 'true'] | body" mode="ixsl:oncut">
+        <xsl:variable name="event" select="ixsl:event()"/>
+        <xsl:if test="local:selection-crosses-hosts()">
+            <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:copy-selection">
+                <xsl:with-param name="event" select="$event"/>
+            </xsl:call-template>
+            <xsl:call-template name="local:delete-cross-host-selection"/>
+        </xsl:if>
+    </xsl:template>
+
+    <xsl:template name="local:copy-selection">
+        <xsl:param name="event"/>
+        <xsl:variable name="range" select="local:caret-range()"/>
+        <xsl:variable name="region" as="element()?"
+            select="(local:root-of(ixsl:get($range, 'startContainer')),
+                local:roots()[ixsl:call($range, 'intersectsNode', [ . ])])[1]"/>
+        <xsl:for-each select="$region[exists(*[not(@data-role)])]">
+            <xsl:variable name="work" select="local:clamped-range($range, .)"/>
+            <!-- cloneContents keeps partially-selected ancestors as shells, so the
+                 fragment stays block-shaped; the carrier div mirrors paste-html -->
+            <xsl:variable name="carrier" as="element()" select="local:element('div')"/>
+            <xsl:sequence select="ixsl:call($carrier, 'appendChild',
+                [ ixsl:call($work, 'cloneContents', []) ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:variable name="pass1">
+                <xsl:apply-templates select="$carrier/node()" mode="canonical"/>
+            </xsl:variable>
+            <xsl:variable name="clean">
+                <xsl:sequence select="cm:normalize($pass1/node())"/>
+            </xsl:variable>
+            <xsl:variable name="data" select="ixsl:get($event, 'clipboardData')"/>
+            <xsl:sequence select="ixsl:call($data, 'setData', [ 'text/html',
+                serialize($clean/node(), map{ 'method': 'html' }) ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:sequence select="ixsl:call($data, 'setData', [ 'text/plain',
+                string-join($clean/node()[normalize-space()] ! normalize-space(.), '&#10;') ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+    </xsl:template>
+
     <!-- ................................ delete machine ................................ -->
 
     <!-- delete a cross-host selection: reads and classification first, one undo
@@ -117,24 +199,7 @@ version="3.0">
                     local:roots()[ixsl:call($range, 'intersectsNode', [ . ])])[1]"/>
             <xsl:variable name="all" as="element()*" select="$region/*[not(@data-role)]"/>
             <xsl:if test="exists($all)">
-                <xsl:variable name="work" select="ixsl:call($range, 'cloneRange', [])"/>
-                <!-- clamp boundaries that lie outside the region (page content,
-                     another region) to the region's extremes -->
-                <xsl:if test="not(local:root-of(ixsl:get($work, 'startContainer')) is $region)">
-                    <xsl:sequence select="ixsl:call($work, 'setStartBefore', [ $all[1] ])[current-date() lt xs:date('2000-01-01')]"/>
-                </xsl:if>
-                <xsl:if test="not(local:root-of(ixsl:get($work, 'endContainer')) is $region)">
-                    <xsl:sequence select="ixsl:call($work, 'setEndAfter', [ $all[last()] ])[current-date() lt xs:date('2000-01-01')]"/>
-                </xsl:if>
-                <!-- a sweep can land a boundary inside chrome: the handle is not
-                     content, move the boundary out of the ephemeral subtree -->
-                <xsl:for-each select="(ixsl:get($work, 'startContainer')/ancestor-or-self::*[@data-role])[1]">
-                    <xsl:sequence select="ixsl:call($work, 'setStartAfter', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
-                </xsl:for-each>
-                <xsl:for-each select="(ixsl:get($work, 'endContainer')/ancestor-or-self::*[@data-role])[1]">
-                    <xsl:sequence select="ixsl:call($work, 'setEndBefore', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
-                </xsl:for-each>
-
+                <xsl:variable name="work" select="local:clamped-range($range, $region)"/>
                 <xsl:variable name="blocks" as="element()*" select="$all[ixsl:call($work, 'intersectsNode', [ . ])]"/>
                 <xsl:if test="exists($blocks) and not(ixsl:get($work, 'collapsed'))">
                     <!-- boundary hosts (a partial edge is an edge with a boundary
@@ -302,6 +367,24 @@ version="3.0">
                 </xsl:if>
             </xsl:if>
         </xsl:if>
+    </xsl:template>
+
+    <!-- type-to-replace: after the delete machine has collapsed the caret into a
+         host, the typed character lands there - one gesture, one undo entry (the
+         machine's push; the insert rides the same snapshot) -->
+    <xsl:template name="local:insert-text-at-caret">
+        <xsl:param name="text" as="xs:string"/>
+        <xsl:variable name="range" select="local:caret-range()"/>
+        <xsl:for-each select="$range[ixsl:get(., 'collapsed')]">
+            <xsl:for-each select="local:host-of(ixsl:get(., 'startContainer'))[exists(local:block-of(.))]">
+                <xsl:variable name="node" select="ixsl:call(ixsl:page(), 'createTextNode', [ $text ])"/>
+                <xsl:sequence select="ixsl:call($range, 'insertNode', [ $node ])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:call-template name="local:place-caret">
+                    <xsl:with-param name="node" select="$node"/>
+                    <xsl:with-param name="offset" select="string-length($text)"/>
+                </xsl:call-template>
+            </xsl:for-each>
+        </xsl:for-each>
     </xsl:template>
 
     <!-- ................................ cleanup helpers ................................ -->

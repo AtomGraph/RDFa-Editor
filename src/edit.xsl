@@ -581,17 +581,27 @@ version="3.0">
                     <xsl:call-template name="local:hide-dialogs"/>
                 </xsl:when>
                 <!-- a selection spanning hosts: Backspace/Delete run the editor's own
-                     delete (the browser refuses to edit across host boundaries), the
-                     other editing keys are suppressed so the selection cannot be
-                     half-edited; plain arrows stay native (they collapse it) and the
-                     chord cases above keep copy native -->
+                     delete (the browser refuses to edit across host boundaries), a
+                     printable character replaces the selection (delete, then the
+                     character lands at the machine-placed caret), Enter/Tab are
+                     suppressed so the selection cannot be half-edited; plain arrows
+                     stay native (they collapse it) and the chord cases above keep
+                     copy/cut native (canonical copy intercepts at the event level) -->
                 <xsl:when test="local:selection-crosses-hosts()">
                     <xsl:choose>
                         <xsl:when test="$key = ('Backspace', 'Delete')">
                             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                             <xsl:call-template name="local:delete-cross-host-selection"/>
                         </xsl:when>
-                        <xsl:when test="string-length($key) = 1 or $key = ('Enter', 'Tab')">
+                        <xsl:when test="string-length($key) = 1">
+                            <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                            <xsl:call-template name="local:delete-cross-host-selection"/>
+                            <xsl:call-template name="local:insert-text-at-caret">
+                                <xsl:with-param name="text" select="$key"/>
+                            </xsl:call-template>
+                            <xsl:call-template name="local:after-mutation"/>
+                        </xsl:when>
+                        <xsl:when test="$key = ('Enter', 'Tab')">
                             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                         </xsl:when>
                         <xsl:otherwise/>
@@ -755,6 +765,17 @@ version="3.0">
                         and local:selection-crosses-hosts()">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
                     <xsl:call-template name="local:delete-cross-host-selection"/>
+                </xsl:when>
+                <!-- type-to-replace works from the page background too: the delete
+                     machine focuses a host, the character lands at its caret -->
+                <xsl:when test="not($chord) and string-length($key) = 1
+                        and local:selection-crosses-hosts()">
+                    <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
+                    <xsl:call-template name="local:delete-cross-host-selection"/>
+                    <xsl:call-template name="local:insert-text-at-caret">
+                        <xsl:with-param name="text" select="$key"/>
+                    </xsl:call-template>
+                    <xsl:call-template name="local:after-mutation"/>
                 </xsl:when>
                 <xsl:otherwise/>
             </xsl:choose>

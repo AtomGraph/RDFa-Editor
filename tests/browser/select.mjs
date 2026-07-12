@@ -294,13 +294,41 @@ results.crossRegionClamp = await page.evaluate(html => {
 }, embeddedBefore);
 results.crossRegionClamp.undoRestores = await settle('crossRegionClamp', baselineF);
 
-// ==== G. suppression: only Backspace/Delete act on a cross-host selection ==========
+// ==== G. type-to-replace: a printable character replaces the selection ============
+await load();
+const baselineG = await baselineOf();
+await caretIn('Intro paragraph', 3);
+await page.keyboard.press(selectAllKey);
+await page.keyboard.press(selectAllKey);
+await page.keyboard.type('x');
+results.typeReplace = await page.evaluate(() => {
+    const region = document.getElementById('content');
+    const blocks = [...region.children].filter(b => !b.hasAttribute('data-role'));
+    const sel = window.getSelection();
+    return {
+        replaced: blocks.length === 1 && blocks[0].tagName === 'P'
+            && blocks[0].textContent.replace(/⠿/g, '') === 'x',
+        caretAfterChar: sel.isCollapsed && sel.anchorNode.textContent === 'x' && sel.anchorOffset === 1,
+    };
+});
+results.typeReplace.undoRestores = await settle('typeReplace', baselineG);
+
+// sweep + type: the character lands at the merge seam
+await load();
+await sweep('Intro paragraph', 6, 'Plain item', 6);
+await page.keyboard.type('Z');
+results.typeReplaceSweep = await page.evaluate(() => {
+    const p = [...document.querySelectorAll('#content > p')].find(x => x.textContent.includes('Intro'));
+    return { seamChar: !!p && p.textContent.replace(/⠿/g, '') === 'Intro Zitem' };
+});
+results.typeReplaceSweep.undoRestores = await settle('typeReplaceSweep', baselineG);
+
+// Enter/Tab/paste stay suppressed; the selection survives them
 await load();
 await caretIn('Intro paragraph', 3);
 await page.keyboard.press(selectAllKey);
 await page.keyboard.press(selectAllKey);
 const beforeSuppress = await baselineOf();
-await page.keyboard.type('x');
 await page.keyboard.press('Enter');
 await page.keyboard.press('Tab');
 await page.evaluate(() => {
@@ -317,6 +345,62 @@ results.suppression = {
         return r.startContainer === document.getElementById('content');
     }),
 };
+
+// ==== J. canonical copy / cut ======================================================
+// copy of a stage-2 selection: the clipboard gets the storage form, not the
+// editing DOM - no chrome/contenteditable/marker classes, RDFa attributes kept
+await load();
+await caretIn('Intro paragraph', 3);
+await page.keyboard.press(selectAllKey);
+await page.keyboard.press(selectAllKey);
+const copied = await page.evaluate(() => {
+    const dt = new DataTransfer();
+    document.activeElement.dispatchEvent(
+        new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true }));
+    return { html: dt.getData('text/html'), plain: dt.getData('text/plain') };
+});
+results.canonicalCopy = {
+    intercepted: copied.html.length > 0,
+    noChrome: !copied.html.includes('data-role') && !copied.html.includes('⠿'),
+    noEditingAttrs: !copied.html.includes('contenteditable') && !copied.html.includes('rdfa-editor'),
+    rdfaKept: copied.html.includes('property="http://purl.org/dc/terms/title"'),
+    blocksKept: copied.html.includes('<h1') && copied.html.includes('<table') && copied.html.includes('<figure'),
+    plainText: copied.plain.startsWith('Nesting demo') && copied.plain.includes('Plain item'),
+    contentUntouched: await page.evaluate(() =>
+        document.getElementById('content').textContent.includes('Intro paragraph.')),
+};
+
+// within-host copy stays native (no interception, clipboardData untouched by us)
+await load();
+await caretIn('Intro paragraph', 3);
+await page.keyboard.press(selectAllKey); // stage 1: within-host
+results.nativeCopyWithinHost = {
+    notIntercepted: await page.evaluate(() => {
+        const dt = new DataTransfer();
+        const e = new ClipboardEvent('copy', { clipboardData: dt, bubbles: true, cancelable: true });
+        document.activeElement.dispatchEvent(e);
+        return !e.defaultPrevented && dt.getData('text/html') === '';
+    }),
+};
+
+// cut: clipboard set AND the selection deleted with merge, one undo restores
+await load();
+const baselineJ = await baselineOf();
+await sweep('Intro paragraph', 6, 'Plain item', 6);
+const cutData = await page.evaluate(() => {
+    const dt = new DataTransfer();
+    document.activeElement.dispatchEvent(
+        new ClipboardEvent('cut', { clipboardData: dt, bubbles: true, cancelable: true }));
+    return { html: dt.getData('text/html') };
+});
+results.canonicalCut = {
+    clipboardSet: cutData.html.includes('paragraph.') && cutData.html.includes('Plain'),
+    deletedAndMerged: await page.evaluate(() => {
+        const p = [...document.querySelectorAll('#content > p')].find(x => x.textContent.includes('Intro'));
+        return !!p && p.textContent.replace(/⠿/g, '') === 'Intro item';
+    }),
+};
+results.canonicalCut.undoRestores = await settle('canonicalCut', baselineJ);
 
 // ==== H. Ctrl+A away from any caret selects the editor, never the page =============
 // fresh load, focus on body, no selection: the first region is selected
