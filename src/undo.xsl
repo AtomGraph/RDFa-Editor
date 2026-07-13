@@ -175,6 +175,12 @@ version="3.0">
                     <xsl:with-param name="block" select="."/>
                 </xsl:call-template>
             </xsl:for-each>
+            <!-- snapshots carry island rendering markup, so restores are normally
+                 render-stable; only islands captured mid-render (no rendering div -
+                 async renderers inject it in the completion callback only) re-fire -->
+            <xsl:for-each select="descendant-or-self::*[local:island(.)][empty(*[@data-role = 'rendering'])]">
+                <xsl:apply-templates select="." mode="local:render-island"/>
+            </xsl:for-each>
         </xsl:for-each>
         <!-- every stored node reference is stale now -->
         <xsl:call-template name="local:hide-overlay"/>

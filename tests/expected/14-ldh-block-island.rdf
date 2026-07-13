@@ -1,0 +1,21 @@
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dct="http://purl.org/dc/terms/"
+         xmlns:ldh="https://w3id.org/atomgraph/linkeddatahub#"
+         xmlns:spin="http://spinrdf.org/spin#">
+    <!-- no document->block containment edges: per the v6 document format the
+         document owns its blocks implicitly through its content -->
+    <rdf:Description rdf:about="http://example.org/dir/doc">
+        <dct:title>Object blocks</dct:title>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc#chart1">
+        <rdf:type rdf:resource="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart"/>
+        <spin:query rdf:resource="http://example.org/dir/queries/population/#this"/>
+        <ldh:chartType rdf:resource="https://w3id.org/atomgraph/client#BarChart"/>
+        <ldh:categoryVarName>country</ldh:categoryVarName>
+        <ldh:seriesVarName>population</ldh:seriesVarName>
+    </rdf:Description>
+    <rdf:Description rdf:about="http://example.org/dir/doc#nested-view">
+        <rdf:type rdf:resource="https://w3id.org/atomgraph/linkeddatahub#View"/>
+        <spin:query rdf:resource="http://example.org/dir/queries/population/#this"/>
+    </rdf:Description>
+</rdf:RDF>

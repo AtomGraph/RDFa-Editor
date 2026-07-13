@@ -22,6 +22,7 @@ version="3.0">
     - overlay.xsl          annotation form: rendering, reading, populating, visibility
     - annotate.xsl         right-click dispatch, apply/remove annotation, extraction modal
     - edit.xsl             XHTML editing: blocks, keyboard, toolbar, dialogs, drag-and-drop
+    - blocks.xsl           object blocks: island predicate, render hook, extension points
     - tables.xsl           table blocks: insert dialog, row/column operations, cell traversal
     - select.xsl           region-scoped select-all and cross-host selection delete
     - input.xsl            input triggers: slash menu and markdown shorthands
@@ -37,6 +38,7 @@ version="3.0">
     <xsl:include href="overlay.xsl"/>
     <xsl:include href="annotate.xsl"/>
     <xsl:include href="edit.xsl"/>
+    <xsl:include href="blocks.xsl"/>
     <xsl:include href="tables.xsl"/>
     <xsl:include href="select.xsl"/>
     <xsl:include href="input.xsl"/>

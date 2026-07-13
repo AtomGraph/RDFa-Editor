@@ -19,17 +19,27 @@ RDFa extraction and the document canonicalization are all XSLT.
   wavy underlines + a breadcrumb badge.
 - **Navigation**: ToC drawer (outline with section drag-reorder), breadcrumb bar with
   the RDFa subject in scope at the caret, find & replace.
+- **Object blocks** (optional LinkedDataHub extension): blocks defined purely in RDF —
+  queries, charts, referenced resources — embedded as self-describing RDFa placeholders
+  wherever the content model admits a block, edited as atomic islands, and hydrated
+  client-side from clean, content-negotiated Linked Data URIs. Only the RDFa
+  description is stored; the rendering is ephemeral.
 
 ## Run
 
 ```bash
-make up                         # build the SEF, then serve on http://localhost:8000
-# open http://localhost:8000/index.html — override the port with: make up PORT=9000
+make up                         # build the SEFs, then serve on http://localhost:8000
+# open http://localhost:8000/ — override the port with: make up PORT=9000
+# open http://localhost:8000/demo/ for the LinkedDataHub object-blocks demo
 ```
 
-`make up` runs `make sef` first (compile `src/*.xsl` → `dist/index.xsl.sef.json`, needs
-xmlstarlet + npx), then serves the repo with `python3 -m http.server`. Run `make sef`
-alone to rebuild the SEF without serving.
+`make up` runs `make sef` first (compile the core `src/index.xsl` →
+`dist/index.xsl.sef.json` and the LDH-extended `src/ldh-editor.xsl` →
+`dist/ldh-editor.xsl.sef.json`; needs xmlstarlet + npx), then serves the repo with
+`node serve.mjs` — a static server that **content-negotiates** trailing-slash document
+URIs (the object-block demo fetches its RDF and canned SPARQL results that way). Run
+`make sef` alone to rebuild the SEFs without serving. GitHub Pages deploys the core
+editor only.
 
 ## Test
 

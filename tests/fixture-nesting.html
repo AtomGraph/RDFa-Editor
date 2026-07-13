@@ -16,7 +16,7 @@
                             pool[new URL(href, document.baseURI).href] = resources[i]);
                         return SaxonJS.transform({
                             documentPool: pool,
-                            stylesheetLocation: "../dist/index.xsl.sef.json",
+                            stylesheetLocation: "../dist/ldh-editor.xsl.sef.json",
                             initialTemplate: "main",
                             logLevel: 10
                         }, "async");

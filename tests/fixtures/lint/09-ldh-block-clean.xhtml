@@ -1,0 +1,18 @@
+<div xmlns="http://www.w3.org/1999/xhtml" about="">
+    <p>Object blocks in storage form produce no issues.</p>
+    <div about="#chart1"
+            typeof="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart">
+        <span property="http://spinrdf.org/spin#query" resource="queries/population/#this"></span>
+        <span property="https://w3id.org/atomgraph/linkeddatahub#chartType" resource="https://w3id.org/atomgraph/client#BarChart"></span>
+        <span property="https://w3id.org/atomgraph/linkeddatahub#categoryVarName">country</span>
+        <span property="https://w3id.org/atomgraph/linkeddatahub#seriesVarName">population</span>
+    </div>
+    <ul>
+        <li>Nested:
+            <div about="#nested-view"
+                    typeof="https://w3id.org/atomgraph/linkeddatahub#View">
+                <span property="http://spinrdf.org/spin#query" resource="queries/population/#this"></span>
+            </div>
+        </li>
+    </ul>
+</div>

@@ -143,6 +143,34 @@
                 outline-offset: 2px;
             }
 
+/* Object blocks (RDF-defined islands): the placeholder div renders as a card;
+   its RDFa definition spans are invisible - only the injected rendering shows.
+   Focused = selected navigation target, mirroring the image island */
+            .rdfa-editor-content .rdfa-editor-island {
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                background: #fafafa;
+                padding: 8px 12px;
+                margin: 16px 0;
+            }
+
+.rdfa-editor-content .rdfa-editor-island > span[property] {
+                display: none;
+            }
+
+.rdfa-editor-content .rdfa-editor-island:focus {
+                outline: 2px solid rgba(33, 150, 243, 0.7);
+                outline-offset: 2px;
+            }
+
+.rdfa-editor-content .rdfa-editor-island.rdfa-editor-loading {
+                opacity: 0.5;
+            }
+
+.rdfa-editor-content .rdfa-editor-island [data-role="rendering"] table {
+                margin: 8px 0;
+            }
+
 /* Block chrome (drag handle) - ephemeral, data-role stripped on serialization */
             [data-role="chrome"] {
                 visibility: hidden;

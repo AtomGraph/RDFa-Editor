@@ -235,6 +235,9 @@ version="3.0">
                 <li class="slash-item" data-command="ol" role="option">Numbered list</li>
                 <li class="slash-item" data-command="figure" role="option">Figure&#x2026;</li>
                 <li class="slash-item" data-command="table" role="option">Table&#x2026;</li>
+                <!-- extension items (dispatched via local:run-extra-slash-command;
+                     the generic filter/arrow/Enter machinery applies untouched) -->
+                <xsl:call-template name="local:render-extra-slash-items"/>
             </ul>
         </div>
     </xsl:template>
@@ -358,7 +361,14 @@ version="3.0">
                         <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
                     </xsl:for-each>
                 </xsl:when>
-                <xsl:otherwise/>
+                <!-- extension commands (mirror the figure/table branches: teardown
+                     already ran, the extension re-arms insertHost itself) -->
+                <xsl:otherwise>
+                    <xsl:call-template name="local:run-extra-slash-command">
+                        <xsl:with-param name="command" select="$command"/>
+                        <xsl:with-param name="host" select="$host"/>
+                    </xsl:call-template>
+                </xsl:otherwise>
             </xsl:choose>
         </xsl:for-each>
     </xsl:template>
