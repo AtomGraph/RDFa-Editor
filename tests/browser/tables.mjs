@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { pickTerm } from './typeahead-helper.mjs';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:8080';
 
@@ -284,7 +285,7 @@ await page.evaluate(() => {
 await page.locator('#content table > tbody > tr:first-child > td').first()
     .click({ button: 'right', position: { x: 8, y: 8 } });
 await page.waitForTimeout(300);
-await page.selectOption('#overlay select[name=property]', 'http://purl.org/dc/terms/description');
+await pickTerm(page, 'property', 'http://purl.org/dc/terms/description', 'description');
 await page.click('#overlay button.spo-action');
 await page.waitForTimeout(120);
 assert('cellAnnotation', await page.evaluate(() =>

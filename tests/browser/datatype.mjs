@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { pickTerm, typeIri } from './typeahead-helper.mjs';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:8080';
 
@@ -63,8 +64,7 @@ const spanAttrs = (property) => page.evaluate(p => {
 // ---- 1. typed literal: xsd:date + machine-readable @content --------------------
 await selectText('Q4 2024');
 await rightClickSelection();
-await page.selectOption('#overlay select[name=property]', 'urn:rdfa-editor:custom');
-await page.fill('#overlay input[name=custom-property]', 'http://purl.org/dc/terms/date');
+await typeIri(page, 'property', 'http://purl.org/dc/terms/date');
 await page.selectOption('#overlay select[name=datatype]', XSD + 'date');
 await page.fill('#overlay input[name=value]', '2024-10-01');
 await page.click('#overlay button.spo-action');
@@ -86,7 +86,7 @@ await page.click('#output-modal .modal-close');
 // ---- 2. language-tagged literal (no datatype) ----------------------------------
 await selectText('information');
 await rightClickSelection();
-await page.selectOption('#overlay select[name=property]', 'http://purl.org/dc/terms/description');
+await pickTerm(page, 'property', 'http://purl.org/dc/terms/description', 'description');
 await page.fill('#overlay input[name=lang]', 'fr');
 await page.click('#overlay button.spo-action');
 await page.waitForTimeout(150);

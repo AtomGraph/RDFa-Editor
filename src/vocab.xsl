@@ -49,19 +49,6 @@ version="3.0">
         )[1] ! string(.)"/>
     </xsl:function>
 
-    <xsl:function name="local:ontology-label" as="xs:string">
-        <xsl:param name="vocab" as="document-node()"/>
-        <xsl:param name="href" as="xs:string"/>
-
-        <!-- bound outside the predicate: SaxonJS does not hoist the loop-invariant
-             call, and re-evaluating it per scanned element is quadratic -->
-        <xsl:variable name="ontology-uri" as="xs:string?" select="local:ontology-uri($vocab)"/>
-        <xsl:variable name="ontology" as="element()*"
-            select="$vocab/rdf:RDF/*[@rdf:about = $ontology-uri]"/>
-        <xsl:sequence select="($ontology/@dc11:title, $ontology/dc11:title, $ontology/@dct:title, $ontology/dct:title,
-            $ontology/@rdfs:label, $ontology/rdfs:label, $href)[1] ! string(.)"/>
-    </xsl:function>
-
     <!--
         Terms of the requested kind ('class' | 'property') as maps with 'uri' and 'label'.
         Descriptions are grouped by @rdf:about so striped vocabularies work; terms outside
@@ -86,24 +73,6 @@ version="3.0">
         </xsl:for-each-group>
     </xsl:function>
 
-    <!-- one optgroup per vocabulary; feeds both the typeof and the property selects.
-         $hrefs are absolute URIs resolved by the caller; in the browser they hit the
-         preloaded document pool, headless they are ordinary file URIs -->
-    <xsl:template name="local:vocab-options">
-        <xsl:param name="hrefs" as="xs:string*"/>
-        <xsl:param name="kind" as="xs:string"/>
-
-        <xsl:for-each select="$hrefs">
-            <xsl:variable name="vocab" as="document-node()" select="doc(.)"/>
-            <optgroup label="{local:ontology-label($vocab, .)}">
-                <xsl:for-each select="local:vocab-terms($vocab, $kind)">
-                    <xsl:sort select="?label"/>
-                    <option value="{?uri}">
-                        <xsl:value-of select="?label"/>
-                    </option>
-                </xsl:for-each>
-            </optgroup>
-        </xsl:for-each>
-    </xsl:template>
+    <!-- local:vocab-terms feeds the property and type typeaheads (typeahead.xsl) -->
 
 </xsl:stylesheet>
