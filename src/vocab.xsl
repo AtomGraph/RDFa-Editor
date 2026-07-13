@@ -53,8 +53,11 @@ version="3.0">
         <xsl:param name="vocab" as="document-node()"/>
         <xsl:param name="href" as="xs:string"/>
 
+        <!-- bound outside the predicate: SaxonJS does not hoist the loop-invariant
+             call, and re-evaluating it per scanned element is quadratic -->
+        <xsl:variable name="ontology-uri" as="xs:string?" select="local:ontology-uri($vocab)"/>
         <xsl:variable name="ontology" as="element()*"
-            select="$vocab/rdf:RDF/*[@rdf:about = local:ontology-uri($vocab)]"/>
+            select="$vocab/rdf:RDF/*[@rdf:about = $ontology-uri]"/>
         <xsl:sequence select="($ontology/@dc11:title, $ontology/dc11:title, $ontology/@dct:title, $ontology/dct:title,
             $ontology/@rdfs:label, $ontology/rdfs:label, $href)[1] ! string(.)"/>
     </xsl:function>
