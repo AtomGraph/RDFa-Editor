@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { pickTerm } from './typeahead-helper.mjs';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:8080';
 
@@ -308,7 +309,7 @@ await page.evaluate(() => {
 });
 await page.locator('#content > p', { hasText: 'official website' }).click({ button: 'right', position: { x: 25, y: 8 } });
 await page.waitForTimeout(300);
-await page.selectOption('#overlay select[name=property]', 'http://purl.org/dc/terms/description');
+await pickTerm(page, 'property', 'http://purl.org/dc/terms/description', 'description');
 await page.click('#overlay button.spo-action');
 await page.click('#parse-rdf');
 await page.waitForTimeout(300);
@@ -329,8 +330,10 @@ await page.waitForTimeout(300);
 results.blockAnnotation = {
     editorOpened: await page.evaluate(() =>
         getComputedStyle(document.getElementById('overlay')).display !== 'none'),
+    // edit pre-fill renders the committed typeahead button carrying the IRI
     propertyPrefilled: await page.evaluate(() =>
-        document.querySelector('#overlay select[name=property]').value === 'http://purl.org/dc/terms/title'),
+        document.querySelector('#overlay .typeahead-field[data-field=property] input[type=hidden]')?.value
+            === 'http://purl.org/dc/terms/title'),
     // the value field must not leak the block's chrome (⠿) glyph
     valueClean: await page.evaluate(() =>
         document.querySelector('#overlay input[name=value]').value === 'Demo document'),

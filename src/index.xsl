@@ -18,8 +18,9 @@ version="3.0">
     - RDFa2RDFXML-v3.xsl   RDFa 1.1 to RDF/XML extraction (pure XSLT, tested headless)
     - content-model.xsl    XHTML Strict content model as data (pure XSLT, include-free)
     - canonical-xhtml.xsl  canonical serialization form (pure XSLT, tested headless)
-    - vocab.xsl            generic ontology RDF/XML to dropdown options
+    - vocab.xsl            generic ontology RDF/XML to term maps
     - overlay.xsl          annotation form: rendering, reading, populating, visibility
+    - typeahead.xsl        autocomplete lookups for the property and type fields
     - annotate.xsl         right-click dispatch, apply/remove annotation, extraction modal
     - edit.xsl             XHTML editing: blocks, keyboard, toolbar, dialogs, drag-and-drop
     - tables.xsl           table blocks: insert dialog, row/column operations, cell traversal
@@ -35,6 +36,7 @@ version="3.0">
     <xsl:include href="lint-xhtml.xsl"/>
     <xsl:include href="vocab.xsl"/>
     <xsl:include href="overlay.xsl"/>
+    <xsl:include href="typeahead.xsl"/>
     <xsl:include href="annotate.xsl"/>
     <xsl:include href="edit.xsl"/>
     <xsl:include href="tables.xsl"/>

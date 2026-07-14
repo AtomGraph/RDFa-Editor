@@ -30,10 +30,6 @@ version="3.0">
     </xsl:template>
 
     <xsl:template name="local:render-overlay">
-        <!-- the host page preloaded these into the document pool under page-relative URIs -->
-        <xsl:variable name="vocab-uris" as="xs:string*"
-            select="$vocab-hrefs ! string(resolve-uri(., ixsl:location()))"/>
-
         <div id="overlay" class="rdfa-editor-ui" role="dialog" aria-modal="true" aria-label="RDFa annotation" style="display: none;">
             <div class="overlay-header">
                 <h3>RDFa Annotation</h3>
@@ -44,14 +40,7 @@ version="3.0">
                     <div id="stmt-subject" class="stmt-value"/>
                     <span class="stmt-role" title="Predicate">P</span>
                     <div class="stmt-control">
-                        <select name="property">
-                            <xsl:call-template name="local:vocab-options">
-                                <xsl:with-param name="hrefs" select="$vocab-uris"/>
-                                <xsl:with-param name="kind" select="'property'"/>
-                            </xsl:call-template>
-                            <option value="{$local:custom}">-- Custom property --</option>
-                        </select>
-                        <input type="text" name="custom-property" placeholder="Property IRI" style="display: none;"/>
+                        <xsl:sequence select="local:typeahead-field('property')"/>
                     </div>
                     <span class="stmt-role" title="Object">O</span>
                     <div class="stmt-control">
@@ -64,15 +53,7 @@ version="3.0">
                     <summary>Type, subject &amp; object</summary>
                     <fieldset>
                         <label>Entity type (typeof)</label>
-                        <select name="typeof">
-                            <option value="">(none)</option>
-                            <xsl:call-template name="local:vocab-options">
-                                <xsl:with-param name="hrefs" select="$vocab-uris"/>
-                                <xsl:with-param name="kind" select="'class'"/>
-                            </xsl:call-template>
-                            <option value="{$local:custom}">-- Custom type --</option>
-                        </select>
-                        <input type="text" name="custom-type" placeholder="Type IRI" style="display: none;"/>
+                        <xsl:sequence select="local:typeahead-field('typeof')"/>
                         <span class="helper-text">Types the annotated resource; without a subject the typed
                             resource becomes the object of the property (chaining)</span>
                     </fieldset>
@@ -122,8 +103,8 @@ version="3.0">
         <xsl:param name="form" as="element()"/>
 
         <xsl:map>
-            <xsl:map-entry key="'property'" select="local:select-or-custom($form, 'property', 'custom-property')"/>
-            <xsl:map-entry key="'typeof'" select="local:select-or-custom($form, 'typeof', 'custom-type')"/>
+            <xsl:map-entry key="'property'" select="local:typeahead-value($form, 'property')"/>
+            <xsl:map-entry key="'typeof'" select="local:typeahead-value($form, 'typeof')"/>
             <xsl:map-entry key="'subject'"
                 select="string(ixsl:get(($form//input[@name = 'subject'])[1], 'value'))[. ne '']"/>
             <xsl:map-entry key="'object'"
@@ -158,9 +139,22 @@ version="3.0">
         <xsl:for-each select="id('annotation-form', ixsl:page())">
             <xsl:variable name="form" as="element()" select="."/>
             <xsl:sequence select="ixsl:call(., 'reset', [])[current-date() lt xs:date('2000-01-01')]"/>
-            <xsl:for-each select=".//input[@name = ('custom-property', 'custom-type', 'custom-datatype')]">
+            <xsl:for-each select=".//input[@name = 'custom-datatype']">
                 <ixsl:set-style name="display" select="'none'"/>
             </xsl:for-each>
+            <!-- the typeahead widgets are not native controls, so form.reset() leaves
+                 them as they were: reset both explicitly (empty in create mode, the
+                 committed button in edit mode) -->
+            <xsl:call-template name="local:typeahead-set-value">
+                <xsl:with-param name="form" select="$form"/>
+                <xsl:with-param name="field" select="'property'"/>
+                <xsl:with-param name="iri" select="string($span/@property)"/>
+            </xsl:call-template>
+            <xsl:call-template name="local:typeahead-set-value">
+                <xsl:with-param name="form" select="$form"/>
+                <xsl:with-param name="field" select="'typeof'"/>
+                <xsl:with-param name="iri" select="string($span/@typeof)"/>
+            </xsl:call-template>
             <xsl:for-each select=".//button[tokenize(@class) = 'remove-action']">
                 <ixsl:set-style name="display" select="if (exists($span)) then 'inline-block' else 'none'"/>
             </xsl:for-each>
@@ -179,22 +173,6 @@ version="3.0">
             </xsl:for-each>
 
             <xsl:for-each select="$span">
-                <xsl:for-each select="@property">
-                    <xsl:call-template name="local:set-select-or-custom">
-                        <xsl:with-param name="form" select="$form"/>
-                        <xsl:with-param name="select-name" select="'property'"/>
-                        <xsl:with-param name="custom-name" select="'custom-property'"/>
-                        <xsl:with-param name="value" select="string(.)"/>
-                    </xsl:call-template>
-                </xsl:for-each>
-                <xsl:for-each select="@typeof">
-                    <xsl:call-template name="local:set-select-or-custom">
-                        <xsl:with-param name="form" select="$form"/>
-                        <xsl:with-param name="select-name" select="'typeof'"/>
-                        <xsl:with-param name="custom-name" select="'custom-type'"/>
-                        <xsl:with-param name="value" select="string(.)"/>
-                    </xsl:call-template>
-                </xsl:for-each>
                 <xsl:for-each select="$form//input[@name = 'subject']">
                     <ixsl:set-property name="value" select="string($span/@about)" object="."/>
                 </xsl:for-each>
@@ -352,26 +330,20 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <!-- the empty 'Custom' option reveals the free-text IRI input -->
-    <xsl:template match="select[@name = ('property', 'typeof', 'datatype')]" mode="ixsl:onchange">
-        <xsl:variable name="custom-name" as="xs:string"
-            select="if (@name = 'property') then 'custom-property'
-                else if (@name = 'typeof') then 'custom-type'
-                else 'custom-datatype'"/>
+    <!-- the datatype select's 'Custom' option reveals the free-text IRI input;
+         a chosen datatype wins over language, disabling the language input -->
+    <xsl:template match="select[@name = 'datatype']" mode="ixsl:onchange">
         <xsl:variable name="value" as="xs:string" select="string(ixsl:get(., 'value'))"/>
         <xsl:variable name="custom" as="xs:boolean" select="$value eq $local:custom"/>
-        <xsl:for-each select="ancestor::form//input[@name = $custom-name]">
+        <xsl:for-each select="ancestor::form//input[@name = 'custom-datatype']">
             <ixsl:set-style name="display" select="if ($custom) then 'block' else 'none'"/>
             <xsl:if test="$custom">
                 <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:if>
         </xsl:for-each>
-        <!-- datatype wins over language: a chosen datatype disables the language input -->
-        <xsl:if test="@name = 'datatype'">
-            <xsl:for-each select="ancestor::form//input[@name = 'lang']">
-                <ixsl:set-property name="disabled" select="$value ne ''" object="."/>
-            </xsl:for-each>
-        </xsl:if>
+        <xsl:for-each select="ancestor::form//input[@name = 'lang']">
+            <ixsl:set-property name="disabled" select="$value ne ''" object="."/>
+        </xsl:for-each>
     </xsl:template>
 
 </xsl:stylesheet>
