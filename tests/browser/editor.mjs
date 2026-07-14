@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { pickTerm } from './typeahead-helper.mjs';
 
@@ -296,6 +297,10 @@ results.canonicalSource = {
     clean: !/data-role|contenteditable|draggable|class=|aria-|⠿/.test(source.replace(/id="/g, '')),
     noId: !source.includes('id="'),
 };
+// the Download button saves the shown text as content.xhtml (client-side Blob)
+const [xhtmlDl] = await Promise.all([page.waitForEvent('download'), page.click('#output-download')]);
+results.canonicalSource.download = xhtmlDl.suggestedFilename() === 'content.xhtml'
+    && readFileSync(await xhtmlDl.path(), 'utf8') === source;
 await page.click('#output-modal .modal-close');
 
 // 16. annotation + extraction regression
@@ -320,6 +325,9 @@ results.annotation = {
     noChromeLiterals: !rdf.includes('⠿'),
     titleTriple: rdf.includes('Demo document'),
 };
+const [rdfDl] = await Promise.all([page.waitForEvent('download'), page.click('#output-download')]);
+results.annotation.download = rdfDl.suggestedFilename() === 'content.rdf'
+    && readFileSync(await rdfDl.path(), 'utf8') === rdf;
 
 // 17. block-level annotation: right-click an h1 that carries its own @property
 await page.click('#output-modal .modal-close').catch(() => {});

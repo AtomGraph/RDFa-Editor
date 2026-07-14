@@ -898,6 +898,27 @@
                 color: #333;
             }
 
+.rdfa-editor-ui #output-download {
+                position: absolute;
+                right: 60px;
+                top: 22px;
+                padding: 5px 14px;
+                border: 1px solid #2196f3;
+                border-radius: 4px;
+                background: white;
+                color: #2196f3;
+                font-size: 13px;
+                font-weight: 500;
+                font-family: inherit;
+                cursor: pointer;
+                transition: background-color 0.2s, color 0.2s;
+            }
+
+.rdfa-editor-ui #output-download:hover {
+                background: #2196f3;
+                color: white;
+            }
+
 .rdfa-editor-ui .modal-content h3 {
                 margin-top: 0;
                 color: #333;
