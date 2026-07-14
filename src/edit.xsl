@@ -2465,6 +2465,16 @@ version="3.0">
 
     <!-- ................................ view source ................................ -->
 
+    <!-- W3C Exclusive XML Canonicalization (the rdf:XMLLiteral value space) via the
+         xml-c14n lib on the host page - LinkedDataHub's ldh:canonicalize-xml ported.
+         parse-xml() is the XDM->DOM bridge: the lib walks browser DOM nodes, not
+         Saxon's temporary trees -->
+    <xsl:function name="local:canonicalize-xml" as="xs:string">
+        <xsl:param name="doc" as="document-node()"/>
+        <xsl:variable name="js-function" select="ixsl:eval('(function (doc) { return window[''xml-c14n-sync.js'']().createCanonicaliser(''http://www.w3.org/2001/10/xml-exc-c14n#WithComments'').canonicaliseSync(doc.documentElement); })')"/>
+        <xsl:sequence select="ixsl:call($js-function, 'call', [ (), $doc ])"/>
+    </xsl:function>
+
     <xsl:template match="button[@id = 'view-source']" mode="ixsl:onclick">
         <xsl:variable name="canonical" as="element()?">
             <xsl:call-template name="canonical-xhtml">
@@ -2473,7 +2483,7 @@ version="3.0">
         </xsl:variable>
         <xsl:call-template name="local:show-output">
             <xsl:with-param name="title" select="'Canonical XHTML+RDFa'"/>
-            <xsl:with-param name="text" select="serialize($canonical, map{ 'method': 'xml', 'indent': true() })"/>
+            <xsl:with-param name="text" select="local:canonicalize-xml(parse-xml(serialize($canonical, map{ 'method': 'xml' })))"/>
         </xsl:call-template>
     </xsl:template>
 
