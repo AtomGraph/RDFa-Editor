@@ -55,6 +55,60 @@ version="3.0">
         <xsl:sequence select="$node/ancestor-or-self::*[parent::*[contains-token(@class, 'rdfa-editor-content')]][1]"/>
     </xsl:function>
 
+    <!-- a block the drag layer picks up: a real %block element - never the
+         ephemeral run wrapper, never ephemera or anything inside it, never hr
+         (a void element cannot serialize the chrome span) - sitting where the
+         model places blocks: a region, a mixed flow container (li, dd, td, th,
+         div, figure, figcaption) or a blockquote. Top-level blocks satisfy this
+         by construction; every chrome and drag decision routes through here -->
+    <xsl:function name="local:draggable-block" as="xs:boolean">
+        <xsl:param name="element" as="element()?"/>
+        <xsl:sequence select="exists($element
+            [cm:block(local-name(.))][not(self::hr)]
+            [not(contains-token(@class, 'rdfa-editor-run'))]
+            [empty(ancestor-or-self::*[@data-role])]
+            [exists(local:root-of(.))]
+            [parent::*[contains-token(@class, 'rdfa-editor-content')
+                or cm:flow(local-name(.)) or self::blockquote]])"/>
+    </xsl:function>
+
+    <!-- the drag handle's owning block: chrome is its first child -->
+    <xsl:function name="local:handle-block" as="element()?">
+        <xsl:param name="handle" as="element()"/>
+        <xsl:sequence select="$handle/parent::*[local:draggable-block(.)]"/>
+    </xsl:function>
+
+    <!-- a container admits the dragged kind: the region takes any block (the
+         editor contract, deliberately outside content-model.xsl), everything
+         else per the DTD -->
+    <xsl:function name="local:container-accepts" as="xs:boolean">
+        <xsl:param name="container" as="element()"/>
+        <xsl:param name="block" as="element()"/>
+        <xsl:sequence select="contains-token($container/@class, 'rdfa-editor-content')
+            or cm:allows-child(local-name($container), local-name($block))"/>
+    </xsl:function>
+
+    <!-- the innermost draggable block under a pointer hit - never the dragged
+         block itself or anything inside it (its ancestors are fair targets:
+         dropping before/after an ancestor lifts the block out) -->
+    <xsl:function name="local:deepest-block-at" as="element()?">
+        <xsl:param name="hit"/>
+        <xsl:param name="dragged" as="element()?"/>
+        <xsl:sequence select="$hit/ancestor-or-self::*[local:draggable-block(.)]
+            [empty(ancestor-or-self::* intersect $dragged)][1]"/>
+    </xsl:function>
+
+    <!-- the drop level: the innermost block at or above the candidate whose
+         container legally accepts the dragged kind - an illegal drop clamps to
+         the nearest legal ancestor level instead of being created. The region
+         accepts any block, so the climb always terminates -->
+    <xsl:function name="local:legal-drop-level" as="element()?">
+        <xsl:param name="candidate" as="element()"/>
+        <xsl:param name="dragged" as="element()"/>
+        <xsl:sequence select="$candidate/ancestor-or-self::*[local:draggable-block(.)]
+            [local:container-accepts(parent::*, $dragged)][1]"/>
+    </xsl:function>
+
     <!-- the editable host containing a node (block, li or figcaption) -->
     <xsl:function name="local:host-of" as="element()?">
         <xsl:param name="node"/>
@@ -312,8 +366,9 @@ version="3.0">
     <!-- editability per the content model, recursively: an element is a text host
          while it allows text and holds no block children; mixed flow containers
          (li, td, dd, ... with blocks) and structural containers (blockquote, lists,
-         figure, table) lock their own markup and recurse into their parts. Chrome
-         and drag stay top-level affordances -->
+         figure, table) lock their own markup and recurse into their parts. Every
+         draggable block - nested ones included - carries its own chrome handle -->
+
     <xsl:template name="local:init-block">
         <xsl:param name="block" as="element()"/>
         <xsl:variable name="name" as="xs:string" select="local-name($block)"/>
@@ -354,7 +409,7 @@ version="3.0">
         <xsl:for-each select="$block/descendant-or-self::img[empty(ancestor::*[@contenteditable = 'true'])]">
             <ixsl:set-attribute name="tabindex" select="'-1'"/>
         </xsl:for-each>
-        <xsl:if test="$block/parent::*[contains-token(@class, 'rdfa-editor-content')]">
+        <xsl:if test="local:draggable-block($block)">
             <xsl:call-template name="local:inject-chrome">
                 <xsl:with-param name="block" select="$block"/>
             </xsl:call-template>
@@ -433,6 +488,29 @@ version="3.0">
         <xsl:param name="block" as="element()"/>
         <xsl:for-each select="$block/*[@data-role = 'chrome']">
             <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+    </xsl:template>
+
+    <!-- classList.remove leaves an empty @class behind, which would survive into
+         undo snapshots and canonical-comparison baselines as class="" noise -->
+    <xsl:template name="local:tidy-class">
+        <xsl:param name="element" as="element()"/>
+        <xsl:for-each select="$element[@class = '']">
+            <ixsl:remove-attribute name="class"/>
+        </xsl:for-each>
+    </xsl:template>
+
+    <!-- chrome convergence: every draggable block carries its handle. Init seeds
+         the loaded content; gestures that build nested blocks (split, indent,
+         paste, list insert) converge here via local:after-mutation instead of
+         each threading its own injection -->
+    <xsl:template name="local:ensure-chrome">
+        <xsl:param name="scope" as="element()*" select="local:roots()"/>
+        <xsl:for-each select="$scope/descendant::*[local:draggable-block(.)]
+                [empty(*[@data-role = 'chrome'])]">
+            <xsl:call-template name="local:inject-chrome">
+                <xsl:with-param name="block" select="."/>
+            </xsl:call-template>
         </xsl:for-each>
     </xsl:template>
 
@@ -2160,19 +2238,19 @@ version="3.0">
          permanently draggable contenteditable block breaks text selection -->
 
     <xsl:template match="span[contains-token(@class, 'drag-handle')]" mode="ixsl:onmousedown">
-        <xsl:for-each select="local:block-of(.)">
+        <xsl:for-each select="local:handle-block(.)">
             <ixsl:set-attribute name="draggable" select="'true'"/>
         </xsl:for-each>
     </xsl:template>
 
     <xsl:template match="span[contains-token(@class, 'drag-handle')]" mode="ixsl:onmouseup">
-        <xsl:for-each select="local:block-of(.)">
+        <xsl:for-each select="local:handle-block(.)">
             <ixsl:remove-attribute name="draggable"/>
         </xsl:for-each>
         <xsl:call-template name="local:disarm-sweep"/>
     </xsl:template>
 
-    <xsl:template match="*[parent::*[contains-token(@class, 'rdfa-editor-content')]][@draggable = 'true']" mode="ixsl:ondragstart">
+    <xsl:template match="*[@draggable = 'true'][local:draggable-block(.)]" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
         <!-- a block drag must never race an armed sweep -->
         <xsl:call-template name="local:disarm-sweep"/>
@@ -2196,11 +2274,12 @@ version="3.0">
     </xsl:template>
 
     <!-- images are natively draggable, so a drag starting on one would otherwise
-         carry no block identity and snap back; treat it as dragging its block -->
+         carry no block identity and snap back; treat it as dragging its innermost
+         draggable block (the figure, wherever it nests) -->
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')]//img" mode="ixsl:ondragstart">
         <xsl:variable name="transfer" select="ixsl:get(ixsl:event(), 'dataTransfer')"/>
         <xsl:call-template name="local:disarm-sweep"/>
-        <xsl:for-each select="local:block-of(.)">
+        <xsl:for-each select="ancestor-or-self::*[local:draggable-block(.)][1]">
             <ixsl:set-property name="draggedBlock" select="." object="local:editor-state()"/>
             <ixsl:set-property name="effectAllowed" select="'move'" object="$transfer"/>
             <xsl:sequence select="ixsl:call($transfer, 'setData', [ 'application/x-rdfa-editor-block', '' ])[current-date() lt xs:date('2000-01-01')]"/>
@@ -2218,8 +2297,12 @@ version="3.0">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <ixsl:set-property name="dropEffect" select="'move'" object="ixsl:get($event, 'dataTransfer')"/>
             <xsl:call-template name="local:clear-drop-marks"/>
+            <!-- a block target takes a before/after line; a cell target is entered
+                 whole, so it highlights as a box -->
             <xsl:sequence select="ixsl:call(ixsl:get($target, 'classList'), 'add',
-                [ if (local:drop-before($event, $target)) then 'drop-before' else 'drop-after' ])[current-date() lt xs:date('2000-01-01')]"/>
+                [ if (not(local:draggable-block($target))) then 'drop-into'
+                    else if (local:drop-before($event, $target)) then 'drop-before'
+                    else 'drop-after' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:if>
     </xsl:template>
 
@@ -2231,18 +2314,69 @@ version="3.0">
                 and local:has-transfer-type($event, 'application/x-rdfa-editor-block')">
             <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:call-template name="local:clear-drop-marks"/>
+            <!-- transient drag state must not reach the undo snapshot -->
+            <xsl:for-each select="$dragged">
+                <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
+                <ixsl:remove-attribute name="draggable"/>
+                <xsl:call-template name="local:tidy-class">
+                    <xsl:with-param name="element" select="."/>
+                </xsl:call-template>
+            </xsl:for-each>
             <xsl:call-template name="local:push-undo"/>
-            <xsl:sequence select="ixsl:call($target,
-                if (local:drop-before($event, $target)) then 'before' else 'after',
-                [ $dragged ])[current-date() lt xs:date('2000-01-01')]"/>
+            <!-- the vacated origin, captured before the move: the top-level block
+                 (husk-prune scope) and the nearest flow container (collapse
+                 candidate) - both empty for a top-level drag -->
+            <xsl:variable name="origin-block" as="element()?"
+                select="$dragged/parent::*[not(contains-token(@class, 'rdfa-editor-content'))]
+                    ! local:block-of(.)"/>
+            <xsl:variable name="origin-flow" as="element()?"
+                select="$dragged/ancestor::*[cm:flow(local-name(.))]
+                    [not(contains-token(@class, 'rdfa-editor-content'))]
+                    [exists(local:block-of(.))][1]"/>
+            <xsl:choose>
+                <xsl:when test="local:draggable-block($target)">
+                    <xsl:sequence select="ixsl:call($target,
+                        if (local:drop-before($event, $target)) then 'before' else 'after',
+                        [ $dragged ])[current-date() lt xs:date('2000-01-01')]"/>
+                </xsl:when>
+                <!-- into a cell: the text host becomes a container (its runs wrapped,
+                     the insert-block-at-caret flow doctrine) and the block appends -->
+                <xsl:otherwise>
+                    <xsl:for-each select="$target[@contenteditable = 'true']">
+                        <ixsl:remove-attribute name="contenteditable"/>
+                    </xsl:for-each>
+                    <xsl:call-template name="local:wrap-stray-runs">
+                        <xsl:with-param name="container" select="$target"/>
+                    </xsl:call-template>
+                    <xsl:sequence select="ixsl:call($target, 'appendChild', [ $dragged ])[current-date() lt xs:date('2000-01-01')]"/>
+                </xsl:otherwise>
+            </xsl:choose>
+            <!-- repair the origin: structural containers emptied by the lift-out go
+                 (a quote whose only block left - B7 doctrine), then a flow container
+                 that lost its last block reverts to a text host (both self-guard) -->
+            <xsl:for-each select="$origin-block[exists(local:root-of(.))]">
+                <xsl:call-template name="local:prune-husks">
+                    <xsl:with-param name="scope" select="."/>
+                </xsl:call-template>
+            </xsl:for-each>
+            <xsl:for-each select="$origin-flow[exists(local:root-of(.))]">
+                <xsl:call-template name="local:collapse-container">
+                    <xsl:with-param name="container" select="."/>
+                </xsl:call-template>
+            </xsl:for-each>
             <xsl:call-template name="local:after-mutation"/>
         </xsl:if>
     </xsl:template>
 
     <xsl:template match="*[contains-token(@class, 'rdfa-editor-content')] | *[contains-token(@class, 'rdfa-editor-content')]//*" mode="ixsl:ondragend">
-        <xsl:for-each select="local:block-of(.)">
+        <!-- clean the actually-dragged block (the event target of a nested drag
+             may be a descendant, so re-deriving from it would miss) -->
+        <xsl:for-each select="ixsl:get(local:editor-state(), 'draggedBlock')">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
             <ixsl:remove-attribute name="draggable"/>
+            <xsl:call-template name="local:tidy-class">
+                <xsl:with-param name="element" select="."/>
+            </xsl:call-template>
         </xsl:for-each>
         <xsl:call-template name="local:clear-drop-marks"/>
         <ixsl:set-property name="draggedBlock" select="()" object="local:editor-state()"/>
@@ -2256,10 +2390,14 @@ version="3.0">
         <xsl:sequence select="(if ($types instance of array(*)) then $types?* else $types) = $type"/>
     </xsl:function>
 
-    <!-- the block to drop relative to: the hit-tested block when there is one,
-         else the geometrically nearest block by vertical midpoint - so gaps between
-         blocks, the container padding and the (tall) dragged block itself are all
-         valid drop zones instead of snapping the drag back -->
+    <!-- the block to drop relative to: the innermost content-model-legal block
+         under the pointer (a nested drop lands where the model admits the dragged
+         kind, clamped upward to the nearest legal level otherwise - the resolver
+         never produces invalid nesting), else the geometrically nearest top-level
+         block by vertical midpoint - so gaps between blocks, the container padding
+         and the (tall) dragged block itself are all valid drop zones instead of
+         snapping the drag back. The gutter and gaps resolve top-level: dropping
+         there lifts a nested block all the way out -->
     <xsl:function name="local:drop-target-of" as="element()?">
         <xsl:param name="hit"/>
         <xsl:param name="event"/>
@@ -2267,11 +2405,25 @@ version="3.0">
         <!-- blocks never move between editable regions -->
         <xsl:variable name="root" as="element()?"
             select="($dragged ! local:root-of(.), local:root-of($hit))[1]"/>
-        <xsl:variable name="block" as="element()?"
-            select="local:block-of($hit)[local:root-of(.) is $root]"/>
+        <xsl:variable name="deepest" as="element()?"
+            select="local:deepest-block-at($hit, $dragged)[local:root-of(.) is $root]"/>
+        <!-- a cell's pixels are unambiguous - nothing can legally drop before or
+             after a td/th, so pointing into a cell (away from any block it holds)
+             drops INTO it. A list item stays a clamp to around-the-list instead:
+             its pixels compete with reordering next to the list, and Tab/indent
+             already move content into items -->
+        <xsl:variable name="cell" as="element()?"
+            select="$hit/ancestor-or-self::*[self::td or self::th]
+                [empty(ancestor-or-self::* intersect $dragged)]
+                [local:root-of(.) is $root][1]"/>
         <xsl:choose>
-            <xsl:when test="exists($block) and not(exists($dragged) and $block is $dragged)">
-                <xsl:sequence select="$block"/>
+            <xsl:when test="exists($cell) and exists($dragged)
+                    and cm:allows-child(local-name($cell), local-name($dragged))
+                    and empty($deepest/ancestor::* intersect $cell)">
+                <xsl:sequence select="$cell"/>
+            </xsl:when>
+            <xsl:when test="exists($deepest) and exists($dragged)">
+                <xsl:sequence select="local:legal-drop-level($deepest, $dragged)"/>
             </xsl:when>
             <!-- geometric fallback only within the dragged block's own region:
                  a pointer over another region is not a drop zone at all -->
@@ -2299,11 +2451,15 @@ version="3.0">
     </xsl:function>
 
     <xsl:template name="local:clear-drop-marks">
-        <xsl:param name="scope" as="element()*" select="local:roots()/*"/>
+        <xsl:param name="scope" as="element()*" select="local:roots()/descendant::*"/>
         <xsl:for-each select="$scope[contains-token(@class, 'drop-before')
-                or contains-token(@class, 'drop-after')]">
+                or contains-token(@class, 'drop-after') or contains-token(@class, 'drop-into')]">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-before' ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-after' ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'drop-into' ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:tidy-class">
+                <xsl:with-param name="element" select="."/>
+            </xsl:call-template>
         </xsl:for-each>
     </xsl:template>
 

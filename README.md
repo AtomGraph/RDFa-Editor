@@ -7,9 +7,10 @@ RDFa extraction and the document canonicalization are all XSLT.
 
 - **Structured-block editing** of any number of `.rdfa-editor-content` regions (p, h1–h3, lists, blockquote,
   pre, figure): Enter splits, Backspace merges, toolbar for block types / inline
-  formatting / links / figures, drag-handle and Alt+Arrow reordering, HTML paste through
-  a sanitizing canonicalization pipeline, unified snapshot undo/redo with caret
-  restoration.
+  formatting / links / figures, drag-handle and Alt+Arrow reordering — nested blocks
+  carry their own handles and drop wherever the XHTML content model admits them (out of
+  a list item or quote, into a table cell) — HTML paste through a sanitizing
+  canonicalization pipeline, unified snapshot undo/redo with caret restoration.
 - **RDFa annotation**: right-click a selection to assert a statement (S/P/O framing,
   vocabulary dropdowns fed by plain ontology RDF/XML files); right-click an annotation
   to edit or remove it.

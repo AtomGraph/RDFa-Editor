@@ -1,0 +1,62 @@
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title>RDFa Editor - nested drag-and-drop fixture</title>
+        <script type="text/javascript" src="../lib/SaxonJS3.js"></script>
+        <script type="text/javascript">
+            window.onload = function() {
+                const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+                Promise.all(vocabs.map(href =>
+                        SaxonJS.getResource({ location: "../" + href, type: "xml" })))
+                    .then(resources => {
+                        const pool = {};
+                        vocabs.forEach((href, i) =>
+                            pool[new URL(href, document.baseURI).href] = resources[i]);
+                        return SaxonJS.transform({
+                            documentPool: pool,
+                            stylesheetLocation: "../dist/index.xsl.sef.json",
+                            initialTemplate: "main",
+                            logLevel: 10
+                        }, "async");
+                    })
+                    .catch(err => console.log("Transformation failed: " + err));
+            }
+        </script>
+        <link rel="stylesheet" href="../rdfa-editor.css" type="text/css"/>
+        <style type="text/css">
+            body { padding-top: 70px; padding-bottom: 56px; }
+            .rdfa-editor-content { padding-left: 2.5em; }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <button id="parse-rdf">Extract RDF</button>
+        </nav>
+
+        <div id="content" class="rdfa-editor-content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
+            <h1 property="http://purl.org/dc/terms/title">Drag nesting demo</h1>
+            <p>Intro paragraph.</p>
+            <ul>
+                <li>Plain item</li>
+                <li>Object holder<div about="#note" typeof="https://example.org/ns#Note"><span property="https://example.org/ns#value">Note body</span></div></li>
+                <li><p>Block item</p><blockquote><p>Quote in item</p></blockquote></li>
+            </ul>
+            <p>Tail paragraph.</p>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><p>Cell para</p></td>
+                        <td>Plain cell</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- a second region: blocks never move between regions -->
+        <div id="embedded" class="rdfa-editor-content" about="#embedded">
+            <p>Embedded paragraph.</p>
+        </div>
+    </body>
+</html>
