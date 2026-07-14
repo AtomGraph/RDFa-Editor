@@ -72,7 +72,7 @@ results.quoteOn = await page.evaluate(() => {
     return {
         wrapped: !!bq && bq.querySelector(':scope > p')?.getAttribute('contenteditable') === 'true',
         chromeOnQuote: !!bq?.querySelector(':scope > [data-role=chrome]'),
-        noChromeOnP: !bq?.querySelector(':scope > p > [data-role=chrome]'),
+        chromeOnInnerP: !!bq?.querySelector(':scope > p > [data-role=chrome]'),
         notEditableItself: bq?.getAttribute('contenteditable') !== 'true',
     };
 });
@@ -309,7 +309,7 @@ results.insertListInCell = await page.evaluate(() => {
         cellIsContainer: td.getAttribute('contenteditable') !== 'true',
         textKeptAsRun: td.querySelector(':scope > p.rdfa-editor-run')?.textContent === 'Plain cell',
         runEditable: td.querySelector(':scope > p.rdfa-editor-run')?.getAttribute('contenteditable') === 'true',
-        noChromeInCell: !td.querySelector('[data-role=chrome]'),
+        chromeOnCellList: !!td.querySelector(':scope > ol > [data-role=chrome]'),
         notAfterTable: !document.querySelector('#content > table + ol'),
         caretInNewItem: td.querySelector(':scope > ol > li').contains(window.getSelection().anchorNode)
             || td.querySelector(':scope > ol > li') === window.getSelection().anchorNode,

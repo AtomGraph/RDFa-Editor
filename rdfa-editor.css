@@ -74,6 +74,12 @@
                 position: relative;
             }
 
+/* nested draggable blocks position their own handle (chrome is their first
+   child); handles stack per nesting level, each at its block's own indent */
+            .rdfa-editor-content *:has(> [data-role="chrome"]) {
+                position: relative;
+            }
+
 /* invisible gutter strip: keeps the block hovered while the pointer
                travels to the drag handle, which sits outside the block box */
             .rdfa-editor-content > *::before {
@@ -83,6 +89,23 @@
                 top: 0;
                 bottom: 0;
                 width: 2.25em;
+            }
+
+/* nested blocks get a narrower gutter, inside the parent's indentation */
+            .rdfa-editor-content > * *:has(> [data-role="chrome"])::before {
+                content: '';
+                position: absolute;
+                left: -1.5em;
+                top: 0;
+                bottom: 0;
+                width: 1.5em;
+            }
+
+/* a blockquote has no intrinsic child indentation, so its handle and its first
+   block's handle would coincide; the editing view indents quote content to give
+   each nesting level its own gutter column (lists and cells indent natively) */
+            .rdfa-editor-content blockquote {
+                padding-left: 1.75em;
             }
 
 /* the editing-DOM run wrapper (mixed flow content, e.g. <li>text<ul>...) renders
@@ -156,20 +179,20 @@
                 border: none;
             }
 
-.rdfa-editor-content > *:hover > [data-role="chrome"] {
+.rdfa-editor-content *:hover > [data-role="chrome"] {
                 visibility: visible;
             }
 
-/* Drag-and-drop feedback (v6 conventions) */
-            .rdfa-editor-content > .dragging {
+/* Drag-and-drop feedback (v6 conventions) - any nesting depth */
+            .rdfa-editor-content .dragging {
                 opacity: 0.4;
             }
 
-.rdfa-editor-content > .drop-before {
+.rdfa-editor-content .drop-before {
                 box-shadow: 0 -3px 0 0 #2196f3;
             }
 
-.rdfa-editor-content > .drop-after {
+.rdfa-editor-content .drop-after {
                 box-shadow: 0 3px 0 0 #2196f3;
             }
 

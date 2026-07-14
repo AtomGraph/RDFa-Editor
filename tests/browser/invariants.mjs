@@ -4,7 +4,8 @@
 // must satisfy properties that hold regardless of what the gesture did:
 //   I1 every non-ws text node sits inside an editable host (nothing uneditable)
 //   I2 hosts never nest (contenteditable inside contenteditable)
-//   I3 chrome only as a direct child of top-level blocks
+//   I3 chrome only as a child of a draggable block (a real %block - never a run
+//      wrapper - in a region, a flow container or a blockquote)
 //   I4 run wrappers are editable, marker-classed paragraphs inside containers
 //   I5 the lint badge stays hidden (editor gestures never produce invalid nesting)
 // and after the battery, undo unwinds back to the exact post-init baseline.
@@ -61,10 +62,18 @@ const invariants = () => page.evaluate(() => {
     // I2: no nested hosts
     for (const h of region.querySelectorAll('[contenteditable=true] [contenteditable=true]'))
         v.push('nested host: ' + h.tagName.toLowerCase());
-    // I3: chrome only on top-level blocks
-    for (const c of region.querySelectorAll('[data-role=chrome]'))
-        if (c.parentElement.parentElement !== region)
-            v.push('nested chrome in: ' + c.parentElement.tagName.toLowerCase());
+    // I3: chrome only on draggable blocks (a real %block, never a run wrapper,
+    // sitting in the region, a flow container or a blockquote)
+    const BLOCK = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'UL', 'OL', 'DL',
+        'PRE', 'BLOCKQUOTE', 'ADDRESS', 'FIELDSET', 'TABLE', 'FIGURE']);
+    const FLOW = new Set(['LI', 'DD', 'TD', 'TH', 'DIV', 'FIGURE', 'FIGCAPTION']);
+    for (const c of region.querySelectorAll('[data-role=chrome]')) {
+        const b = c.parentElement;
+        const ok = BLOCK.has(b.tagName) && !b.classList.contains('rdfa-editor-run')
+            && (b.parentElement === region || FLOW.has(b.parentElement.tagName)
+                || b.parentElement.tagName === 'BLOCKQUOTE');
+        if (!ok) v.push('stray chrome in: ' + b.tagName.toLowerCase());
+    }
     // I4: run wrappers are editable p's inside containers
     for (const r of region.querySelectorAll('.rdfa-editor-run')) {
         if (r.tagName !== 'P') v.push('run wrapper is ' + r.tagName.toLowerCase());
