@@ -1,9 +1,10 @@
 // Nested drag-and-drop: every %block carries its own handle wherever the content
 // model places blocks, and drops resolve to the innermost legal level - lifting a
 // nested block (incl. an RDFa object div) out of a list item, dropping a top-level
-// block into a container, clamping over illegal spots, staying region-scoped.
-// Real mouse gestures throughout (Playwright synthesizes HTML5 drag events from
-// mouse.down + moves). Runs against fixture-dragnest.html.
+// block into a container or INTO a table cell (a cell's pixels are unambiguous:
+// nothing drops before/after a td), clamping over illegal spots, staying
+// region-scoped. Real mouse gestures throughout (Playwright synthesizes HTML5
+// drag events from mouse.down + moves). Runs against fixture-dragnest.html.
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:8080';
@@ -238,7 +239,52 @@ await load();
     Object.assign(results.splitConverges, await settle(baseline));
 }
 
-// ==== S8: canonical serialization stays clean of nested chrome ===================
+// ==== S8: a paragraph drops INTO a text-only cell ================================
+// (nothing can legally drop before/after a td, so a cell's pixels mean "into":
+// the text host becomes a container - its text wrapped as a run - and the block
+// appends; hovering a block INSIDE a cell still places before/after that block)
+await load();
+{
+    const baseline = await baselineOf();
+    const cellPoint = await page.evaluate(() => {
+        const td = [...document.querySelectorAll('#content td')]
+            .find(t => t.textContent.includes('Plain cell'));
+        const r = td.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    });
+    await dragReal(await handleAt('#content > h1 + p'), cellPoint);
+    results.dropIntoCell = await page.evaluate(() => {
+        const td = [...document.querySelectorAll('#content td')]
+            .find(t => t.textContent.includes('Plain cell'));
+        return {
+            nested: !!td.querySelector(':scope > p:not(.rdfa-editor-run)')
+                && td.querySelector(':scope > p:not(.rdfa-editor-run)').textContent.includes('Intro paragraph'),
+            cellIsContainer: td.getAttribute('contenteditable') !== 'true',
+            textKeptAsRun: td.querySelector(':scope > p.rdfa-editor-run')?.textContent === 'Plain cell',
+            markCleared: !td.classList.contains('drop-into'),
+        };
+    });
+    Object.assign(results.dropIntoCell, await settle(baseline));
+}
+
+// ==== S9: a block inside a cell still takes precise before/after drops ===========
+await load();
+{
+    const baseline = await baselineOf();
+    await dragReal(await handleAt('#content > h1 + p'), await pointIn('#content td > p', 0.2));
+    results.dropBeforeCellBlock = await page.evaluate(() => {
+        const td = [...document.querySelectorAll('#content td')]
+            .find(t => t.textContent.includes('Cell para'));
+        const kids = [...td.children].filter(c => !c.hasAttribute('data-role'));
+        return {
+            placedBefore: kids.length === 2 && kids[0].textContent.includes('Intro paragraph')
+                && kids[1].textContent.includes('Cell para'),
+        };
+    });
+    Object.assign(results.dropBeforeCellBlock, await settle(baseline));
+}
+
+// ==== S10: canonical serialization stays clean of nested chrome ==================
 await load();
 {
     await page.click('#view-source');

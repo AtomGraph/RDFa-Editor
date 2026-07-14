@@ -196,6 +196,11 @@
                 box-shadow: 0 3px 0 0 #2196f3;
             }
 
+/* dropping INTO a cell highlights the cell itself, not an edge */
+            .rdfa-editor-content .drop-into {
+                box-shadow: inset 0 0 0 2px #2196f3;
+            }
+
 /* Editor toolbar (injected into the navbar) */
             #edit-toolbar {
                 order: -1;
