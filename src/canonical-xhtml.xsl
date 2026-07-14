@@ -29,8 +29,9 @@ version="3.0">
     RDFa attributes and pre whitespace are never touched; text is never reflowed.
 -->
 
-    <!-- serialization is the caller's job (view-source serialize(), test -o output);
-         no xsl:output here - it would conflict with the including stylesheet's -->
+    <!-- serialization is the caller's job (view-source runs exclusive XML c14n via
+         local:canonicalize-xml in edit.xsl, tests use -o output); no xsl:output
+         here - it would conflict with the including stylesheet's -->
     <xsl:mode name="canonical" on-no-match="shallow-copy"/>
     <xsl:mode name="cm-normalize" on-no-match="shallow-copy"/>
 
