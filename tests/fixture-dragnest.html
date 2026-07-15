@@ -3,7 +3,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-        <title>RDFa Editor - nesting fixture</title>
+        <title>RDFa Editor - nested drag-and-drop fixture</title>
         <script type="text/javascript" src="../lib/SaxonJS3.js"></script>
 		  <script type="text/javascript" src="../lib/xml-c14n-sync.js"></script>
         <script type="text/javascript">
@@ -17,7 +17,7 @@
                             pool[new URL(href, document.baseURI).href] = resources[i]);
                         return SaxonJS.transform({
                             documentPool: pool,
-                            stylesheetLocation: "../dist/ldh-editor.xsl.sef.json",
+                            stylesheetLocation: "../dist/index.xsl.sef.json",
                             initialTemplate: "main",
                             logLevel: 10
                         }, "async");
@@ -37,53 +37,27 @@
         </nav>
 
         <div id="content" class="rdfa-editor-content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
-            <h1 property="http://purl.org/dc/terms/title">Nesting demo</h1>
+            <h1 property="http://purl.org/dc/terms/title">Drag nesting demo</h1>
             <p>Intro paragraph.</p>
             <ul>
                 <li>Plain item</li>
-                <li>Mixed item<ul>
-                    <li>Sub one</li>
-                    <li>Sub two</li>
-                </ul></li>
+                <li>Object holder<div about="#note" typeof="https://example.org/ns#Note"><span property="https://example.org/ns#value">Note body</span></div></li>
                 <li><p>Block item</p><blockquote><p>Quote in item</p></blockquote></li>
             </ul>
-            <blockquote>Bare quote text to normalize.</blockquote>
-            <p>Before<ul><li>parser-fostered list</li></ul>after</p>
+            <p>Tail paragraph.</p>
             <table>
                 <tbody>
                     <tr>
-                        <td><p>Cell para</p><ul><li>cell item</li></ul></td>
+                        <td><p>Cell para</p></td>
                         <td>Plain cell</td>
                     </tr>
                 </tbody>
             </table>
-            <figure>
-                <img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="A placeholder image"/>
-                <figcaption>A caption for gestures</figcaption>
-            </figure>
         </div>
 
-        <!-- an embedded region wrapped in host-page structures: editor gesture
-             ancestor walks (Tab item/cell lookup, quote toggle) must clamp at the
-             region root and never mutate the host li/table/blockquote -->
-        <blockquote>
-            <table id="host-table">
-                <tbody>
-                    <tr>
-                        <td>
-                            <ul id="host-list">
-                                <li>host item before</li>
-                                <li>
-                                    <div id="embedded" class="rdfa-editor-content" about="#embedded">
-                                        <p>Embedded paragraph.</p>
-                                        <blockquote><p>Embedded quote.</p></blockquote>
-                                    </div>
-                                </li>
-                            </ul>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </blockquote>
+        <!-- a second region: blocks never move between regions -->
+        <div id="embedded" class="rdfa-editor-content" about="#embedded">
+            <p>Embedded paragraph.</p>
+        </div>
     </body>
 </html>

@@ -49,7 +49,7 @@ const base = `http://localhost:${server.address().port}`;
 console.log(`serving ${root} at ${base}`);
 
 let failed = 0;
-for (const suite of ['editor', 'features', 'fixes', 'hardening', 'multiinstance', 'tables', 'datatype', 'inspector', 'nesting', 'authoring', 'invariants', 'select', 'notion', 'typeahead', 'blocks']) {
+for (const suite of ['editor', 'features', 'fixes', 'hardening', 'multiinstance', 'tables', 'datatype', 'inspector', 'nesting', 'authoring', 'invariants', 'select', 'notion', 'typeahead', 'dragnest', 'blocks']) {
     console.log(`\n=== ${suite} ===`);
     const code = await new Promise(resolve => {
         const child = spawn(process.execPath, [fileURLToPath(new URL(`${suite}.mjs`, import.meta.url))],

@@ -53,9 +53,14 @@ results.init = await page.evaluate(() => {
         blockItemIsContainer: blockItem && !editable(blockItem),
         blockItemPEditable: editable(blockItem?.querySelector(':scope > p')),
         nestedQuotePEditable: editable(blockItem?.querySelector(':scope > blockquote > p')),
-        // drag handles are direct children of top-level blocks only, never nested deeper
-        noChromeBelowTopLevel: [...document.querySelectorAll('#content [data-role=chrome]')]
-            .every(c => c.parentElement.parentElement === document.getElementById('content')),
+        // drag handles on every draggable block - nested ones included - but
+        // never on list items, cells or run wrappers (they are not %block units)
+        chromeOnNestedBlocks: !!blockItem?.querySelector(':scope > p > [data-role=chrome]')
+            && !!blockItem?.querySelector(':scope > blockquote > [data-role=chrome]')
+            && !!mixed?.querySelector(':scope > ul > [data-role=chrome]'),
+        noChromeOnNonBlocks: ![...document.querySelectorAll('#content li, #content td')]
+            .some(el => [...el.children].some(c => c.getAttribute('data-role') === 'chrome'))
+            && !document.querySelector('#content p.rdfa-editor-run > [data-role=chrome]'),
         chromeOnTopLevel: !!document.querySelector('#content > ul > [data-role=chrome]'),
         cellIsContainer: cell && !editable(cell),
         cellPEditable: editable(cell?.querySelector(':scope > p')),
@@ -99,7 +104,8 @@ results.quoteEnter = await page.evaluate(() => {
     const bq = document.querySelector('#content > blockquote');
     return {
         splitIntoTwo: bq.querySelectorAll(':scope > p').length === 2,
-        noChromeInside: !bq.querySelector('p [data-role=chrome], :scope > p > [data-role=chrome]'),
+        chromeOnBothPs: [...bq.querySelectorAll(':scope > p')]
+            .every(p => !!p.querySelector(':scope > [data-role=chrome]')),
         caretInSecond: bq.querySelectorAll(':scope > p')[1].contains(window.getSelection().anchorNode),
     };
 });

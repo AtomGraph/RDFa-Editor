@@ -164,17 +164,16 @@ version="3.0">
         <xsl:for-each select="$root">
             <ixsl:set-property name="innerHTML" select="$snapshot" object="."/>
             <!-- the HTML fragment parser foster-parents non-table content out of a
-                 <table>, so a chrome span serialized inside a table lands as a bogus
-                 region child on restore. Drop the strays and re-inject (idempotent);
-                 must precede caret resolution, which indexes $root/* -->
-            <xsl:for-each select="*[@data-role = 'chrome']">
+                 <table>, so a chrome span serialized inside a (possibly nested)
+                 table lands astray on restore. Strip every handle and re-converge
+                 (deterministic: first-child prepend on each draggable block); must
+                 precede caret resolution, which indexes $root/* -->
+            <xsl:for-each select="descendant::*[@data-role = 'chrome']">
                 <xsl:sequence select="ixsl:call(., 'remove', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:for-each>
-            <xsl:for-each select="*">
-                <xsl:call-template name="local:inject-chrome">
-                    <xsl:with-param name="block" select="."/>
-                </xsl:call-template>
-            </xsl:for-each>
+            <xsl:call-template name="local:ensure-chrome">
+                <xsl:with-param name="scope" select="."/>
+            </xsl:call-template>
             <!-- snapshots carry island rendering markup, so restores are normally
                  render-stable; only islands captured mid-render (no rendering div -
                  async renderers inject it in the completion callback only) re-fire -->
@@ -193,9 +192,12 @@ version="3.0">
         <ixsl:set-property name="lastUndoTime" select="0" object="local:editor-state()"/>
         <!-- snapshots taken mid-drag may carry transient drag state -->
         <xsl:call-template name="local:clear-drop-marks"/>
-        <xsl:for-each select="$root/*[@draggable]">
+        <xsl:for-each select="$root/descendant::*[@draggable]">
             <ixsl:remove-attribute name="draggable"/>
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'dragging' ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:call-template name="local:tidy-class">
+                <xsl:with-param name="element" select="."/>
+            </xsl:call-template>
         </xsl:for-each>
         <!-- the caret stored with a snapshot is the caret of that state: restore it -->
         <xsl:variable name="block-index" as="xs:integer?" select="$caret[1]"/>
@@ -262,8 +264,10 @@ version="3.0">
         </xsl:if>
     </xsl:template>
 
-    <!-- the single post-mutation refresh hook: lint markers, live ToC, breadcrumb -->
+    <!-- the single post-mutation refresh hook: chrome convergence (a gesture may
+         have built nested draggable blocks), lint markers, live ToC, breadcrumb -->
     <xsl:template name="local:after-mutation">
+        <xsl:call-template name="local:ensure-chrome"/>
         <xsl:call-template name="local:run-lint"/>
         <xsl:if test="id('toc-drawer', ixsl:page()) ! (ixsl:get(., 'style.display') ne 'none')">
             <xsl:call-template name="local:render-toc"/>

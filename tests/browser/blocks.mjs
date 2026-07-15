@@ -70,9 +70,16 @@ const invariants = () => page.evaluate(() => {
         v.push('nested host: ' + h.tagName.toLowerCase());
     for (const h of region.querySelectorAll('.rdfa-editor-island [contenteditable=true]'))
         v.push('editable inside island: ' + h.tagName.toLowerCase());
-    for (const c of region.querySelectorAll('[data-role=chrome]'))
-        if (c.parentElement.parentElement !== region)
-            v.push('nested chrome in: ' + c.parentElement.tagName.toLowerCase());
+    const BLOCK = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'UL', 'OL', 'DL',
+        'PRE', 'BLOCKQUOTE', 'ADDRESS', 'FIELDSET', 'TABLE', 'FIGURE']);
+    const FLOW = new Set(['LI', 'DD', 'TD', 'TH', 'DIV', 'FIGURE', 'FIGCAPTION']);
+    for (const c of region.querySelectorAll('[data-role=chrome]')) {
+        const b = c.parentElement;
+        const ok = BLOCK.has(b.tagName) && !b.classList.contains('rdfa-editor-run')
+            && (b.parentElement === region || FLOW.has(b.parentElement.tagName)
+                || b.parentElement.tagName === 'BLOCKQUOTE');
+        if (!ok) v.push('stray chrome in: ' + b.tagName.toLowerCase());
+    }
     if (document.getElementById('lint-badge').style.display !== 'none')
         v.push('lint: ' + document.getElementById('lint-badge').textContent);
     return v;
@@ -97,7 +104,7 @@ const islandState = sel => page.evaluate(s => {
     };
 }, sel);
 
-// ==== A. init: islands locked, rendered, chrome top-level only ====================
+// ==== A. init: islands locked, rendered, chrome on every draggable block =========
 await load();
 const chartInit = await islandState(CHART);
 assert('init.chart.locked', chartInit.editable === null && chartInit.tabindex === '-1');
@@ -109,7 +116,7 @@ assert('init.chart.heading', await page.evaluate(s =>
 const nestedInit = await islandState(NESTED);
 assert('init.nested.locked', nestedInit.editable === null && nestedInit.tabindex === '-1');
 assert('init.nested.rendered', nestedInit.renderings === 1 && !nestedInit.loading);
-assert('init.nested.noChrome', nestedInit.chrome === 0);
+assert('init.nested.chrome', nestedInit.chrome === 1);
 assert('init.nested.liContainer', await page.evaluate(() => {
     const li = document.querySelector('#content li div.rdfa-editor-island').closest('li');
     return li.getAttribute('contenteditable') !== 'true'
@@ -230,7 +237,7 @@ assert('toolbar.nestedInsert', await page.evaluate(() => {
     const li = isl.closest('li');
     return !!li && li.getAttribute('contenteditable') !== 'true'
         && !!li.querySelector(':scope > p.rdfa-editor-run')
-        && !isl.querySelector('[data-role=chrome]');
+        && !!isl.querySelector(':scope > span[data-role=chrome]');
 }));
 await page.waitForSelector('#content div[about="#t-obj"] [data-role=rendering] table', { state: 'attached', timeout: 15000 });
 assert('toolbar.nestedHydrates', await page.evaluate(() =>

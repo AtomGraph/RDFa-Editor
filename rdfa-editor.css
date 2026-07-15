@@ -74,6 +74,12 @@
                 position: relative;
             }
 
+/* nested draggable blocks position their own handle (chrome is their first
+   child); handles stack per nesting level, each at its block's own indent */
+            .rdfa-editor-content *:has(> [data-role="chrome"]) {
+                position: relative;
+            }
+
 /* invisible gutter strip: keeps the block hovered while the pointer
                travels to the drag handle, which sits outside the block box */
             .rdfa-editor-content > *::before {
@@ -83,6 +89,27 @@
                 top: 0;
                 bottom: 0;
                 width: 2.25em;
+            }
+
+/* nested blocks get a narrower gutter, inside the parent's indentation */
+            .rdfa-editor-content > * *:has(> [data-role="chrome"])::before {
+                content: '';
+                position: absolute;
+                left: -1.5em;
+                top: 0;
+                bottom: 0;
+                width: 1.5em;
+            }
+
+/* a blockquote has no intrinsic child indentation, so its handle and its first
+   block's handle would coincide; the editing view indents quote content to give
+   each nesting level its own gutter column (lists and cells indent natively).
+   The quote bar (Markdown/Bootstrap convention) makes the container visible -
+   a normalized blockquote > p would otherwise read as a plain paragraph */
+            .rdfa-editor-content blockquote {
+                padding-left: 2em;
+                border-left: 4px solid #e0e0e0;
+                color: #616161;
             }
 
 /* the editing-DOM run wrapper (mixed flow content, e.g. <li>text<ul>...) renders
@@ -184,21 +211,26 @@
                 border: none;
             }
 
-.rdfa-editor-content > *:hover > [data-role="chrome"] {
+.rdfa-editor-content *:hover > [data-role="chrome"] {
                 visibility: visible;
             }
 
-/* Drag-and-drop feedback (v6 conventions) */
-            .rdfa-editor-content > .dragging {
+/* Drag-and-drop feedback (v6 conventions) - any nesting depth */
+            .rdfa-editor-content .dragging {
                 opacity: 0.4;
             }
 
-.rdfa-editor-content > .drop-before {
+.rdfa-editor-content .drop-before {
                 box-shadow: 0 -3px 0 0 #2196f3;
             }
 
-.rdfa-editor-content > .drop-after {
+.rdfa-editor-content .drop-after {
                 box-shadow: 0 3px 0 0 #2196f3;
+            }
+
+/* dropping INTO a cell highlights the cell itself, not an edge */
+            .rdfa-editor-content .drop-into {
+                box-shadow: inset 0 0 0 2px #2196f3;
             }
 
 /* Editor toolbar (injected into the navbar) */
@@ -892,6 +924,27 @@
 
 .rdfa-editor-ui .modal-close:hover {
                 color: #333;
+            }
+
+.rdfa-editor-ui #output-download {
+                position: absolute;
+                right: 60px;
+                top: 22px;
+                padding: 5px 14px;
+                border: 1px solid #2196f3;
+                border-radius: 4px;
+                background: white;
+                color: #2196f3;
+                font-size: 13px;
+                font-weight: 500;
+                font-family: inherit;
+                cursor: pointer;
+                transition: background-color 0.2s, color 0.2s;
+            }
+
+.rdfa-editor-ui #output-download:hover {
+                background: #2196f3;
+                color: white;
             }
 
 .rdfa-editor-ui .modal-content h3 {

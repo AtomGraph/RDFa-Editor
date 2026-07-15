@@ -69,9 +69,16 @@ const invariants = () => page.evaluate(() => {
     }
     for (const h of region.querySelectorAll('[contenteditable=true] [contenteditable=true]'))
         v.push('nested host: ' + h.tagName.toLowerCase());
-    for (const c of region.querySelectorAll('[data-role=chrome]'))
-        if (c.parentElement.parentElement !== region)
-            v.push('nested chrome in: ' + c.parentElement.tagName.toLowerCase());
+    const BLOCK = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'DIV', 'UL', 'OL', 'DL',
+        'PRE', 'BLOCKQUOTE', 'ADDRESS', 'FIELDSET', 'TABLE', 'FIGURE']);
+    const FLOW = new Set(['LI', 'DD', 'TD', 'TH', 'DIV', 'FIGURE', 'FIGCAPTION']);
+    for (const c of region.querySelectorAll('[data-role=chrome]')) {
+        const b = c.parentElement;
+        const ok = BLOCK.has(b.tagName) && !b.classList.contains('rdfa-editor-run')
+            && (b.parentElement === region || FLOW.has(b.parentElement.tagName)
+                || b.parentElement.tagName === 'BLOCKQUOTE');
+        if (!ok) v.push('stray chrome in: ' + b.tagName.toLowerCase());
+    }
     if (document.getElementById('lint-badge').style.display !== 'none')
         v.push('lint: ' + document.getElementById('lint-badge').textContent);
     return v;
@@ -189,7 +196,7 @@ assert('slash.figureInsideCell', await page.evaluate(() => {
     const td = document.querySelector('#content > table tr > td:nth-child(2)');
     const fig = td?.querySelector(':scope > figure');
     return !!fig && td.getAttribute('contenteditable') !== 'true'   // cell became a container
-        && !fig.querySelector('[data-role=chrome]')                  // nested: no drag handle
+        && !!fig.querySelector(':scope > [data-role=chrome]')        // nested blocks drag too
         && document.querySelectorAll('#content > figure').length === 1; // only the fixture's own
 }));
 await clean('slash.figure');
@@ -210,7 +217,7 @@ assert('slash.tableInsideLi', await page.evaluate(() => {
     const li = document.querySelector('#content > ul > li');
     const table = li?.querySelector(':scope > table');
     return !!table && li.getAttribute('contenteditable') !== 'true'
-        && !table.querySelector('[data-role=chrome]')
+        && !!table.querySelector(':scope > [data-role=chrome]')        // nested blocks drag too
         && document.querySelectorAll('#content > table').length === 1  // the fixture's own only
         && table.contains(window.getSelection().anchorNode);           // caret in the first cell
 }));
@@ -264,9 +271,10 @@ await page.waitForTimeout(80);
 assert('md.quoteWraps', await page.evaluate(() => {
     const q = [...document.querySelectorAll('#content > blockquote')].find(b => !b.textContent.includes('Bare quote'));
     const p = q?.querySelector(':scope > p');
+    const chrome = p?.querySelector(':scope > [data-role=chrome]');
     return !!p && p.getAttribute('contenteditable') === 'true'
-        && p.textContent === '' && !!q.querySelector(':scope > [data-role=chrome]')
-        && !p.querySelector('[data-role=chrome]');
+        && !!q.querySelector(':scope > [data-role=chrome]') && !!chrome
+        && p.textContent === chrome.textContent; // empty host bar its own handle
 }));
 await clean('md.quoteWraps');
 

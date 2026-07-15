@@ -7,14 +7,17 @@ RDFa extraction and the document canonicalization are all XSLT.
 
 - **Structured-block editing** of any number of `.rdfa-editor-content` regions (p, h1–h3, lists, blockquote,
   pre, figure): Enter splits, Backspace merges, toolbar for block types / inline
-  formatting / links / figures, drag-handle and Alt+Arrow reordering, HTML paste through
-  a sanitizing canonicalization pipeline, unified snapshot undo/redo with caret
-  restoration.
+  formatting / links / figures, drag-handle and Alt+Arrow reordering — nested blocks
+  carry their own handles and drop wherever the XHTML content model admits them (out of
+  a list item or quote, into a table cell) — HTML paste through a sanitizing
+  canonicalization pipeline, unified snapshot undo/redo with caret restoration.
 - **RDFa annotation**: right-click a selection to assert a statement (S/P/O framing,
   vocabulary dropdowns fed by plain ontology RDF/XML files); right-click an annotation
   to edit or remove it.
 - **Strictly W3C-conformant RDFa 1.1 extraction** to RDF/XML ("Extract RDF"), a
-  **canonical serialization** stripping all editing ephemera ("Source"), and
+  **canonical serialization** stripping all editing ephemera and emitting
+  [Exclusive XML Canonicalization](https://www.w3.org/TR/xml-exc-c14n/) — the
+  `rdf:XMLLiteral` value space ("Source"), and
   **RDFa lint** (unresolvable terms, unsafe markup, step-11 conflicts) surfaced as
   wavy underlines + a breadcrumb badge.
 - **Navigation**: ToC drawer (outline with section drag-reorder), breadcrumb bar with
@@ -56,8 +59,10 @@ See `CLAUDE.md` for the module map and conventions. The load-bearing pieces:
 `src/canonical-xhtml.xsl` (canonical + sanitized serialization form, pure XSLT),
 `src/lint-rdfa.xsl` (pure), and the IXSL modules `edit.xsl` / `annotate.xsl` /
 `overlay.xsl` / `navigate.xsl` / `undo.xsl` / `vocab.xsl`. The editor's stylesheet is
-self-contained: a host page provides one or more `.rdfa-editor-content` regions, `rdfa-editor.css`, and
-preloads the vocabulary documents into the SaxonJS document pool (see `index.html`).
+self-contained: a host page provides one or more `.rdfa-editor-content` regions, `rdfa-editor.css`,
+loads `lib/xml-c14n-sync.js` (the exclusive-c14n serializer the "Source" view uses — the same lib
+LinkedDataHub canonicalizes `rdf:XMLLiteral`s with), and preloads the vocabulary documents into the
+SaxonJS document pool (see `index.html`).
 
 ## Embedding in LinkedDataHub
 
