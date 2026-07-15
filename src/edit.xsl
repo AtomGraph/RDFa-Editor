@@ -2469,9 +2469,14 @@ version="3.0">
              after a td/th, so pointing into a cell (away from any block it holds)
              drops INTO it. A list item stays a clamp to around-the-list instead:
              its pixels compete with reordering next to the list, and Tab/indent
-             already move content into items -->
+             already move content into items. Only CONTENT cells qualify: a cell
+             inside ephemera or an island interior (a rendered chart or reference
+             card paints real tables) is external rendering, never a drop zone -
+             the pointer falls through to the island itself (before/after) -->
         <xsl:variable name="cell" as="element()?"
             select="$hit/ancestor-or-self::*[self::td or self::th]
+                [empty(ancestor-or-self::*[@data-role])]
+                [empty(ancestor::*[local:island(.)])]
                 [empty(ancestor-or-self::* intersect $dragged)]
                 [local:root-of(.) is $root][1]"/>
         <xsl:choose>

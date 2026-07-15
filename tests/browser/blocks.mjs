@@ -321,6 +321,54 @@ assert('copy.placeholderKept', copied.includes('typeof="https://w3id.org/atomgra
 assert('copy.ephemeraGone', !copied.includes('data-role') && !copied.includes('tabindex')
     && !copied.includes('rdfa-editor-island') && !copied.includes('contenteditable'));
 
+// ==== J. drops never land inside an island's rendered content ====================
+// real mouse gesture (Playwright synthesizes HTML5 drag events): drag a
+// paragraph's handle onto a td INSIDE the chart's rendered table - external
+// rendering is not a drop zone, the resolver falls through to the island
+// itself, so the paragraph lands before/after it (and never enters the
+// ephemeral subtree, where canonicalization would silently delete it)
+const handleAt = async selector => {
+    const block = await page.evaluate(sel => {
+        const r = document.querySelector(sel).getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }, selector);
+    await page.mouse.move(block.x, block.y);
+    return page.evaluate(sel => {
+        const r = document.querySelector(sel + ' > [data-role=chrome]').getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }, selector);
+};
+const dragReal = async (from, to) => {
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    for (let i = 1; i <= 8; i++)
+        await page.mouse.move(from.x + (to.x - from.x) * i / 8, from.y + (to.y - from.y) * i / 8);
+    await page.mouse.up();
+};
+await load();
+// both gesture endpoints must sit inside the viewport for real mouse events
+await page.evaluate(() => document.querySelector('#content > div.rdfa-editor-island[typeof]')
+    .scrollIntoView({ block: 'center' }));
+const from = await handleAt('#content > p:nth-of-type(1)'); // 'Before chart.'
+const to = await page.evaluate(() => {
+    const r = document.querySelector('#content > div.rdfa-editor-island[typeof] [data-role=rendering] tbody tr:last-child td')
+        .getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+});
+await dragReal(from, to);
+await page.waitForTimeout(150);
+assert('dropShield.aroundNotInside', await page.evaluate(() => {
+    const isl = document.querySelector('#content > div.rdfa-editor-island[typeof]');
+    const p = [...document.querySelectorAll('#content > p')].find(el => el.textContent.includes('Before chart.'));
+    return !!p && !isl.querySelector('p')
+        && (p.previousElementSibling === isl || p.nextElementSibling === isl);
+}));
+await clean('dropShield');
+await page.keyboard.press(undoKey);
+await page.waitForTimeout(150);
+assert('dropShield.undo', await page.evaluate(() =>
+    document.querySelectorAll('#content .rdfa-editor-island').length === 3));
+
 // ==== I. breadcrumb + toolbar state on a selected island ==========================
 await load();
 await caretIn('Before chart', -1);
