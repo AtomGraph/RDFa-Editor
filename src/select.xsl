@@ -172,8 +172,10 @@ version="3.0">
                 </xsl:otherwise>
             </xsl:choose>
         </xsl:variable>
-        <xsl:variable name="island" as="element()?" select="($raw?node/ancestor-or-self::*[local:island(.)])[1]"/>
-        <xsl:variable name="chrome" as="element()?" select="($raw?node/ancestor-or-self::*[@data-role])[1]"/>
+        <!-- one ancestor walk serves both probes: this runs per mousemove during a sweep -->
+        <xsl:variable name="ancestors" as="element()*" select="$raw?node/ancestor-or-self::*"/>
+        <xsl:variable name="island" as="element()?" select="($ancestors[local:island(.)])[1]"/>
+        <xsl:variable name="chrome" as="element()?" select="($ancestors[@data-role])[1]"/>
         <xsl:choose>
             <!-- a point inside an object-block island (its rendering or its RDFa
                  spans) escapes to just after the island: sweep anchors never sit
@@ -257,9 +259,7 @@ version="3.0">
         <xsl:variable name="target" as="node()?" select="ixsl:get($event, 'target')"/>
         <xsl:variable name="button" as="xs:double" select="number(ixsl:get($event, 'button'))"/>
         <xsl:if test="$button = 0 and empty($target/ancestor-or-self::*[@data-role])">
-            <xsl:variable name="selection" select="local:selection()"/>
-            <xsl:variable name="anchor-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-                then ixsl:get($selection, 'anchorNode') else ()"/>
+            <xsl:variable name="anchor-node" as="node()?" select="local:anchor-node()"/>
             <xsl:variable name="point" as="map(*)?" select="local:caret-at-point(
                 xs:double(ixsl:get($event, 'clientX')), xs:double(ixsl:get($event, 'clientY')))"/>
             <xsl:choose>
@@ -267,7 +267,7 @@ version="3.0">
                 <xsl:when test="ixsl:get($event, 'shiftKey') = true()
                         and exists(local:root-of($anchor-node)) and exists($point)">
                     <xsl:sequence select="ixsl:call($event, 'preventDefault', [])[current-date() lt xs:date('2000-01-01')]"/>
-                    <xsl:variable name="anchor-offset" as="xs:integer" select="xs:integer(ixsl:get($selection, 'anchorOffset'))"/>
+                    <xsl:variable name="anchor-offset" as="xs:integer" select="local:anchor-offset()"/>
                     <xsl:call-template name="local:extend-selection-to">
                         <xsl:with-param name="anchor-node" select="$anchor-node"/>
                         <xsl:with-param name="anchor-offset" select="$anchor-offset"/>

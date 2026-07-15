@@ -429,14 +429,14 @@ version="3.0">
     <xsl:template match="button[contains-token(@class, 'ldh-block-save')]" mode="ixsl:onclick">
         <xsl:variable name="dialog" as="element()" select="ancestor::div[@id = 'ldh-block-dialog']"/>
         <xsl:variable name="type" as="xs:string" select="string(ixsl:get(($dialog//select[@name = 'block-type-iri'])[1], 'value'))"/>
-        <xsl:variable name="about" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'about'])[1], 'value')))"/>
-        <xsl:variable name="reference-uri" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'reference-uri'])[1], 'value')))"/>
-        <xsl:variable name="view-query" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'view-query'])[1], 'value')))"/>
-        <xsl:variable name="view-mode" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'view-mode'])[1], 'value')))"/>
-        <xsl:variable name="chart-query" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'chart-query'])[1], 'value')))"/>
+        <xsl:variable name="about" as="xs:string" select="normalize-space(local:input-value($dialog, 'about'))"/>
+        <xsl:variable name="reference-uri" as="xs:string" select="normalize-space(local:input-value($dialog, 'reference-uri'))"/>
+        <xsl:variable name="view-query" as="xs:string" select="normalize-space(local:input-value($dialog, 'view-query'))"/>
+        <xsl:variable name="view-mode" as="xs:string" select="normalize-space(local:input-value($dialog, 'view-mode'))"/>
+        <xsl:variable name="chart-query" as="xs:string" select="normalize-space(local:input-value($dialog, 'chart-query'))"/>
         <xsl:variable name="chart-type" as="xs:string" select="string(ixsl:get(($dialog//select[@name = 'chart-type'])[1], 'value'))"/>
-        <xsl:variable name="chart-category" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'chart-category'])[1], 'value')))"/>
-        <xsl:variable name="chart-series" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'chart-series'])[1], 'value')))"/>
+        <xsl:variable name="chart-category" as="xs:string" select="normalize-space(local:input-value($dialog, 'chart-category'))"/>
+        <xsl:variable name="chart-series" as="xs:string" select="normalize-space(local:input-value($dialog, 'chart-series'))"/>
         <xsl:variable name="reference" as="xs:boolean" select="$type = 'urn:rdfa-editor:reference'"/>
         <xsl:variable name="valid" as="xs:boolean" select="
             if ($reference) then local:is-absolute-iri($reference-uri)

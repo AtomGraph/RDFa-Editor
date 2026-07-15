@@ -31,10 +31,7 @@ version="3.0">
 
     <!-- the cell the caret is in: selection first, then the last focused host -->
     <xsl:function name="local:current-cell" as="element()?">
-        <xsl:variable name="selection" select="local:selection()"/>
-        <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode') else ()"/>
-        <xsl:sequence select="($anchor ! local:cell-of(.),
+        <xsl:sequence select="(local:anchor-node() ! local:cell-of(.),
             ixsl:get(local:editor-state(), 'activeBlock') ! local:cell-of(.))[1][exists(local:block-of(.))]"/>
     </xsl:function>
 
@@ -158,13 +155,13 @@ version="3.0">
 
     <xsl:template match="button[contains-token(@class, 'table-save')]" mode="ixsl:onclick">
         <xsl:variable name="dialog" as="element()" select="ancestor::div[@id = 'table-dialog']"/>
-        <xsl:variable name="rows-raw" as="xs:string" select="string(ixsl:get(($dialog//input[@name = 'rows'])[1], 'value'))"/>
-        <xsl:variable name="cols-raw" as="xs:string" select="string(ixsl:get(($dialog//input[@name = 'cols'])[1], 'value'))"/>
+        <xsl:variable name="rows-raw" as="xs:string" select="local:input-value($dialog, 'rows')"/>
+        <xsl:variable name="cols-raw" as="xs:string" select="local:input-value($dialog, 'cols')"/>
         <xsl:if test="$rows-raw castable as xs:integer and $cols-raw castable as xs:integer">
             <xsl:variable name="rows" as="xs:integer" select="min((max((xs:integer($rows-raw), 1)), 50))"/>
             <xsl:variable name="cols" as="xs:integer" select="min((max((xs:integer($cols-raw), 1)), 20))"/>
             <xsl:variable name="header" as="xs:boolean" select="boolean(ixsl:get(($dialog//input[@name = 'header-row'])[1], 'checked'))"/>
-            <xsl:variable name="caption-text" as="xs:string" select="string(ixsl:get(($dialog//input[@name = 'caption'])[1], 'value'))"/>
+            <xsl:variable name="caption-text" as="xs:string" select="local:input-value($dialog, 'caption')"/>
             <xsl:call-template name="local:push-undo"/>
             <xsl:variable name="table" as="element()" select="local:element('table')"/>
             <xsl:if test="$caption-text ne ''">
