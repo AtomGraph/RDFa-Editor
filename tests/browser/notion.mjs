@@ -98,7 +98,9 @@ await page.waitForTimeout(150);
 assert('slash.opens', await visible('slash-menu'));
 assert('slash.filterFocused', await page.evaluate(() =>
     document.activeElement.classList.contains('slash-filter')));
-assert('slash.allCommandsAtTopLevel', (await shownCommands()).length === 10);
+// 10 core commands + the LDH extension's "Block…" (fixture-nesting runs the
+// ldh-editor SEF, proving the extension layers without disturbing core behavior)
+assert('slash.allCommandsAtTopLevel', (await shownCommands()).length === 11);
 
 // filter narrows to a single command
 await page.fill('#slash-menu input.slash-filter', 'quote');
@@ -164,7 +166,7 @@ await load();
 await emptyHost('Plain item');
 await page.keyboard.type('/');
 await page.waitForTimeout(120);
-assert('slash.liContext', JSON.stringify(await shownCommands()) === '["figure","table"]');
+assert('slash.liContext', JSON.stringify(await shownCommands()) === '["figure","table","ldh-block"]');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(80);
 assert('slash.escapeCloses', !(await visible('slash-menu'))
@@ -175,7 +177,7 @@ await load();
 await emptyHost('Cell para');
 await page.keyboard.type('/');
 await page.waitForTimeout(120);
-assert('slash.cellContext', (await shownCommands()).length === 10);
+assert('slash.cellContext', (await shownCommands()).length === 11);
 await page.keyboard.press('Escape');
 
 // figure command routes to the existing dialog; placement follows the content

@@ -27,6 +27,10 @@ jobs:
                   mkdir -p _site
                   cp index.html rdfa-editor.css _site/
                   cp -r lib dist vocabs _site/
+                  # core editor only: the LinkedDataHub-extended flavor (demo/ +
+                  # its SEF) needs the content-negotiating dev server (serve.mjs)
+                  # and is never deployed to Pages
+                  rm -f _site/dist/ldh-editor.xsl.sef.json
             - name: Publish to gh-pages branch
               uses: peaceiris/actions-gh-pages@v4
               with:

@@ -3,8 +3,12 @@
 mkdir -p build
 find src -maxdepth 1 -type f -name "*.xsl" -exec sh -c 'xmlstarlet c14n "$1" > "build/$(basename "$1")"' x {} \;
 
-# compile the client stylesheet to SEF. -relocate:on means relative document() hrefs
+# compile the client stylesheets to SEF. -relocate:on means relative document() hrefs
 # resolve against the SEF load location, i.e. dist/ — hence the vocabs/ copy below.
+# Two flavors: the CORE editor (index.xsl → dist/index.xsl.sef.json, deployed to
+# GitHub Pages) and the LinkedDataHub-extended editor (ldh-editor.xsl →
+# dist/ldh-editor.xsl.sef.json, used by demo/ and the browser tests — local only,
+# its object blocks need the content-negotiating dev server).
 
 echo "Generating SEF file from src/index.xsl..."
 
@@ -13,6 +17,17 @@ npx xslt3-he -t -xsl:./build/index.xsl -export:./dist/index.xsl.sef.json -nogo -
 
 if [ $? -eq 0 ]; then
     echo "✓ SEF file generated successfully: dist/index.xsl.sef.json"
+else
+    echo "✗ Error generating SEF file"
+    exit 1
+fi
+
+echo "Generating SEF file from src/ldh-editor.xsl..."
+
+npx xslt3-he -t -xsl:./build/ldh-editor.xsl -export:./dist/ldh-editor.xsl.sef.json -nogo -ns:##html5 -relocate:on
+
+if [ $? -eq 0 ]; then
+    echo "✓ SEF file generated successfully: dist/ldh-editor.xsl.sef.json"
 else
     echo "✗ Error generating SEF file"
     exit 1

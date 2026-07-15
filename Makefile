@@ -4,9 +4,9 @@
 PORT ?= 8000
 
 # Bring up the editor locally: build the SEF, then serve on http://localhost:$(PORT)
+# (serve.mjs content-negotiates document URIs — required for the object-block demo)
 up: sef
-	@echo "Serving http://localhost:$(PORT)/index.html — Ctrl-C to stop"
-	python3 -m http.server $(PORT)
+	node serve.mjs $(PORT)
 
 # Compile src/*.xsl to the SaxonJS SEF (dist/index.xsl.sef.json) and copy vocabs
 sef:

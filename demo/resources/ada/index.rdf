@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:foaf="http://xmlns.com/foaf/0.1/">
+    <!-- served by content negotiation at the document URI .../resources/ada/
+         so "#this" resolves to .../resources/ada/#this -->
+    <foaf:Person rdf:about="#this">
+        <rdfs:label>Ada Lovelace</rdfs:label>
+        <foaf:name>Ada Lovelace</foaf:name>
+        <foaf:birthday>1815-12-10</foaf:birthday>
+        <foaf:interest rdf:resource="http://dbpedia.org/resource/Analytical_Engine"/>
+        <foaf:knows rdf:resource="http://dbpedia.org/resource/Charles_Babbage"/>
+    </foaf:Person>
+</rdf:RDF>

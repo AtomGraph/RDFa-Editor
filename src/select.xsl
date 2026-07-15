@@ -131,6 +131,16 @@ version="3.0">
         <xsl:for-each select="(ixsl:get($work, 'endContainer')/ancestor-or-self::*[@data-role])[1]">
             <xsl:sequence select="ixsl:call($work, 'setEndBefore', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
+        <!-- a boundary inside an object-block island moves out of it (after the
+             chrome escape - the rendering div is chrome inside the island):
+             islands join a selection whole, so the delete machine and canonical
+             copy never see a boundary inside one -->
+        <xsl:for-each select="(ixsl:get($work, 'startContainer')/ancestor-or-self::*[local:island(.)])[1]">
+            <xsl:sequence select="ixsl:call($work, 'setStartBefore', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
+        <xsl:for-each select="(ixsl:get($work, 'endContainer')/ancestor-or-self::*[local:island(.)])[1]">
+            <xsl:sequence select="ixsl:call($work, 'setEndAfter', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:for-each>
         <xsl:sequence select="$work"/>
     </xsl:function>
 
@@ -162,8 +172,18 @@ version="3.0">
                 </xsl:otherwise>
             </xsl:choose>
         </xsl:variable>
+        <xsl:variable name="island" as="element()?" select="($raw?node/ancestor-or-self::*[local:island(.)])[1]"/>
         <xsl:variable name="chrome" as="element()?" select="($raw?node/ancestor-or-self::*[@data-role])[1]"/>
         <xsl:choose>
+            <!-- a point inside an object-block island (its rendering or its RDFa
+                 spans) escapes to just after the island: sweep anchors never sit
+                 inside islands - checked first, the rendering div is chrome
+                 inside the island -->
+            <xsl:when test="exists($island)">
+                <xsl:sequence select="map{
+                    'node': $island/parent::node(),
+                    'offset': count($island/preceding-sibling::node()) + 1 }"/>
+            </xsl:when>
             <xsl:when test="exists($chrome)">
                 <xsl:sequence select="map{
                     'node': $chrome/parent::node(),
@@ -532,9 +552,11 @@ version="3.0">
                             [local:covered-by(., $work)]
                             [not(local:covered-by((ancestor::*[self::table or self::figure])[last()], $work))]"/>
                     <!-- flow containers of the edge blocks touched by the range:
-                         after the removals they may have lost their last block -->
+                         after the removals they may have lost their last block
+                         (never an island - a div island must not become a text host) -->
                     <xsl:variable name="collapse-candidates" as="element()*" select="
                         $partial-blocks/descendant::*[cm:flow(local-name(.))][not(self::figure)]
+                            [not(local:island(.))]
                             [not(@contenteditable = 'true')]
                             [ixsl:call($work, 'intersectsNode', [ . ])]"/>
                     <!-- caret fallbacks for a fully-covered sweep: the untouched
@@ -647,6 +669,17 @@ version="3.0">
                                     <xsl:with-param name="offset" select="local:chrome-count(.)"/>
                                 </xsl:call-template>
                             </xsl:for-each>
+                        </xsl:when>
+                        <!-- a neighboring island has no host to land in: select it -->
+                        <xsl:when test="local:island($next-block)">
+                            <xsl:call-template name="local:select-island">
+                                <xsl:with-param name="element" select="$next-block"/>
+                            </xsl:call-template>
+                        </xsl:when>
+                        <xsl:when test="local:island($prev-block)">
+                            <xsl:call-template name="local:select-island">
+                                <xsl:with-param name="element" select="$prev-block"/>
+                            </xsl:call-template>
                         </xsl:when>
                         <xsl:otherwise>
                             <xsl:for-each select="local:last-host-in($prev-block)">

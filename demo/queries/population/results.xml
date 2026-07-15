@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sparql xmlns="http://www.w3.org/2005/sparql-results#">
+    <head>
+        <variable name="country"/>
+        <variable name="population"/>
+    </head>
+    <results>
+        <result>
+            <binding name="country"><literal>India</literal></binding>
+            <binding name="population"><literal datatype="http://www.w3.org/2001/XMLSchema#integer">1428627663</literal></binding>
+        </result>
+        <result>
+            <binding name="country"><literal>China</literal></binding>
+            <binding name="population"><literal datatype="http://www.w3.org/2001/XMLSchema#integer">1425671352</literal></binding>
+        </result>
+        <result>
+            <binding name="country"><literal>United States</literal></binding>
+            <binding name="population"><literal datatype="http://www.w3.org/2001/XMLSchema#integer">339996563</literal></binding>
+        </result>
+        <result>
+            <binding name="country"><literal>Indonesia</literal></binding>
+            <binding name="population"><literal datatype="http://www.w3.org/2001/XMLSchema#integer">277534122</literal></binding>
+        </result>
+        <result>
+            <binding name="country"><literal>Pakistan</literal></binding>
+            <binding name="population"><literal datatype="http://www.w3.org/2001/XMLSchema#integer">240485658</literal></binding>
+        </result>
+    </results>
+</sparql>

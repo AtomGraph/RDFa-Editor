@@ -1,0 +1,123 @@
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
+        <title>RDFa Editor — LinkedDataHub blocks demo</title>
+        <script type="text/javascript" src="../lib/SaxonJS3.js"></script>
+        <script type="text/javascript" src="../lib/xml-c14n-sync.js"></script>
+        <script type="text/javascript">
+            window.onload = function() {
+                // preload the vocabulary documents into the SaxonJS document pool,
+                // keyed by the page-relative URI the stylesheet resolves - the pool
+                // satisfies doc() before any fetch (fixture-nesting.html precedent)
+                const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+                Promise.all(vocabs.map(href =>
+                        SaxonJS.getResource({ location: "../" + href, type: "xml" })))
+                    .then(resources => {
+                        const pool = {};
+                        vocabs.forEach((href, i) =>
+                            pool[new URL(href, document.baseURI).href] = resources[i]);
+                        return SaxonJS.transform({
+                            documentPool: pool,
+                            stylesheetLocation: "../dist/ldh-editor.xsl.sef.json",
+                            initialTemplate: "main",
+                            logLevel: 10
+                        }, "async");
+                    })
+                    .catch(err => console.log("Transformation failed: " + err));
+            }
+        </script>
+        <link rel="stylesheet" href="../rdfa-editor.css" type="text/css"/>
+        <style type="text/css">
+            html, body { margin: 0; }
+            body {
+                font-family: "Roboto", sans-serif;
+                padding-top: 70px;    /* account for the fixed navbar */
+                padding-bottom: 56px; /* account for the fixed breadcrumb bar */
+            }
+            nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                padding: 12px 20px;
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                gap: 8px;
+                z-index: 1000;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            .nav-btn {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                font-family: "Roboto", sans-serif;
+                background-color: #2196f3;
+                color: white;
+            }
+            .nav-btn:hover { background-color: #1976d2; }
+            .rdfa-editor-content {
+                margin: 0;
+                min-height: calc(100vh - 70px - 56px);
+                padding: 32px 48px 48px 48px; /* left >= 2.5em keeps the drag-handle gutter */
+                border: none;
+                background: white;
+                box-sizing: border-box;
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <button id="parse-rdf" class="nav-btn">Extract RDF</button>
+        </nav>
+
+        <div id="content" class="rdfa-editor-content" about="" typeof="http://schema.org/Article">
+            <h1 property="http://purl.org/dc/terms/title">LinkedDataHub blocks in the editor</h1>
+
+            <p>This page runs the editor with the <strong>LinkedDataHub blocks
+                extension</strong>: blocks defined purely in RDF — queries, charts, referenced
+                resources — embedded wherever an ordinary XHTML block can go. Each one is
+                stored as a few RDFa attributes; the rendering below is fetched and drawn on
+                the fly (content-negotiated from this server) and is never saved with the
+                page. Check <strong>Source</strong> in the toolbar to see the storage form,
+                or <strong>Extract RDF</strong> for the triples.</p>
+
+            <h2>A chart block</h2>
+            <p>A <code>ldh:ResultSetChart</code> pointing at a SPARQL query document:</p>
+
+            <div about="#population-chart"
+                    typeof="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart">
+                <span property="http://spinrdf.org/spin#query" resource="queries/population/#this"></span>
+                <span property="https://w3id.org/atomgraph/linkeddatahub#chartType" resource="https://w3id.org/atomgraph/client#BarChart"></span>
+                <span property="https://w3id.org/atomgraph/linkeddatahub#categoryVarName">country</span>
+                <span property="https://w3id.org/atomgraph/linkeddatahub#seriesVarName">population</span>
+            </div>
+
+            <h2>Blocks nest per the content model</h2>
+            <p>Anywhere a block element is allowed, an object block is allowed — here a
+                <em>reference block</em> embedding Ada Lovelace by her DBpedia URI: an empty
+                <code>div</code> whose <code>about</code> names the resource directly, no
+                <code>ldh:Object</code> wrapper, no <code>rdf:value</code> indirection —
+                the editor dereferences the URI (content negotiation, CORS) and renders
+                the description on the fly:</p>
+            <ul>
+                <li>Author of the analytical engine notes:
+                    <div about="http://dbpedia.org/resource/Ada_Lovelace"></div>
+                </li>
+                <li>Ordinary list items edit as usual around it.</li>
+            </ul>
+
+            <p>Try it: press <strong>/</strong> in an empty paragraph and pick "Block…", or
+                use the ▦ toolbar button. Select a block with the arrow keys, delete it with
+                Backspace, undo with Ctrl/Cmd+Z — it behaves as one atomic unit.</p>
+        </div>
+    </body>
+</html>

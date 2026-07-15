@@ -174,6 +174,12 @@ version="3.0">
             <xsl:call-template name="local:ensure-chrome">
                 <xsl:with-param name="scope" select="."/>
             </xsl:call-template>
+            <!-- snapshots carry island rendering markup, so restores are normally
+                 render-stable; only islands captured mid-render (no rendering div -
+                 async renderers inject it in the completion callback only) re-fire -->
+            <xsl:for-each select="descendant-or-self::*[local:island(.)][empty(*[@data-role = 'rendering'])]">
+                <xsl:apply-templates select="." mode="local:render-island"/>
+            </xsl:for-each>
         </xsl:for-each>
         <!-- every stored node reference is stale now -->
         <xsl:call-template name="local:hide-overlay"/>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+         xmlns:sp="http://spinrdf.org/sp#">
+    <!-- served by content negotiation at the document URI .../queries/population/
+         so "#this" resolves to .../queries/population/#this -->
+    <sp:Select rdf:about="#this">
+        <rdfs:label>Population by country</rdfs:label>
+        <sp:text>PREFIX dbo: &lt;http://dbpedia.org/ontology/&gt;
+
+SELECT  ?country ?population
+WHERE
+  { ?country  a                     dbo:Country ;
+              dbo:populationTotal   ?population
+  }
+ORDER BY DESC(?population)
+LIMIT   5</sp:text>
+    </sp:Select>
+</rdf:RDF>

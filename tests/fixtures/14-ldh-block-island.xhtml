@@ -1,0 +1,20 @@
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <body about="">
+        <h1 property="http://purl.org/dc/terms/title">Object blocks</h1>
+        <div about="#chart1"
+                typeof="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart">
+            <span property="http://spinrdf.org/spin#query" resource="queries/population/#this"></span>
+            <span property="https://w3id.org/atomgraph/linkeddatahub#chartType" resource="https://w3id.org/atomgraph/client#BarChart"></span>
+            <span property="https://w3id.org/atomgraph/linkeddatahub#categoryVarName">country</span>
+            <span property="https://w3id.org/atomgraph/linkeddatahub#seriesVarName">population</span>
+        </div>
+        <ul>
+            <li>A view embedded in a list item:
+                <div about="#nested-view"
+                        typeof="https://w3id.org/atomgraph/linkeddatahub#View">
+                    <span property="http://spinrdf.org/spin#query" resource="queries/population/#this"></span>
+                </div>
+            </li>
+        </ul>
+    </body>
+</html>

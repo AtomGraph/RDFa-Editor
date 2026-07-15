@@ -1,0 +1,70 @@
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title>RDFa Editor - object blocks fixture</title>
+        <script type="text/javascript" src="../lib/SaxonJS3.js"></script>
+        <script type="text/javascript" src="../lib/xml-c14n-sync.js"></script>
+        <script type="text/javascript">
+            window.onload = function() {
+                // the reference block carries an ABSOLUTE @about by contract (the
+                // editor emits absolute IRIs; a relative @about is a lint issue) -
+                // point the static placeholder at this server's copy before init
+                const ref = document.querySelector('#content div[about]:not([typeof])');
+                ref.setAttribute('about', new URL('../demo/resources/ada/#this', document.baseURI).href);
+                const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+                Promise.all(vocabs.map(href =>
+                        SaxonJS.getResource({ location: "../" + href, type: "xml" })))
+                    .then(resources => {
+                        const pool = {};
+                        vocabs.forEach((href, i) =>
+                            pool[new URL(href, document.baseURI).href] = resources[i]);
+                        return SaxonJS.transform({
+                            documentPool: pool,
+                            stylesheetLocation: "../dist/ldh-editor.xsl.sef.json",
+                            initialTemplate: "main",
+                            logLevel: 10
+                        }, "async");
+                    })
+                    .catch(err => console.log("Transformation failed: " + err));
+            }
+        </script>
+        <link rel="stylesheet" href="../rdfa-editor.css" type="text/css"/>
+        <style type="text/css">
+            body { padding-top: 70px; padding-bottom: 56px; }
+            .rdfa-editor-content { padding-left: 2.5em; }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <button id="parse-rdf">Extract RDF</button>
+        </nav>
+
+        <div id="content" class="rdfa-editor-content" about="" typeof="https://www.w3.org/ns/ldt/document-hierarchy#Container">
+            <h1 property="http://purl.org/dc/terms/title">Blocks fixture</h1>
+            <p>Before chart.</p>
+            <div about="#chart"
+                    typeof="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart">
+                <span property="http://spinrdf.org/spin#query" resource="../demo/queries/population/#this"></span>
+                <span property="https://w3id.org/atomgraph/linkeddatahub#chartType" resource="https://w3id.org/atomgraph/client#BarChart"></span>
+                <span property="https://w3id.org/atomgraph/linkeddatahub#categoryVarName">country</span>
+                <span property="https://w3id.org/atomgraph/linkeddatahub#seriesVarName">population</span>
+            </div>
+            <p>After chart.</p>
+            <div about="http://localhost/demo/resources/ada/#this"></div>
+            <p>After reference.</p>
+            <ul>
+                <li>Item before</li>
+                <li>Holds a view:
+                    <div about="#nested-view"
+                            typeof="https://w3id.org/atomgraph/linkeddatahub#View">
+                        <span property="http://spinrdf.org/spin#query" resource="../demo/queries/population/#this"></span>
+                    </div>
+                </li>
+                <li>Item after</li>
+            </ul>
+            <p>Tail paragraph.</p>
+        </div>
+    </body>
+</html>

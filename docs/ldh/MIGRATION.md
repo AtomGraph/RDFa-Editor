@@ -161,3 +161,97 @@ wrappers): view markup is edited in place and the canonical document is PUT, wit
 extracted server-side. This form-control integration is the stepping stone: the same
 canonicalization/sanitization boundary and the same editing surface carry over; the
 XMLLiteral round-trip (steps 1/3) is what falls away.
+
+### 12. Object blocks — the v6 block idiom and the render-hook bridge
+
+The editor's object blocks (src/blocks.xsl) implement the **v6 document format**
+([XHTML+RDFa as LDH v6 Document Format](https://github.com/AtomGraph/LinkedDataHub/wiki/XHTML-RDFa-as-LDH-v6-Document-Format)):
+blocks are XHTML elements carrying `@about` (a fragment URI — the block is a document
+part) and `@typeof` directly, with definition triples as `span[@property]` children
+(objects via `@resource`, literals as span *text content*), arbitrarily nestable per
+the content model. There are **no wrappers, no `rdf:_N` sequences, no
+document→block containment edges** — the document owns its blocks implicitly through
+its content, and `ldh:content` remains the document→body XMLLiteral property, never a
+per-block edge. The v5 block model (`ldh:XHTML`, `ldh:Object` indirection, flat
+sequences, row scaffolding, per-block CRUD SPARQL) is obsolete by the format itself;
+what the editor adds on top is the *editing* semantics (atomic islands) and the
+*rendering* seam.
+
+The v5 `ldh:Object` use case — embed an *existing* resource — needs no node at all
+in v6: a **reference block** is an empty `div` whose `@about` is the referenced
+resource's own absolute URI (`<div about="http://dbpedia.org/resource/Ada_Lovelace"></div>`).
+Placement is carried by the XHTML structure, the reference by the name itself; the
+RDFa extraction of an empty `div[@about]` is zero triples, so no scaffolding enters
+the content graph. The fragment rule disambiguates for free: fragment `@about` =
+document part (a defined block or annotated content), absolute non-document `@about`
+on an effectively-empty div = dereference and render (`local:reference-block` in
+src/blocks.xsl). What the wrapper used to pay for — per-embedding metadata such as
+`ac:mode` — has no subject in this idiom; if per-embed rendering modes return, they
+need a typed block again.
+
+That stored shape is **the same shape LDH's renderers already match**: e.g. the v5
+chart entry (`client/block/chart.xsl:259`) matches
+`*[@typeof = ('&ldh;ResultSetChart', …)][descendant::*[@property = '&spin;query'][@resource]]…`
+and reads `spin:query`/`ldh:chartType`/`ldh:categoryVarName` off descendant
+`@property` elements — and the v6 rendering mode `ldh:Block` is defined exactly as
+"match `@typeof`, read properties from `@property` descendants". So the bridge is
+thin: client.xsl plays the extension role that src/ldh-blocks.xsl plays in the
+standalone demo — it re-declares the island class list and, per type, hands the
+island to its block-rendering machinery (`ldh:Block` in v6; the v5 `ldh:RenderRow`
+example below works the same way) with the ephemeral rendering div as the container:
+
+```xml
+<!-- client.xsl (imports the editor modules, higher import precedence) -->
+<xsl:param name="object-block-types" as="xs:string*"
+    select="('&ldh;View', '&ldh;ResultSetChart', '&ldh;GraphChart')"/>
+<!-- reference blocks (embed-by-URI) need no param entry: local:reference-block
+     recognizes them structurally; client.xsl renders them by dereferencing
+     @about into its resource-rendering machinery -->
+
+
+<xsl:template match="div[tokenize(@typeof) = ('&ldh;ResultSetChart', '&ldh;GraphChart')]"
+        mode="local:render-island">
+    <xsl:variable name="island" as="element()" select="."/>
+    <!-- the container ldh:RenderRow renders into: the ephemeral rendering div
+         (canonicalization-stripped, extractor-skipped). Seed it with the LDH
+         progress-bar markup; the thunk chain replaces it with the chart -->
+    <xsl:call-template name="local:replace-rendering">
+        <xsl:with-param name="island" select="$island"/>
+        <xsl:with-param name="content">
+            <div class="progress progress-striped active">
+                <div class="bar" style="width: 0%;"></div>
+            </div>
+        </xsl:with-param>
+    </xsl:call-template>
+    <xsl:variable name="container" as="element()" select="$island/*[@data-role = 'rendering']"/>
+    <xsl:for-each select="$container">
+        <!-- RenderRow addresses its container by id (canonicalization-stripped) -->
+        <ixsl:set-attribute name="id" select="generate-id($island) || '-rendering'"/>
+    </xsl:for-each>
+    <xsl:apply-templates select="$island" mode="ldh:RenderRow">
+        <!-- the island IS the block: no .row-fluid.block scaffolding, the subject
+             is the island's own @about (a fragment URI per the v6 format) -->
+        <xsl:with-param name="block" select="$island"/>
+        <xsl:with-param name="about"
+            select="xs:anyURI(resolve-uri($island/@about, ldh:base-uri(ixsl:page())))"/>
+        <xsl:with-param name="container" select="$container"/>
+    </xsl:apply-templates>
+</xsl:template>
+```
+
+The existing async pipelines (`ldh:chart-self-thunk` → `ldh:chart-query-thunk` →
+`ldh:chart-results-thunk` → Google Charts `draw()`) run unchanged — they are already
+container-plus-context-map based, and literal definition values are span text
+content per the v6 format, exactly what their selectors read. One caveat: chart
+canvases don't survive an `innerHTML` undo restore; the editor re-fires
+`local:render-island` only for islands *without* a rendering div, so a
+canvas-bearing bridge should also re-draw from the `LinkedDataHub.contents` cache
+when its canvas is dead (LDH already does this on mode switches).
+
+What the seam exposes to client.xsl is exactly what v6's `ldh:Block` mode needs: the
+per-type match shapes (`@typeof` + `@property` descendants, already RDFa-driven) and
+the thunk pipelines behind them; everything the v6 format removed (`rdf:_N`
+ordering/renumbering SPARQL, `ldh:XHTML`/`ldh:Object` wrappers, row scaffolding,
+per-block CRUD chrome) is likewise absent from the editor's side of the contract —
+ordering is document order, reorder/delete/undo are editor gestures, persistence is
+the one document PATCH.
