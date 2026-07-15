@@ -10,10 +10,22 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
 version="3.0">
 
 <!--
-    Object blocks: RDF-defined blocks (LinkedDataHub queries, charts, views, ...)
-    embedded in content as self-describing RDFa placeholders - a div whose @typeof
-    matches $object-block-types, carrying its defining triples as property spans.
-    The editor treats such a div as an atomic island: never a text host, focusable
+    Object blocks: RDF-defined blocks embedded in content as self-describing
+    RDFa placeholders, in two kinds:
+
+    - a DEFINED block - a div whose @typeof matches $object-block-types,
+      carrying its defining triples as property spans (LinkedDataHub queries,
+      charts, views, ...);
+    - a REFERENCE block - an empty div whose @about names a resource OUTSIDE
+      this document by an absolute URI. No wrapper node, no rdf:value
+      indirection (the v5 ldh:Object idiom is obsolete per the v6 document
+      format): naming the resource IS the reference, placement is carried by
+      the XHTML structure, and the RDFa extraction of an empty div[@about] is
+      zero triples. Blocks defined in the document keep fragment @about values
+      (they are document parts); an absolute non-document @about therefore
+      unambiguously reads as "dereference and render".
+
+    The editor treats both as atomic islands: never a text host, focusable
     like a block image, a hard boundary for merges and cross-host deletes. The
     visual rendering is injected into an ephemeral div[@data-role='rendering']
     child (canonicalization-stripped, extractor-skipped), so the placeholder
@@ -23,7 +35,8 @@ version="3.0">
     local:render-island mode ships a neutral placeholder card. An extension
     stylesheet (src/ldh-blocks.xsl here; LinkedDataHub's client.xsl in
     production) imports the editor, re-declares the param and overrides the mode
-    per @typeof with real (async) renderers - see the render-hook contract below.
+    per @typeof - and for reference blocks by dereferencing the @about URI -
+    with real (async) renderers - see the render-hook contract below.
 -->
 
     <!-- island classes: absolute class IRIs matched against tokenize(@typeof).
@@ -31,11 +44,26 @@ version="3.0">
          entry (a same-precedence duplicate would be static error XTSE0630) -->
     <xsl:param name="object-block-types" as="xs:string*" select="()"/>
 
+    <!-- a reference block: an effectively-empty div (ephemeral children and
+         whitespace only) whose @about is an absolute URI naming a different
+         document than the page. String tests only - no resolve-uri, so a
+         malformed @about can never error out of a predicate that runs on every
+         gesture; relative/fragment @about values (document parts, or the
+         about-relative lint case) are never islands -->
+    <xsl:function name="local:reference-block" as="xs:boolean">
+        <xsl:param name="element" as="element()?"/>
+        <xsl:sequence select="exists($element[self::div]
+            [matches(normalize-space(@about), '^[A-Za-z][A-Za-z0-9+.\-]*:')]
+            [substring-before(normalize-space(@about) || '#', '#') ne local:document-uri()]
+            [empty((node() except *[@data-role])[not(self::text()[not(normalize-space())])])])"/>
+    </xsl:function>
+
     <!-- THE island predicate: every island decision (init, navigation, merge
          boundaries, the delete machine, undo re-render) routes through here -->
     <xsl:function name="local:island" as="xs:boolean">
         <xsl:param name="element" as="element()?"/>
-        <xsl:sequence select="exists($element[self::div][tokenize(@typeof) = $object-block-types])"/>
+        <xsl:sequence select="exists($element[self::div][tokenize(@typeof) = $object-block-types])
+            or local:reference-block($element)"/>
     </xsl:function>
 
     <!-- the render hook. Context item = the island div. Contract: inject exactly
@@ -47,11 +75,12 @@ version="3.0">
          (rendering is ephemeral by construction); idempotent (replace, not append) -->
     <xsl:mode name="local:render-island" on-no-match="deep-skip"/>
 
-    <!-- neutral default: a static card naming the block's type and resource.
-         Extension templates matching per @typeof win on import precedence -->
+    <!-- neutral default: a static card naming the block's type (a reference
+         block has none - it reads as 'Resource') and resource. Extension
+         templates matching per @typeof / reference win on import precedence -->
     <xsl:template match="*" mode="local:render-island">
         <xsl:variable name="type" as="xs:string?"
-            select="(tokenize(@typeof)[. = $object-block-types], tokenize(@typeof))[1]"/>
+            select="(tokenize(@typeof)[. = $object-block-types], tokenize(@typeof), 'Resource')[1]"/>
         <xsl:call-template name="local:replace-rendering">
             <xsl:with-param name="island" select="."/>
             <xsl:with-param name="content">

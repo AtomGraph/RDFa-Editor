@@ -102,14 +102,15 @@
             </div>
 
             <h2>Blocks nest per the content model</h2>
-            <p>Anywhere a block element is allowed, an object block is allowed — here an
-                <code>ldh:Object</code> embedding a resource inside a list item:</p>
+            <p>Anywhere a block element is allowed, an object block is allowed — here a
+                <em>reference block</em> embedding Ada Lovelace by her DBpedia URI: an empty
+                <code>div</code> whose <code>about</code> names the resource directly, no
+                <code>ldh:Object</code> wrapper, no <code>rdf:value</code> indirection —
+                the editor dereferences the URI (content negotiation, CORS) and renders
+                the description on the fly:</p>
             <ul>
                 <li>Author of the analytical engine notes:
-                    <div about="#ada-object"
-                            typeof="https://w3id.org/atomgraph/linkeddatahub#Object">
-                        <span property="http://www.w3.org/1999/02/22-rdf-syntax-ns#value" resource="resources/ada/#this"></span>
-                    </div>
+                    <div about="http://dbpedia.org/resource/Ada_Lovelace"></div>
                 </li>
                 <li>Ordinary list items edit as usual around it.</li>
             </ul>

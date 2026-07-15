@@ -20,33 +20,39 @@ xpath-default-namespace="http://www.w3.org/1999/xhtml"
 version="3.0">
 
 <!--
-    LinkedDataHub blocks extension: makes ldh:Object / ldh:View /
-    ldh:ResultSetChart placeholders first-class island blocks. Included by the
-    ldh-editor.xsl entry at HIGHER import precedence than the core (which it
-    xsl:imports), so the declarations here override the core's:
+    LinkedDataHub blocks extension: makes ldh:View / ldh:ResultSetChart
+    placeholders and reference blocks (an empty div naming an external
+    resource by its absolute @about URI - the v6 replacement for the obsolete
+    ldh:Object + rdf:value indirection) first-class island blocks. Included by
+    the ldh-editor.xsl entry at HIGHER import precedence than the core (which
+    it xsl:imports), so the declarations here override the core's:
 
     - $object-block-types is re-declared with the LDH class IRIs;
-    - per-type mode="local:render-island" templates replace the neutral card
-      with real async hydration via the SaxonJS 3 promise API (ixsl:promise +
+    - per-type mode="local:render-island" templates (plus one matching
+      local:reference-block) replace the neutral card with real async
+      hydration via the SaxonJS 3 promise API (ixsl:promise +
       ixsl:http-request => ixsl:then, LDH's ldh:*-thunk idiom). Document URIs
       follow the Linked Data convention: trailing slash, no file extensions,
       representations chosen by CONTENT NEGOTIATION on the clean URI -
       Accept: application/rdf+xml for the description, and (demo stand-in for
       live SPARQL execution) Accept: application/sparql-results+xml for canned
-      results of a query document (serve.mjs / tests/browser/run.mjs negotiate).
-      In production, LinkedDataHub's client.xsl plays this module's role,
-      bridging into its block rendering - v6 mode ldh:Block, v5 ldh:RenderRow
-      (docs/ldh/MIGRATION.md par. 12);
+      results of a query document (serve.mjs / tests/browser/run.mjs negotiate;
+      a reference block dereferences ANY absolute URI the same way - e.g. a
+      DBpedia resource, whose server 303-redirects to the RDF/XML data and
+      allows CORS). In production, LinkedDataHub's client.xsl plays this
+      module's role, bridging into its block rendering - v6 mode ldh:Block,
+      v5 ldh:RenderRow (docs/ldh/MIGRATION.md par. 12);
     - the "Block..." insert dialog plugs into the core's extension hooks
       (local:render-extra-dialogs / -insert-buttons / -slash-items /
       local:run-extra-slash-command).
 
     Relative @resource IRIs resolve against the page base (local:document-uri),
     matching the RDFa extractor's resolution - never against the SEF location.
+    Reference blocks carry ABSOLUTE @about URIs by construction (the editor
+    emits absolute IRIs; a relative @about is the about-relative lint case).
 -->
 
     <xsl:param name="object-block-types" as="xs:string*" select="(
-        '&ldh;Object',
         '&ldh;View',
         '&ldh;ResultSetChart')"/>
 
@@ -74,19 +80,18 @@ version="3.0">
         </xsl:call-template>
     </xsl:template>
 
-    <!-- ldh:Object: fetch the referenced resource's document and render its
-         description as a property table -->
-    <xsl:template match="div[tokenize(@typeof) = '&ldh;Object']
-            [descendant::*[@property = '&rdf;value'][@resource]]" mode="local:render-island">
+    <!-- reference block: dereference the @about URI (conneg on the clean URI;
+         absolute by the local:reference-block predicate) and render the
+         resource's description as a property table -->
+    <xsl:template match="div[local:reference-block(.)]" mode="local:render-island">
         <xsl:variable name="island" as="element()" select="."/>
-        <xsl:variable name="value-uri" as="xs:string" select="string(resolve-uri(
-            string((descendant::*[@property = '&rdf;value']/@resource)[1]), local:document-uri()))"/>
+        <xsl:variable name="value-uri" as="xs:string" select="normalize-space(@about)"/>
         <xsl:variable name="value-doc" as="xs:string" select="substring-before($value-uri || '#', '#')"/>
         <xsl:sequence select="ixsl:call(ixsl:get($island, 'classList'), 'add', [ 'rdfa-editor-loading' ])[current-date() lt xs:date('2000-01-01')]"/>
         <ixsl:promise select="
             ixsl:http-request(map{ 'method': 'GET', 'href': $value-doc,
                 'headers': map{ 'Accept': 'application/rdf+xml' } }) =>
-                ixsl:then(local:block-object-response($island, $value-uri, $value-doc, ?))"
+                ixsl:then(local:block-reference-response($island, $value-uri, $value-doc, ?))"
             on-failure="local:block-render-failure($island, ?)"/>
     </xsl:template>
 
@@ -205,8 +210,10 @@ version="3.0">
         </xsl:choose>
     </xsl:function>
 
-    <!-- ldh:Object hop: the referenced resource's description as a property table -->
-    <xsl:function name="local:block-object-response" as="item()*" ixsl:updating="yes">
+    <!-- reference hop: the dereferenced resource's description as a property
+         table, capped - a public resource (DBpedia) can carry hundreds of
+         properties, the card is a preview, not a browser -->
+    <xsl:function name="local:block-reference-response" as="item()*" ixsl:updating="yes">
         <xsl:param name="island" as="element()"/>
         <xsl:param name="value-uri" as="xs:string"/>
         <xsl:param name="value-doc" as="xs:string"/>
@@ -218,14 +225,16 @@ version="3.0">
         <xsl:choose>
             <xsl:when test="$response?status = 200 and exists($description)">
                 <xsl:sequence select="ixsl:call(ixsl:get($island, 'classList'), 'remove', [ 'rdfa-editor-loading' ])[current-date() lt xs:date('2000-01-01')]"/>
+                <xsl:variable name="label" as="xs:string?"
+                    select="(($description/rdfs:label[not(@xml:lang)], $description/rdfs:label[@xml:lang = 'en'], $description/rdfs:label)[1]) ! string(.)"/>
                 <xsl:call-template name="local:replace-rendering">
                     <xsl:with-param name="island" select="$island"/>
                     <xsl:with-param name="content">
                         <div class="rdfa-editor-island-card">
-                            <strong><xsl:value-of select="(($description/rdfs:label)[1] ! string(.), $value-uri)[1]"/></strong>
+                            <strong><xsl:value-of select="($label, $value-uri)[1]"/></strong>
                             <table>
                                 <tbody>
-                                    <xsl:for-each select="$description/*">
+                                    <xsl:for-each select="$description/*[position() le 10]">
                                         <tr>
                                             <th><xsl:value-of select="local-name()"/></th>
                                             <td><xsl:value-of select="(string(@rdf:resource)[. ne ''], string(.))[1]"/></td>
@@ -233,6 +242,9 @@ version="3.0">
                                     </xsl:for-each>
                                 </tbody>
                             </table>
+                            <xsl:for-each select="$description/*[11]">
+                                <code><xsl:value-of select="$value-uri"/></code>
+                            </xsl:for-each>
                         </div>
                     </xsl:with-param>
                 </xsl:call-template>
@@ -276,17 +288,20 @@ version="3.0">
                 aria-label="Insert block" style="display: none;">
             <label>Block type</label>
             <select name="block-type-iri">
-                <option value="&ldh;Object">Object</option>
+                <option value="urn:rdfa-editor:reference">Resource</option>
                 <option value="&ldh;View">View</option>
                 <option value="&ldh;ResultSetChart">Result set chart</option>
             </select>
-            <label>Fragment id</label>
-            <input type="text" name="about" placeholder="#chart-1"/>
-            <div class="ldh-fields ldh-fields-object">
+            <!-- a reference block IS the referenced resource: its absolute URI
+                 goes straight into @about, no fragment id and no wrapper node -->
+            <div class="ldh-fields ldh-fields-reference">
                 <label>Resource URI</label>
-                <input type="text" name="object-value"/>
-                <label>Mode URI (optional)</label>
-                <input type="text" name="object-mode"/>
+                <input type="text" name="reference-uri" placeholder="http://dbpedia.org/resource/Ada_Lovelace"/>
+            </div>
+            <!-- defined blocks are document parts: fragment @about + @typeof -->
+            <div class="ldh-fields ldh-fields-frag" style="display: none;">
+                <label>Fragment id</label>
+                <input type="text" name="about" placeholder="#chart-1"/>
             </div>
             <div class="ldh-fields ldh-fields-view" style="display: none;">
                 <label>Query URI</label>
@@ -324,26 +339,29 @@ version="3.0">
         <li class="slash-item" data-command="ldh-block" role="option">Block&#x2026;</li>
     </xsl:template>
 
-    <!-- reset to the Object defaults (mirrors the figure/table openers) -->
+    <!-- reset to the reference defaults (mirrors the figure/table openers) -->
     <xsl:template name="local:reset-ldh-block-dialog">
         <xsl:variable name="dialog" as="element()" select="id('ldh-block-dialog', ixsl:page())"/>
         <xsl:for-each select="$dialog//input">
             <ixsl:set-property name="value" select="''" object="."/>
         </xsl:for-each>
         <xsl:for-each select="($dialog//select[@name = 'block-type-iri'])[1]">
-            <ixsl:set-property name="value" select="'&ldh;Object'" object="."/>
+            <ixsl:set-property name="value" select="'urn:rdfa-editor:reference'" object="."/>
         </xsl:for-each>
         <xsl:call-template name="local:toggle-ldh-block-fields">
             <xsl:with-param name="dialog" select="$dialog"/>
-            <xsl:with-param name="type" select="'&ldh;Object'"/>
+            <xsl:with-param name="type" select="'urn:rdfa-editor:reference'"/>
         </xsl:call-template>
     </xsl:template>
 
     <xsl:template name="local:toggle-ldh-block-fields">
         <xsl:param name="dialog" as="element()"/>
         <xsl:param name="type" as="xs:string"/>
-        <xsl:for-each select="$dialog//div[contains-token(@class, 'ldh-fields-object')]">
-            <ixsl:set-style name="display" select="if ($type = '&ldh;Object') then 'block' else 'none'"/>
+        <xsl:for-each select="$dialog//div[contains-token(@class, 'ldh-fields-reference')]">
+            <ixsl:set-style name="display" select="if ($type = 'urn:rdfa-editor:reference') then 'block' else 'none'"/>
+        </xsl:for-each>
+        <xsl:for-each select="$dialog//div[contains-token(@class, 'ldh-fields-frag')]">
+            <ixsl:set-style name="display" select="if ($type = 'urn:rdfa-editor:reference') then 'none' else 'block'"/>
         </xsl:for-each>
         <xsl:for-each select="$dialog//div[contains-token(@class, 'ldh-fields-view')]">
             <ixsl:set-style name="display" select="if ($type = '&ldh;View') then 'block' else 'none'"/>
@@ -368,7 +386,7 @@ version="3.0">
             <xsl:with-param name="element" select="id('ldh-block-dialog', ixsl:page())"/>
             <xsl:with-param name="event" select="ixsl:event()"/>
         </xsl:call-template>
-        <xsl:for-each select="(id('ldh-block-dialog', ixsl:page())//input[@name = 'about'])[1]">
+        <xsl:for-each select="(id('ldh-block-dialog', ixsl:page())//input[@name = 'reference-uri'])[1]">
             <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
     </xsl:template>
@@ -384,7 +402,7 @@ version="3.0">
                 <xsl:with-param name="element" select="$dialog"/>
                 <xsl:with-param name="anchor" select="$host"/>
             </xsl:call-template>
-            <xsl:for-each select="($dialog//input[@name = 'about'])[1]">
+            <xsl:for-each select="($dialog//input[@name = 'reference-uri'])[1]">
                 <xsl:sequence select="ixsl:call(., 'focus', [])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:for-each>
         </xsl:if>
@@ -412,39 +430,37 @@ version="3.0">
         <xsl:variable name="dialog" as="element()" select="ancestor::div[@id = 'ldh-block-dialog']"/>
         <xsl:variable name="type" as="xs:string" select="string(ixsl:get(($dialog//select[@name = 'block-type-iri'])[1], 'value'))"/>
         <xsl:variable name="about" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'about'])[1], 'value')))"/>
-        <xsl:variable name="object-value" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'object-value'])[1], 'value')))"/>
-        <xsl:variable name="object-mode" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'object-mode'])[1], 'value')))"/>
+        <xsl:variable name="reference-uri" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'reference-uri'])[1], 'value')))"/>
         <xsl:variable name="view-query" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'view-query'])[1], 'value')))"/>
         <xsl:variable name="view-mode" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'view-mode'])[1], 'value')))"/>
         <xsl:variable name="chart-query" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'chart-query'])[1], 'value')))"/>
         <xsl:variable name="chart-type" as="xs:string" select="string(ixsl:get(($dialog//select[@name = 'chart-type'])[1], 'value'))"/>
         <xsl:variable name="chart-category" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'chart-category'])[1], 'value')))"/>
         <xsl:variable name="chart-series" as="xs:string" select="normalize-space(string(ixsl:get(($dialog//input[@name = 'chart-series'])[1], 'value')))"/>
-        <xsl:variable name="valid" as="xs:boolean" select="$about ne '' and (
-            if ($type = '&ldh;Object') then $object-value ne ''
-            else if ($type = '&ldh;View') then $view-query ne ''
-            else $chart-query ne '')"/>
+        <xsl:variable name="reference" as="xs:boolean" select="$type = 'urn:rdfa-editor:reference'"/>
+        <xsl:variable name="valid" as="xs:boolean" select="
+            if ($reference) then local:is-absolute-iri($reference-uri)
+            else $about ne '' and (
+                if ($type = '&ldh;View') then $view-query ne ''
+                else $chart-query ne '')"/>
         <xsl:if test="$valid">
             <xsl:call-template name="local:push-undo"/>
-            <!-- the v6 block idiom: @about (fragment URI - the block is a document
-                 part) + @typeof directly on the element, definition triples as
-                 property spans; NO containment edge - the document owns its blocks
-                 implicitly through its content (XHTML-RDFa-as-LDH-v6-Document-Format) -->
+            <!-- the v6 block idiom: @about + @typeof directly on the element,
+                 definition triples as property spans, fragment @about (the block
+                 is a document part); NO containment edge - the document owns its
+                 blocks implicitly through its content
+                 (XHTML-RDFa-as-LDH-v6-Document-Format). A REFERENCE block inverts
+                 the fragment rule: its @about is the referenced resource's own
+                 absolute URI and it stays empty - naming the resource IS the
+                 reference, no ldh:Object wrapper, no rdf:value span -->
             <xsl:variable name="island" as="element()" select="local:element('div')"/>
-            <ixsl:set-attribute name="about" select="$about" object="$island"/>
-            <ixsl:set-attribute name="typeof" select="$type" object="$island"/>
+            <ixsl:set-attribute name="about" select="if ($reference) then $reference-uri else $about" object="$island"/>
+            <xsl:if test="not($reference)">
+                <ixsl:set-attribute name="typeof" select="$type" object="$island"/>
+            </xsl:if>
             <xsl:variable name="spans" as="element()*">
                 <xsl:choose>
-                    <xsl:when test="$type = '&ldh;Object'">
-                        <xsl:call-template name="local:make-definition-span">
-                            <xsl:with-param name="property" select="'&rdf;value'"/>
-                            <xsl:with-param name="resource" select="$object-value"/>
-                        </xsl:call-template>
-                        <xsl:call-template name="local:make-definition-span">
-                            <xsl:with-param name="property" select="'&ac;mode'"/>
-                            <xsl:with-param name="resource" select="$object-mode[. ne '']"/>
-                        </xsl:call-template>
-                    </xsl:when>
+                    <xsl:when test="$reference"/>
                     <xsl:when test="$type = '&ldh;View'">
                         <xsl:call-template name="local:make-definition-span">
                             <xsl:with-param name="property" select="'&spin;query'"/>
@@ -475,8 +491,8 @@ version="3.0">
                     </xsl:otherwise>
                 </xsl:choose>
             </xsl:variable>
-            <!-- spans with neither a resource nor a content value are dropped -->
-            <xsl:for-each select="$spans[@resource or @content]">
+            <!-- spans with neither a resource nor a literal text value are dropped -->
+            <xsl:for-each select="$spans[@resource or normalize-space()]">
                 <xsl:sequence select="ixsl:call($island, 'appendChild', [ . ])[current-date() lt xs:date('2000-01-01')]"/>
             </xsl:for-each>
             <!-- placed per the content model relative to the host the dialog was

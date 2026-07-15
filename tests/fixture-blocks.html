@@ -8,6 +8,11 @@
         <script type="text/javascript" src="../lib/xml-c14n-sync.js"></script>
         <script type="text/javascript">
             window.onload = function() {
+                // the reference block carries an ABSOLUTE @about by contract (the
+                // editor emits absolute IRIs; a relative @about is a lint issue) -
+                // point the static placeholder at this server's copy before init
+                const ref = document.querySelector('#content div[about]:not([typeof])');
+                ref.setAttribute('about', new URL('../demo/resources/ada/#this', document.baseURI).href);
                 const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
                 Promise.all(vocabs.map(href =>
                         SaxonJS.getResource({ location: "../" + href, type: "xml" })))
@@ -47,6 +52,8 @@
                 <span property="https://w3id.org/atomgraph/linkeddatahub#seriesVarName">population</span>
             </div>
             <p>After chart.</p>
+            <div about="http://localhost/demo/resources/ada/#this"></div>
+            <p>After reference.</p>
             <ul>
                 <li>Item before</li>
                 <li>Holds a view:

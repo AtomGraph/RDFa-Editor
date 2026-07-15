@@ -1,11 +1,13 @@
 // Object blocks (LDH extension): RDF-defined blocks embedded as atomic RDFa
 // islands wherever the content model admits a div. Runs against
-// fixture-blocks.html (the ldh-editor SEF): a top-level ResultSetChart and a
-// View nested in a list item, hydrated by conneg fetches (run.mjs negotiates).
-// Asserts init/locking, the storage-form round-trip, island navigation and
-// deletion, hard boundaries, dialog insertion (top-level and nested), the
-// stage-2/sweep delete machine, canonical copy, and the invariants after every
-// mutation.
+// fixture-blocks.html (the ldh-editor SEF): a top-level ResultSetChart, a
+// top-level REFERENCE block (an empty div naming an external resource by its
+// absolute @about URI - no ldh:Object wrapper) and a View nested in a list
+// item, all hydrated by conneg fetches (run.mjs negotiates). Asserts
+// init/locking, the storage-form round-trip, island navigation and deletion,
+// hard boundaries, dialog insertion (defined View top-level and nested
+// reference), the stage-2/sweep delete machine, canonical copy, and the
+// invariants after every mutation.
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:8080';
@@ -22,14 +24,16 @@ page.on('console', msg => { if (msg.type() === 'error') errors.push(msg.text());
 page.on('pageerror', err => errors.push(String(err)));
 page.on('dialog', d => d.accept());
 
-const CHART = '#content > div.rdfa-editor-island';
+const CHART = '#content > div.rdfa-editor-island[typeof]';
 const NESTED = '#content li div.rdfa-editor-island';
+const REF = '#content > div.rdfa-editor-island:not([typeof])';
 
-// load and let both islands hydrate, so undo baselines are render-stable
+// load and let all three islands hydrate, so undo baselines are render-stable
 const load = async () => {
     await page.goto(BASE + '/tests/fixture-blocks.html');
     await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 15000 });
     await page.waitForSelector(`${CHART} [data-role=rendering] table tbody tr`, { state: 'attached', timeout: 15000 });
+    await page.waitForSelector(`${REF} [data-role=rendering] table`, { state: 'attached', timeout: 15000 });
     await page.waitForSelector(`${NESTED} [data-role=rendering] table`, { state: 'attached', timeout: 15000 });
 };
 const caretIn = (needle, offset = 2) => page.evaluate(([txt, off]) => {
@@ -113,6 +117,13 @@ assert('init.chart.rendered', chartInit.renderings === 1 && chartInit.rows === 5
 assert('init.chart.chrome', chartInit.chrome === 1);
 assert('init.chart.heading', await page.evaluate(s =>
     document.querySelector(s + ' [data-role=rendering] strong')?.textContent === 'BarChart · country × population', CHART));
+const refInit = await islandState(REF);
+assert('init.ref.locked', refInit.editable === null && refInit.tabindex === '-1');
+assert('init.ref.stillEmpty', refInit.spans === 0);
+assert('init.ref.rendered', refInit.renderings === 1 && !refInit.loading);
+assert('init.ref.chrome', refInit.chrome === 1);
+assert('init.ref.heading', await page.evaluate(s =>
+    document.querySelector(s + ' [data-role=rendering] strong')?.textContent === 'Ada Lovelace', REF));
 const nestedInit = await islandState(NESTED);
 assert('init.nested.locked', nestedInit.editable === null && nestedInit.tabindex === '-1');
 assert('init.nested.rendered', nestedInit.renderings === 1 && !nestedInit.loading);
@@ -135,6 +146,8 @@ assert('roundtrip.placeholderKept', source.includes('about="#chart"')
     && source.includes('>country</span>'));
 assert('roundtrip.ephemeraGone', !source.includes('data-role') && !source.includes('tabindex')
     && !source.includes('rdfa-editor-island') && !source.includes('contenteditable'));
+// the reference block round-trips as EXACTLY the empty div naming the resource
+assert('roundtrip.referenceKept', /<div about="[^"]*\/demo\/resources\/ada\/#this"><\/div>/.test(source));
 
 // ==== C. navigation: arrows select the island, Backspace deletes it, undo ========
 await load();
@@ -222,32 +235,37 @@ await page.keyboard.press(undoKey);
 await page.waitForTimeout(150);
 assert('slash.undo', await page.evaluate(() => !document.querySelector('#content div[about="#t-view"]')));
 
-// ==== F. toolbar insert inside a list item (nested placement) =====================
+// ==== F. toolbar insert of a reference block inside a list item (nested) ==========
+// the dialog's default kind is Resource: one absolute URI, written straight
+// into @about - no typeof, no spans, no wrapper node
+const REF_URI = BASE + '/demo/queries/population/#this';
 await load();
 await caretIn('Item before', -1);
 await page.click('#edit-toolbar button.insert-ldh-block');
 await page.waitForTimeout(120);
-await page.fill('#ldh-block-dialog input[name="about"]', '#t-obj');
-await page.fill('#ldh-block-dialog input[name="object-value"]', '../demo/resources/ada/#this');
+await page.fill('#ldh-block-dialog input[name="reference-uri"]', REF_URI);
 await page.click('#ldh-block-dialog button.ldh-block-save');
 await page.waitForTimeout(150);
-assert('toolbar.nestedInsert', await page.evaluate(() => {
-    const isl = document.querySelector('#content div[about="#t-obj"]');
+assert('toolbar.nestedInsert', await page.evaluate(uri => {
+    const isl = document.querySelector(`#content li div[about="${uri}"]`);
     if (!isl) return false;
     const li = isl.closest('li');
     return !!li && li.getAttribute('contenteditable') !== 'true'
+        && !isl.hasAttribute('typeof')
+        && !isl.querySelector(':scope > span[property]')
+        && isl.classList.contains('rdfa-editor-island')
         && !!li.querySelector(':scope > p.rdfa-editor-run')
         && !!isl.querySelector(':scope > span[data-role=chrome]');
-}));
-await page.waitForSelector('#content div[about="#t-obj"] [data-role=rendering] table', { state: 'attached', timeout: 15000 });
-assert('toolbar.nestedHydrates', await page.evaluate(() =>
-    document.querySelector('#content div[about="#t-obj"] [data-role=rendering] strong')?.textContent === 'Ada Lovelace'));
+}, REF_URI));
+await page.waitForSelector(`#content li div[about="${REF_URI}"] [data-role=rendering] table`, { state: 'attached', timeout: 15000 });
+assert('toolbar.nestedHydrates', await page.evaluate(uri =>
+    document.querySelector(`#content li div[about="${uri}"] [data-role=rendering] strong`)?.textContent === 'Population by country', REF_URI));
 await clean('toolbar.insert');
 await page.keyboard.press(undoKey);
 await page.waitForTimeout(150);
-assert('toolbar.undo', await page.evaluate(() => !document.querySelector('#content div[about="#t-obj"]')
+assert('toolbar.undo', await page.evaluate(uri => !document.querySelector(`#content li div[about="${uri}"]`)
     && [...document.querySelectorAll('#content li')].some(li => li.getAttribute('contenteditable') === 'true'
-        && li.textContent.includes('Item before'))));
+        && li.textContent.includes('Item before')), REF_URI));
 
 // ==== G. delete machine: stage-2 select-all and sweeps ============================
 await load();
@@ -266,7 +284,7 @@ await clean('stage2.delete');
 await page.keyboard.press(undoKey);
 await page.waitForTimeout(150);
 assert('stage2.undo', await page.evaluate(() =>
-    document.querySelectorAll('#content .rdfa-editor-island').length === 2
+    document.querySelectorAll('#content .rdfa-editor-island').length === 3
     && !!document.querySelector('#content .rdfa-editor-island [data-role=rendering] table')));
 await clean('stage2.undo');
 
@@ -278,12 +296,13 @@ assert('sweep.coveredIslandRemovedWhole', await page.evaluate(() =>
     !document.querySelector('#content div[typeof*="ResultSetChart"]')
     && !document.querySelector('#content > span[property]')
     && [...document.querySelectorAll('#content > p')].some(p => p.textContent.replace(/⠿/g, '') === 'Bef chart.')
+    && !!document.querySelector('#content > div.rdfa-editor-island:not([typeof])')
     && !!document.querySelector('#content li div[typeof*="View"]')));
 await clean('sweep.delete');
 await page.keyboard.press(undoKey);
 await page.waitForTimeout(150);
 assert('sweep.undo', await page.evaluate(() =>
-    document.querySelectorAll('#content .rdfa-editor-island').length === 2));
+    document.querySelectorAll('#content .rdfa-editor-island').length === 3));
 
 // ==== H. canonical copy carries the storage form ==================================
 await load();
@@ -297,7 +316,8 @@ const copied = await page.evaluate(() => {
     return dt.getData('text/html');
 });
 assert('copy.placeholderKept', copied.includes('typeof="https://w3id.org/atomgraph/linkeddatahub#ResultSetChart"')
-    && copied.includes('property="http://spinrdf.org/spin#query"'));
+    && copied.includes('property="http://spinrdf.org/spin#query"')
+    && /<div [^>]*about="[^"]*\/demo\/resources\/ada\/#this"><\/div>/.test(copied));
 assert('copy.ephemeraGone', !copied.includes('data-role') && !copied.includes('tabindex')
     && !copied.includes('rdfa-editor-island') && !copied.includes('contenteditable'));
 

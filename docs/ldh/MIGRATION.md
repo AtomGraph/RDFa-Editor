@@ -177,6 +177,18 @@ sequences, row scaffolding, per-block CRUD SPARQL) is obsolete by the format its
 what the editor adds on top is the *editing* semantics (atomic islands) and the
 *rendering* seam.
 
+The v5 `ldh:Object` use case — embed an *existing* resource — needs no node at all
+in v6: a **reference block** is an empty `div` whose `@about` is the referenced
+resource's own absolute URI (`<div about="http://dbpedia.org/resource/Ada_Lovelace"></div>`).
+Placement is carried by the XHTML structure, the reference by the name itself; the
+RDFa extraction of an empty `div[@about]` is zero triples, so no scaffolding enters
+the content graph. The fragment rule disambiguates for free: fragment `@about` =
+document part (a defined block or annotated content), absolute non-document `@about`
+on an effectively-empty div = dereference and render (`local:reference-block` in
+src/blocks.xsl). What the wrapper used to pay for — per-embedding metadata such as
+`ac:mode` — has no subject in this idiom; if per-embed rendering modes return, they
+need a typed block again.
+
 That stored shape is **the same shape LDH's renderers already match**: e.g. the v5
 chart entry (`client/block/chart.xsl:259`) matches
 `*[@typeof = ('&ldh;ResultSetChart', …)][descendant::*[@property = '&spin;query'][@resource]]…`
@@ -191,7 +203,11 @@ example below works the same way) with the ephemeral rendering div as the contai
 ```xml
 <!-- client.xsl (imports the editor modules, higher import precedence) -->
 <xsl:param name="object-block-types" as="xs:string*"
-    select="('&ldh;Object', '&ldh;View', '&ldh;ResultSetChart', '&ldh;GraphChart')"/>
+    select="('&ldh;View', '&ldh;ResultSetChart', '&ldh;GraphChart')"/>
+<!-- reference blocks (embed-by-URI) need no param entry: local:reference-block
+     recognizes them structurally; client.xsl renders them by dereferencing
+     @about into its resource-rendering machinery -->
+
 
 <xsl:template match="div[tokenize(@typeof) = ('&ldh;ResultSetChart', '&ldh;GraphChart')]"
         mode="local:render-island">
