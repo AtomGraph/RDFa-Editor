@@ -276,6 +276,7 @@ version="3.0">
                     <div class="modal-content">
                         <span class="modal-close">&#215;</span>
                         <h3 id="output-title">Output</h3>
+                        <button id="output-download" type="button" style="display: none;">Download</button>
                         <pre id="output-content"/>
                     </div>
                 </div>
@@ -283,10 +284,13 @@ version="3.0">
         </xsl:for-each>
     </xsl:template>
 
-    <!-- shared output modal (Extract RDF / View source) -->
+    <!-- shared output modal (Extract RDF / View source / lint issues); callers
+         passing $filename get a Download button (hidden otherwise) -->
     <xsl:template name="local:show-output">
         <xsl:param name="title" as="xs:string"/>
         <xsl:param name="text" as="xs:string"/>
+        <xsl:param name="filename" as="xs:string?"/>
+        <xsl:param name="media-type" as="xs:string?"/>
 
         <xsl:for-each select="id('output-title', ixsl:page())">
             <ixsl:set-property name="textContent" select="$title" object="."/>
@@ -294,9 +298,31 @@ version="3.0">
         <xsl:for-each select="id('output-content', ixsl:page())">
             <ixsl:set-property name="textContent" select="$text" object="."/>
         </xsl:for-each>
+        <xsl:for-each select="id('output-download', ixsl:page())">
+            <xsl:choose>
+                <xsl:when test="exists($filename)">
+                    <ixsl:set-attribute name="data-filename" select="$filename"/>
+                    <ixsl:set-attribute name="data-media-type" select="($media-type, 'text/plain')[1]"/>
+                    <ixsl:set-style name="display" select="'inline-block'"/>
+                </xsl:when>
+                <xsl:otherwise>
+                    <ixsl:set-style name="display" select="'none'"/>
+                </xsl:otherwise>
+            </xsl:choose>
+        </xsl:for-each>
         <xsl:for-each select="id('output-modal', ixsl:page())">
             <ixsl:set-style name="display" select="'flex'"/>
         </xsl:for-each>
+    </xsl:template>
+
+    <!-- client-side file download: the shown text becomes a Blob clicked through
+         an ephemeral object-URL anchor - no server involved, so it works on any
+         static hosting (gh-pages included) -->
+    <xsl:template match="button[@id = 'output-download']" mode="ixsl:onclick">
+        <xsl:variable name="js-function" select="ixsl:eval('(function (text, type, filename) { var url = URL.createObjectURL(new Blob([ text ], { type: type })); var a = document.createElement(''a''); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 1000); })')"/>
+        <xsl:sequence select="ixsl:call($js-function, 'call',
+            [ (), ixsl:get(id('output-content', ixsl:page()), 'textContent'), string(@data-media-type), string(@data-filename) ])
+            [current-date() lt xs:date('2000-01-01')]"/>
     </xsl:template>
 
     <!-- extract RDF/XML from the page and display it in the modal, grouped one
@@ -312,6 +338,8 @@ version="3.0">
         <xsl:call-template name="local:show-output">
             <xsl:with-param name="title" select="'Extracted RDF/XML'"/>
             <xsl:with-param name="text" select="serialize(local:group-triples($rdf), map{ 'method': 'xml', 'indent': true() })"/>
+            <xsl:with-param name="filename" select="'content.rdf'"/>
+            <xsl:with-param name="media-type" select="'application/rdf+xml'"/>
         </xsl:call-template>
     </xsl:template>
 

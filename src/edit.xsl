@@ -2484,6 +2484,8 @@ version="3.0">
         <xsl:call-template name="local:show-output">
             <xsl:with-param name="title" select="'Canonical XHTML+RDFa'"/>
             <xsl:with-param name="text" select="local:canonicalize-xml(parse-xml(serialize($canonical, map{ 'method': 'xml' })))"/>
+            <xsl:with-param name="filename" select="'content.xhtml'"/>
+            <xsl:with-param name="media-type" select="'application/xhtml+xml'"/>
         </xsl:call-template>
     </xsl:template>
 

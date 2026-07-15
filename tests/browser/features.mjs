@@ -266,6 +266,9 @@ results.lint.squiggle = await page.evaluate(() =>
 await page.click('#lint-badge');
 results.lint.modalLists = await page.evaluate(() =>
     document.getElementById('output-content').textContent.includes('term-unresolvable'));
+// the lint modal passes no filename, so the Download button stays hidden
+results.lint.downloadHidden = await page.evaluate(() =>
+    getComputedStyle(document.getElementById('output-download')).display === 'none');
 await page.click('#output-modal .modal-close');
 // canonical purity with lint marker present
 await page.click('#view-source');
