@@ -26,7 +26,7 @@ version="3.0">
 
     <!-- the page URI without its fragment: the base for RDFa resolution in the browser -->
     <xsl:function name="local:document-uri" as="xs:string">
-        <xsl:sequence select="substring-before(ixsl:get(ixsl:window(), 'location.href') || '#', '#')"/>
+        <xsl:sequence select="substring-before(ixsl:location() || '#', '#')"/>
     </xsl:function>
 
     <!-- editable regions are marked by convention with the rdfa-editor-content class
@@ -42,10 +42,7 @@ version="3.0">
 
     <!-- the region the user is working in: selection first, then the last focused host -->
     <xsl:function name="local:active-root" as="element()?">
-        <xsl:variable name="selection" select="local:selection()"/>
-        <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode') else ()"/>
-        <xsl:sequence select="($anchor ! local:root-of(.),
+        <xsl:sequence select="(local:anchor-node() ! local:root-of(.),
             ixsl:get(local:editor-state(), 'activeBlock') ! local:root-of(.), local:roots()[1])[1]"/>
     </xsl:function>
 
@@ -166,19 +163,14 @@ version="3.0">
     <!-- toolbar actions resolve the block from the selection, falling back to the
          last focused host (the block-type select steals focus - see ixsl:onfocusin) -->
     <xsl:function name="local:current-block" as="element()?">
-        <xsl:variable name="selection" select="local:selection()"/>
-        <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode') else ()"/>
-        <xsl:sequence select="($anchor ! local:block-of(.), ixsl:get(local:editor-state(), 'activeBlock') ! local:block-of(.))[1]"/>
+        <xsl:sequence select="(local:anchor-node() ! local:block-of(.),
+            ixsl:get(local:editor-state(), 'activeBlock') ! local:block-of(.))[1]"/>
     </xsl:function>
 
     <!-- host-based resolution for actions that act on the leaf block the caret
          sits in (block-type convert, quote toggle) rather than the top-level block -->
     <xsl:function name="local:current-host" as="element()?">
-        <xsl:variable name="selection" select="local:selection()"/>
-        <xsl:variable name="anchor" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode') else ()"/>
-        <xsl:sequence select="($anchor ! local:host-of(.),
+        <xsl:sequence select="(local:anchor-node() ! local:host-of(.),
             ixsl:get(local:editor-state(), 'activeBlock') ! local:host-of(.))[1]"/>
     </xsl:function>
 
@@ -244,9 +236,29 @@ version="3.0">
             then ixsl:call($selection, 'getRangeAt', [ 0 ]) else ()"/>
     </xsl:function>
 
+    <!-- the selection anchor as a node (empty when no range) and its offset (0 then) -->
+    <xsl:function name="local:anchor-node" as="node()?">
+        <xsl:variable name="selection" select="local:selection()"/>
+        <xsl:sequence select="if (ixsl:get($selection, 'rangeCount') ge 1)
+            then ixsl:get($selection, 'anchorNode') else ()"/>
+    </xsl:function>
+
+    <xsl:function name="local:anchor-offset" as="xs:integer">
+        <xsl:variable name="selection" select="local:selection()"/>
+        <xsl:sequence select="if (ixsl:get($selection, 'rangeCount') ge 1)
+            then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
+    </xsl:function>
+
     <xsl:function name="local:element" as="element()">
         <xsl:param name="name" as="xs:string"/>
         <xsl:sequence select="ixsl:call(ixsl:page(), 'createElement', [ $name ])"/>
+    </xsl:function>
+
+    <!-- the live value of the first input named $name under $scope (a dialog or form) -->
+    <xsl:function name="local:input-value" as="xs:string">
+        <xsl:param name="scope" as="element()"/>
+        <xsl:param name="name" as="xs:string"/>
+        <xsl:sequence select="string(ixsl:get(($scope//input[@name = $name])[1], 'value'))"/>
     </xsl:function>
 
     <!-- focus the host of $node, then collapse the caret there -->
@@ -1373,11 +1385,8 @@ version="3.0">
                     <xsl:with-param name="host" select="$item"/>
                 </xsl:call-template>
                 <!-- text-node caret references survive reparenting -->
-                <xsl:variable name="selection" select="local:selection()"/>
-                <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-                    then ixsl:get($selection, 'anchorNode') else ()"/>
-                <xsl:variable name="caret-offset" as="xs:integer"
-                    select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
+                <xsl:variable name="caret-node" as="node()?" select="local:anchor-node()"/>
+                <xsl:variable name="caret-offset" as="xs:integer" select="local:anchor-offset()"/>
                 <xsl:variable name="target" as="element()?"
                     select="$prev/*[not(@data-role)][last()][self::ul or self::ol]"/>
                 <xsl:if test="empty($target)">
@@ -1437,11 +1446,8 @@ version="3.0">
                 <xsl:call-template name="local:push-undo">
                     <xsl:with-param name="host" select="$item"/>
                 </xsl:call-template>
-                <xsl:variable name="selection" select="local:selection()"/>
-                <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-                    then ixsl:get($selection, 'anchorNode') else ()"/>
-                <xsl:variable name="caret-offset" as="xs:integer"
-                    select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
+                <xsl:variable name="caret-node" as="node()?" select="local:anchor-node()"/>
+                <xsl:variable name="caret-offset" as="xs:integer" select="local:anchor-offset()"/>
                 <xsl:variable name="followers" as="element()*" select="$item/following-sibling::li"/>
                 <xsl:if test="exists($followers)">
                     <xsl:variable name="target" as="element()?"
@@ -1807,11 +1813,8 @@ version="3.0">
                 <xsl:call-template name="local:push-undo">
                     <xsl:with-param name="host" select="$quote"/>
                 </xsl:call-template>
-                <xsl:variable name="selection" select="local:selection()"/>
-                <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-                    then ixsl:get($selection, 'anchorNode') else ()"/>
-                <xsl:variable name="caret-offset" as="xs:integer"
-                    select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
+                <xsl:variable name="caret-node" as="node()?" select="local:anchor-node()"/>
+                <xsl:variable name="caret-offset" as="xs:integer" select="local:anchor-offset()"/>
                 <xsl:call-template name="local:remove-chrome">
                     <xsl:with-param name="block" select="$quote"/>
                 </xsl:call-template>
@@ -1893,16 +1896,15 @@ version="3.0">
             <xsl:with-param name="root" select="$snapshot-root"/>
             <xsl:with-param name="snapshot" select="$snapshot"/>
         </xsl:call-template>
-        <xsl:variable name="selection" select="local:selection()"/>
         <!-- host-of, not block-of: $block may be a nested host (a paragraph in a
              quote or cell) whose top-level block is the container. Restore only a
              node that MOVES with the children (a descendant); an element-level
              caret on the block itself dangles after replaceWith, so it falls back
              to the start of the new block (matters for empty-block conversions) -->
-        <xsl:variable name="caret-node" select="if (ixsl:get($selection, 'rangeCount') ge 1)
-            then ixsl:get($selection, 'anchorNode')[local:host-of(.) is $block][not(. is $block)] else ()"/>
+        <xsl:variable name="caret-node" as="node()?"
+            select="local:anchor-node()[local:host-of(.) is $block][not(. is $block)]"/>
         <xsl:variable name="caret-offset" as="xs:integer"
-            select="if (exists($caret-node)) then xs:integer(ixsl:get($selection, 'anchorOffset')) else 0"/>
+            select="if (exists($caret-node)) then local:anchor-offset() else 0"/>
 
         <xsl:variable name="new" as="element()" select="ixsl:call(ixsl:page(), 'createElement', [ $name ])"/>
         <xsl:for-each select="$block/(@about | @property | @typeof | @resource | @content
@@ -2145,7 +2147,7 @@ version="3.0">
 
     <xsl:template match="button[contains-token(@class, 'link-save')]" mode="ixsl:onclick">
         <xsl:variable name="href" as="xs:string"
-            select="string(ixsl:get((ancestor::div[@id = 'link-dialog']//input[@name = 'href'])[1], 'value'))"/>
+            select="local:input-value(ancestor::div[@id = 'link-dialog'][1], 'href')"/>
         <xsl:if test="$href ne ''">
             <xsl:variable name="editing" select="ixsl:get(local:editor-state(), 'editingLink')"/>
             <xsl:choose>
@@ -2261,17 +2263,17 @@ version="3.0">
 
     <xsl:template match="button[contains-token(@class, 'figure-save')]" mode="ixsl:onclick">
         <xsl:variable name="dialog" as="element()" select="ancestor::div[@id = 'figure-dialog']"/>
-        <xsl:variable name="src" as="xs:string" select="string(ixsl:get(($dialog//input[@name = 'src'])[1], 'value'))"/>
+        <xsl:variable name="src" as="xs:string" select="local:input-value($dialog, 'src')"/>
         <xsl:if test="$src ne ''">
             <xsl:call-template name="local:push-undo"/>
             <xsl:variable name="figure" as="element()" select="local:element('figure')"/>
             <xsl:variable name="img" as="element()" select="local:element('img')"/>
             <ixsl:set-attribute name="src" select="$src" object="$img"/>
-            <ixsl:set-attribute name="alt" select="string(ixsl:get(($dialog//input[@name = 'alt'])[1], 'value'))" object="$img"/>
+            <ixsl:set-attribute name="alt" select="local:input-value($dialog, 'alt')" object="$img"/>
             <!-- focusable so the image is a keyboard-navigation island (see local:nav-targets) -->
             <ixsl:set-attribute name="tabindex" select="'-1'" object="$img"/>
             <xsl:variable name="figcaption" as="element()" select="local:element('figcaption')"/>
-            <ixsl:set-property name="textContent" select="string(ixsl:get(($dialog//input[@name = 'caption'])[1], 'value'))" object="$figcaption"/>
+            <ixsl:set-property name="textContent" select="local:input-value($dialog, 'caption')" object="$figcaption"/>
             <ixsl:set-attribute name="contenteditable" select="'true'" object="$figcaption"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $img ])[current-date() lt xs:date('2000-01-01')]"/>
             <xsl:sequence select="ixsl:call($figure, 'appendChild', [ $figcaption ])[current-date() lt xs:date('2000-01-01')]"/>

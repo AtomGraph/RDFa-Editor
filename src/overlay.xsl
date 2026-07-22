@@ -105,15 +105,11 @@ version="3.0">
         <xsl:map>
             <xsl:map-entry key="'property'" select="local:typeahead-value($form, 'property')"/>
             <xsl:map-entry key="'typeof'" select="local:typeahead-value($form, 'typeof')"/>
-            <xsl:map-entry key="'subject'"
-                select="string(ixsl:get(($form//input[@name = 'subject'])[1], 'value'))[. ne '']"/>
-            <xsl:map-entry key="'object'"
-                select="string(ixsl:get(($form//input[@name = 'object'])[1], 'value'))[. ne '']"/>
-            <xsl:map-entry key="'value'"
-                select="string(ixsl:get(($form//input[@name = 'value'])[1], 'value'))[. ne '']"/>
+            <xsl:map-entry key="'subject'" select="local:input-value($form, 'subject')[. ne '']"/>
+            <xsl:map-entry key="'object'" select="local:input-value($form, 'object')[. ne '']"/>
+            <xsl:map-entry key="'value'" select="local:input-value($form, 'value')[. ne '']"/>
             <xsl:map-entry key="'datatype'" select="local:select-or-custom($form, 'datatype', 'custom-datatype')"/>
-            <xsl:map-entry key="'lang'"
-                select="string(ixsl:get(($form//input[@name = 'lang'])[1], 'value'))[. ne '']"/>
+            <xsl:map-entry key="'lang'" select="local:input-value($form, 'lang')[. ne '']"/>
         </xsl:map>
     </xsl:function>
 
@@ -126,7 +122,7 @@ version="3.0">
         <xsl:variable name="value" as="xs:string"
             select="string(ixsl:get(($form//select[@name = $select-name])[1], 'value'))"/>
         <xsl:sequence select="if ($value eq $local:custom)
-            then string(ixsl:get(($form//input[@name = $custom-name])[1], 'value'))[. ne '']
+            then local:input-value($form, $custom-name)[. ne '']
             else $value[. ne '']"/>
     </xsl:function>
 

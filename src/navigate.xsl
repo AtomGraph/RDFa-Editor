@@ -267,9 +267,7 @@ version="3.0">
     </xsl:function>
 
     <xsl:template name="local:update-breadcrumb">
-        <xsl:variable name="selection" select="local:selection()"/>
-        <xsl:variable name="node" select="(
-            (if (ixsl:get($selection, 'rangeCount') ge 1) then ixsl:get($selection, 'anchorNode') else ()),
+        <xsl:variable name="node" select="(local:anchor-node(),
             ixsl:get(local:editor-state(), 'activeBlock'))[1]"/>
         <xsl:variable name="leaf" as="element()?" select="$node/ancestor-or-self::*[1]"/>
         <xsl:choose>
@@ -443,12 +441,15 @@ version="3.0">
         <xsl:for-each select="local:roots()//*[contains-token(@class, 'rdfa-invalid')]">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'remove', [ 'rdfa-invalid' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
-        <xsl:variable name="lintable" as="element()*" select="local:roots() ! lint:lintable(.)"/>
-        <xsl:for-each select="$lintable[exists((lint:element-issues(.), lint:nesting-issues(.)))]">
+        <!-- the issue functions run once per element: markers and the badge count
+             both derive from the same evaluation (this fires on every mutation) -->
+        <xsl:variable name="linted" as="map(*)*" select="local:roots() ! lint:lintable(.) ! map{
+            'element': .,
+            'issues': count((lint:element-issues(.), lint:nesting-issues(.))) }"/>
+        <xsl:for-each select="$linted[?issues gt 0]?element">
             <xsl:sequence select="ixsl:call(ixsl:get(., 'classList'), 'add', [ 'rdfa-invalid' ])[current-date() lt xs:date('2000-01-01')]"/>
         </xsl:for-each>
-        <xsl:variable name="count" as="xs:integer"
-            select="count($lintable ! (lint:element-issues(.), lint:nesting-issues(.)))"/>
+        <xsl:variable name="count" as="xs:integer" select="sum($linted?issues)"/>
         <xsl:for-each select="id('lint-badge', ixsl:page())">
             <xsl:choose>
                 <xsl:when test="$count gt 0">
