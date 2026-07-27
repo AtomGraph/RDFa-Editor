@@ -67,7 +67,9 @@ kept the textarea in sync continuously; the replacement syncs once, declarativel
 Key points: serialize the container's **children only** (no wrapper element —
 parse-rdf-post adds the div); `mode="canonical"` guarantees the stored literal is
 sanitized and free of editing ephemera (chrome, contenteditable, classes, on*
-handlers, unsafe URLs).
+handlers, unsafe URLs). SaxonJS 3 applies `ixsl:set-property` immediately
+(verified in-browser), so the value is readable by `ldh:parse-rdf-post` within
+the same submit event.
 
 ### 4. Asset loading — `layout.xsl`
 

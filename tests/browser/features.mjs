@@ -12,7 +12,7 @@ page.on('pageerror', err => errors.push(String(err)));
 page.on('dialog', d => d.accept());
 
 await page.goto(BASE + '/tests/fixture.html');
-await page.waitForSelector('#breadcrumb', { state: 'attached', timeout: 15000 })
+await page.waitForSelector('#rdfa-editor-breadcrumb', { state: 'attached', timeout: 15000 })
     .catch(() => errors.push('breadcrumb never rendered'));
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 5000 })
     .catch(() => errors.push('chrome never injected'));
@@ -215,8 +215,8 @@ await page.evaluate(() => {
 await page.keyboard.press('ArrowRight'); // trigger keyup -> breadcrumb refresh
 await page.waitForTimeout(150);
 results.breadcrumb = await page.evaluate(() => ({
-    path: document.getElementById('breadcrumb-path').textContent,
-    subject: document.getElementById('breadcrumb-subject').textContent,
+    path: document.getElementById('rdfa-editor-breadcrumb-path').textContent,
+    subject: document.getElementById('rdfa-editor-breadcrumb-subject').textContent,
 }));
 results.breadcrumb.pathOk = /content›p›strong/.test(results.breadcrumb.path.replace(/\s/g, ''));
 results.breadcrumb.subjectOk = results.breadcrumb.subject === BASE + '/tests/fixture.html';
@@ -229,10 +229,10 @@ await page.evaluate(() => {
 await page.keyboard.press('ArrowRight');
 await page.waitForTimeout(150);
 results.breadcrumb.annotatedLabel = await page.evaluate(() =>
-    document.getElementById('breadcrumb-path').textContent.includes('span[name]'));
+    document.getElementById('rdfa-editor-breadcrumb-path').textContent.includes('span[name]'));
 // crumb click selects the element
 await page.evaluate(() => {
-    const crumbs = [...document.querySelectorAll('#breadcrumb-path .crumb')];
+    const crumbs = [...document.querySelectorAll('#rdfa-editor-breadcrumb-path .crumb')];
     crumbs[crumbs.length - 1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
 });
 results.breadcrumb.clickSelects = await page.evaluate(() =>

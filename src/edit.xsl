@@ -35,6 +35,12 @@ version="3.0">
         <xsl:sequence select="ixsl:page()//*[contains-token(@class, 'rdfa-editor-content')]"/>
     </xsl:function>
 
+    <!-- where local:init-editing appends the toolbar; hosts without a nav element
+         override this to point at their own chrome -->
+    <xsl:function name="local:toolbar-host" as="element()*">
+        <xsl:sequence select="ixsl:page()//nav"/>
+    </xsl:function>
+
     <xsl:function name="local:root-of" as="element()?">
         <xsl:param name="node"/>
         <xsl:sequence select="$node/ancestor-or-self::*[contains-token(@class, 'rdfa-editor-content')][1]"/>
@@ -346,7 +352,7 @@ version="3.0">
     <!-- ................................ init ................................ -->
 
     <xsl:template name="local:init-editing">
-        <xsl:for-each select="ixsl:page()//nav">
+        <xsl:for-each select="local:toolbar-host()">
             <xsl:result-document href="?." method="ixsl:append-content">
                 <xsl:call-template name="local:render-toolbar"/>
             </xsl:result-document>
@@ -362,23 +368,39 @@ version="3.0">
             </xsl:result-document>
         </xsl:for-each>
         <xsl:for-each select="local:roots()">
-            <!-- boundary-normalize invalid host markup (bare text in blockquote,
-                 blocks inside p, stray inline at region level, ...) before
-                 editability init; the probe keeps the valid case zero-churn -->
-            <xsl:variable name="region" as="element()" select="."/>
-            <xsl:variable name="invalid" as="xs:boolean" select="
-                exists($region//*[not(ancestor-or-self::*[@data-role])][not(cm:valid-nesting(.))])
-                or exists($region//*[not(ancestor-or-self::*[@data-role])]
-                    [cm:structural(local-name(.))][text()[normalize-space()]])
-                or exists($region/(text()[normalize-space()] | *[cm:inline(local-name(.))]))"/>
-            <xsl:if test="$invalid">
-                <xsl:variable name="fixed" as="node()*"
-                    select="cm:wrap-inline-runs(cm:normalize($region/node()), 'p')"/>
-                <ixsl:set-property name="innerHTML"
-                    select="serialize($fixed, map{ 'method': 'html' })" object="$region"/>
-            </xsl:if>
+            <xsl:call-template name="local:init-region">
+                <xsl:with-param name="region" select="."/>
+            </xsl:call-template>
         </xsl:for-each>
-        <xsl:for-each select="local:roots()/*">
+    </xsl:template>
+
+    <!-- per-region bring-up, callable for regions rendered after the initial page
+         (hosts that open editable regions lazily init each one through this) -->
+    <xsl:template name="local:init-region">
+        <xsl:param name="region" as="element()"/>
+
+        <!-- boundary-normalize invalid host markup (bare text in blockquote,
+             blocks inside p, stray inline at region level, ...) before
+             editability init; the probe keeps the valid case zero-churn -->
+        <xsl:variable name="invalid" as="xs:boolean" select="
+            exists($region//*[not(ancestor-or-self::*[@data-role])][not(cm:valid-nesting(.))])
+            or exists($region//*[not(ancestor-or-self::*[@data-role])]
+                [cm:structural(local-name(.))][text()[normalize-space()]])
+            or exists($region/(text()[normalize-space()] | *[cm:inline(local-name(.))]))"/>
+        <xsl:if test="$invalid">
+            <xsl:variable name="fixed" as="node()*"
+                select="cm:wrap-inline-runs(cm:normalize($region/node()), 'p')"/>
+            <ixsl:set-property name="innerHTML"
+                select="serialize($fixed, map{ 'method': 'html' })" object="$region"/>
+        </xsl:if>
+        <!-- an empty region cannot hold a caret: seed a paragraph (the
+             empty-blockquote idiom in local:init-block) -->
+        <xsl:if test="empty($region/*[not(@data-role)])">
+            <xsl:variable name="p" as="element()" select="local:element('p')"/>
+            <xsl:sequence select="ixsl:call($p, 'appendChild', [ local:element('br') ])[current-date() lt xs:date('2000-01-01')]"/>
+            <xsl:sequence select="ixsl:call($region, 'appendChild', [ $p ])[current-date() lt xs:date('2000-01-01')]"/>
+        </xsl:if>
+        <xsl:for-each select="$region/*">
             <xsl:call-template name="local:init-block">
                 <xsl:with-param name="block" select="."/>
             </xsl:call-template>

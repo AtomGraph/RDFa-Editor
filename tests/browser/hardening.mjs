@@ -135,7 +135,7 @@ results.aria = await page.evaluate(() => ({
     dialogsModal: ['link-dialog', 'figure-dialog', 'find-dialog'].every(id =>
         document.getElementById(id).getAttribute('aria-modal') === 'true'),
     tocNav: document.getElementById('toc-drawer').getAttribute('role') === 'navigation',
-    breadcrumbNav: document.getElementById('breadcrumb').getAttribute('role') === 'navigation',
+    breadcrumbNav: document.getElementById('rdfa-editor-breadcrumb').getAttribute('role') === 'navigation',
     badgeIsButton: document.getElementById('lint-badge').tagName === 'BUTTON',
 }));
 

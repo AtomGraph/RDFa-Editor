@@ -35,10 +35,10 @@ version="3.0">
                     <div id="inspector-subject"/>
                     <div id="inspector-body"/>
                 </aside>
-                <footer id="breadcrumb" class="rdfa-editor-ui" role="navigation" aria-label="Document position">
-                    <div id="breadcrumb-path"/>
-                    <div id="breadcrumb-meta">
-                        <span id="breadcrumb-subject"/>
+                <footer id="rdfa-editor-breadcrumb" class="rdfa-editor-ui" role="navigation" aria-label="Document position">
+                    <div id="rdfa-editor-breadcrumb-path"/>
+                    <div id="rdfa-editor-breadcrumb-meta">
+                        <span id="rdfa-editor-breadcrumb-subject"/>
                         <button type="button" id="lint-badge" class="lint-badge"
                             aria-label="RDFa validation issues" style="display: none;"/>
                     </div>
@@ -275,7 +275,7 @@ version="3.0">
                 <ixsl:set-property name="breadcrumbLeaf" select="$leaf" object="local:editor-state()"/>
                 <xsl:variable name="ancestors" as="element()*"
                     select="$leaf/ancestor-or-self::* intersect local:root-of($leaf)/descendant-or-self::*"/>
-                <xsl:for-each select="id('breadcrumb-path', ixsl:page())">
+                <xsl:for-each select="id('rdfa-editor-breadcrumb-path', ixsl:page())">
                     <xsl:result-document href="?." method="ixsl:replace-content">
                         <xsl:for-each select="$ancestors">
                             <xsl:if test="position() gt 1">
@@ -287,17 +287,17 @@ version="3.0">
                         </xsl:for-each>
                     </xsl:result-document>
                 </xsl:for-each>
-                <xsl:for-each select="id('breadcrumb-subject', ixsl:page())">
+                <xsl:for-each select="id('rdfa-editor-breadcrumb-subject', ixsl:page())">
                     <ixsl:set-property name="textContent"
                         select="rdfa:in-scope-subject($leaf, local:document-uri())" object="."/>
                 </xsl:for-each>
             </xsl:when>
             <xsl:otherwise>
                 <ixsl:set-property name="breadcrumbLeaf" select="()" object="local:editor-state()"/>
-                <xsl:for-each select="id('breadcrumb-path', ixsl:page())">
+                <xsl:for-each select="id('rdfa-editor-breadcrumb-path', ixsl:page())">
                     <ixsl:set-property name="textContent" select="''" object="."/>
                 </xsl:for-each>
-                <xsl:for-each select="id('breadcrumb-subject', ixsl:page())">
+                <xsl:for-each select="id('rdfa-editor-breadcrumb-subject', ixsl:page())">
                     <ixsl:set-property name="textContent" select="local:document-uri()" object="."/>
                 </xsl:for-each>
             </xsl:otherwise>

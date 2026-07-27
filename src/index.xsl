@@ -52,19 +52,31 @@ version="3.0">
          documents into the SaxonJS document pool (SaxonJS.getResource +
          documentPool), keyed by page-relative URI -->
     <xsl:template name="main">
-        <!-- all editor state lives on a single window.rdfaEditor container (mirrors
-             LinkedDataHub's window.LinkedDataHub); reached everywhere via local:editor-state() -->
-        <ixsl:set-property name="rdfaEditor" select="ixsl:call(ixsl:window(), 'Object', [])" object="ixsl:window()"/>
+        <xsl:call-template name="local:init-state"/>
+        <xsl:call-template name="local:init-editor"/>
+    </xsl:template>
+
+    <!-- all editor state lives on a single window.rdfaEditor container (mirrors
+         LinkedDataHub's window.LinkedDataHub); reached everywhere via local:editor-state().
+         Hosts with their own initial template call this from there instead of main -->
+    <xsl:template name="local:init-state">
+        <xsl:variable name="state" select="ixsl:call(ixsl:window(), 'Object', [])"/>
+        <ixsl:set-property name="rdfaEditor" select="$state" object="ixsl:window()"/>
         <xsl:for-each select="('editingSpan', 'range', 'activeBlock', 'draggedBlock',
                 'editRange', 'editingLink', 'insertHost', 'lastUndoHost',
                 'breadcrumbLeaf', 'draggedSectionHeading', 'findNode', 'tocRoot',
                 'slashHost', 'sweepAnchorNode', 'sweepAnchorHost', 'sweepRegion')">
-            <ixsl:set-property name="{.}" select="()" object="local:editor-state()"/>
+            <ixsl:set-property name="{.}" select="()" object="$state"/>
         </xsl:for-each>
-        <ixsl:set-property name="lastUndoTime" select="0" object="local:editor-state()"/>
-        <ixsl:set-property name="findOffset" select="1" object="local:editor-state()"/>
-        <ixsl:set-property name="sweepAnchorOffset" select="0" object="local:editor-state()"/>
+        <ixsl:set-property name="lastUndoTime" select="0" object="$state"/>
+        <ixsl:set-property name="findOffset" select="1" object="$state"/>
+        <ixsl:set-property name="sweepAnchorOffset" select="0" object="$state"/>
+    </xsl:template>
 
+    <!-- the full editor bring-up: page chrome (undo stash, overlay, output modal,
+         toolbar, dialogs, drawers) plus block init of every editable region. Hosts
+         that render regions lazily call this once, when the first region appears -->
+    <xsl:template name="local:init-editor">
         <xsl:call-template name="local:init-undo"/>
         <xsl:call-template name="local:init-overlay"/>
         <xsl:call-template name="local:init-annotate"/>
