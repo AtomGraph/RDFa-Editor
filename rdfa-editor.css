@@ -536,7 +536,7 @@
             }
 
 /* Breadcrumb bar (Fonto-style element path + RDFa subject) */
-            #breadcrumb {
+            #rdfa-editor-breadcrumb {
                 position: fixed;
                 left: 0;
                 right: 0;
@@ -565,7 +565,7 @@
                 margin: 0 4px;
             }
 
-#breadcrumb-subject {
+#rdfa-editor-breadcrumb-subject {
                 font-family: 'Courier New', monospace;
                 font-size: 12px;
                 color: #1565c0;
