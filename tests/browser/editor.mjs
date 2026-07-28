@@ -337,7 +337,7 @@ await page.locator('#content > h1').click({ button: 'right', position: { x: 60, 
 await page.waitForTimeout(300);
 results.blockAnnotation = {
     editorOpened: await page.evaluate(() =>
-        getComputedStyle(document.getElementById('overlay')).display !== 'none'),
+        getComputedStyle(document.getElementById('rdfa-editor-overlay')).display !== 'none'),
     // edit pre-fill renders the committed typeahead button carrying the IRI
     propertyPrefilled: await page.evaluate(() =>
         document.querySelector('#rdfa-editor-overlay .typeahead-field[data-field=property] input[type=hidden]')?.value

@@ -114,7 +114,7 @@ await page.locator('#content > p', { hasText: 'official website' }).click({ butt
 await page.waitForTimeout(200);
 await page.keyboard.press('Escape');
 results.escape.overlayClosed = await page.evaluate(() =>
-    getComputedStyle(document.getElementById('overlay')).display === 'none');
+    getComputedStyle(document.getElementById('rdfa-editor-overlay')).display === 'none');
 
 // Alt+ArrowDown moves the block; undo restores
 const orderBefore = await page.evaluate(() => [...document.getElementById('content').children].map(e => e.tagName).join(','));
@@ -131,7 +131,7 @@ results.altMove = {
 results.aria = await page.evaluate(() => ({
     toolbar: document.getElementById('edit-toolbar').getAttribute('role') === 'toolbar',
     buttonsLabelled: [...document.querySelectorAll('#edit-toolbar button')].every(b => b.getAttribute('aria-label')),
-    overlayDialog: document.getElementById('overlay').getAttribute('role') === 'dialog',
+    overlayDialog: document.getElementById('rdfa-editor-overlay').getAttribute('role') === 'dialog',
     dialogsModal: ['link-dialog', 'figure-dialog', 'find-dialog'].every(id =>
         document.getElementById(id).getAttribute('aria-modal') === 'true'),
     tocNav: document.getElementById('toc-drawer').getAttribute('role') === 'navigation',
