@@ -1,10 +1,10 @@
 // Shared drivers for the property/type typeahead fields in the annotation overlay.
-// A field is #overlay .typeahead-field[data-field=property|typeof]; it is either in
+// A field is #rdfa-editor-overlay .typeahead-field[data-field=property|typeof]; it is either in
 // the typing state (input.typeahead-input + ul.typeahead-menu) or committed
 // (button.typeahead-value). These helpers normalise to the typing state first.
 
 export async function openTypeahead(page, field) {
-    const wrap = `#overlay .typeahead-field[data-field=${field}]`;
+    const wrap = `#rdfa-editor-overlay .typeahead-field[data-field=${field}]`;
     if (await page.locator(`${wrap} .typeahead-value`).count())
         await page.click(`${wrap} .typeahead-value`);          // committed -> re-open for editing
     return wrap;
@@ -33,5 +33,5 @@ export async function typeIri(page, field, iri) {
 // the committed IRI a field currently holds (hidden input inside the button), or ''
 export async function committedIri(page, field) {
     return page.evaluate(f => document.querySelector(
-        `#overlay .typeahead-field[data-field=${f}] input[type=hidden]`)?.value ?? '', field);
+        `#rdfa-editor-overlay .typeahead-field[data-field=${f}] input[type=hidden]`)?.value ?? '', field);
 }

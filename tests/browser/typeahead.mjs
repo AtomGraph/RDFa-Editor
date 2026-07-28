@@ -14,15 +14,15 @@ page.on('dialog', d => d.accept());
 const assert = (name, cond) => { results[name] = cond; if (!cond) errors.push('ASSERT FAILED: ' + name); };
 
 await page.goto(BASE + '/tests/fixture.html');
-await page.waitForSelector('#overlay', { state: 'attached', timeout: 15000 })
+await page.waitForSelector('#rdfa-editor-overlay', { state: 'attached', timeout: 15000 })
     .catch(() => errors.push('overlay never rendered'));
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 5000 })
     .catch(() => errors.push('chrome never injected'));
 
 const FOAF = 'http://xmlns.com/foaf/0.1/';
 const TITLE = 'http://purl.org/dc/terms/title';
-const pWrap = '#overlay .typeahead-field[data-field=property]';
-const tWrap = '#overlay .typeahead-field[data-field=typeof]';
+const pWrap = '#rdfa-editor-overlay .typeahead-field[data-field=property]';
+const tWrap = '#rdfa-editor-overlay .typeahead-field[data-field=typeof]';
 const pIn = `${pWrap} input.typeahead-input`;
 const menuOpen = (w) => page.evaluate(s =>
     getComputedStyle(document.querySelector(s + ' .typeahead-menu')).display !== 'none', w);
@@ -61,7 +61,7 @@ const rightClickSelection = async () => {
 };
 
 const annotate = async (substr) => { await selectText(substr); await rightClickSelection(); };
-const cancel = async () => { await page.click('#overlay button.cancel-action'); await page.waitForTimeout(80); };
+const cancel = async () => { await page.click('#rdfa-editor-overlay button.cancel-action'); await page.waitForTimeout(80); };
 
 // select an existing annotation (the h1 that carries @property=dct:title) and open it
 const openTitleEdit = async () => {
@@ -111,7 +111,7 @@ await cancel();
 // ---- 4. a full IRI typed directly is accepted as a free entry -------------------
 await annotate('company');
 await typeIri(page, 'property', 'https://schema.org/birthDate');
-await page.click('#overlay button.spo-action');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(120);
 assert('freeIri.written', await page.evaluate(() =>
     !!document.querySelector('#content span[property="https://schema.org/birthDate"]')));
@@ -121,7 +121,7 @@ await annotate('graduated');
 await page.fill(pIn, 'notaterm');
 await page.waitForTimeout(80);
 assert('nonIri.notCommitted', await committedIri(page, 'property') === '');
-await page.click('#overlay button.spo-action');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(120);
 assert('nonIri.noProperty', await page.evaluate(() =>
     !document.querySelector('#content [property="notaterm"]')));
@@ -149,7 +149,7 @@ await cancel();
 await openTitleEdit();
 await page.click(`${pWrap} .typeahead-value`);
 await page.waitForTimeout(80);
-await page.click('#overlay button.spo-action');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(120);
 assert('stale.untouchedPreserves', await page.evaluate(t =>
     document.querySelector('#content > h1')?.getAttribute('property') === t, TITLE));

@@ -315,7 +315,7 @@ await page.evaluate(() => {
 await page.locator('#content > p', { hasText: 'official website' }).click({ button: 'right', position: { x: 25, y: 8 } });
 await page.waitForTimeout(300);
 await pickTerm(page, 'property', 'http://purl.org/dc/terms/description', 'description');
-await page.click('#overlay button.spo-action');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.click('#parse-rdf');
 await page.waitForTimeout(300);
 const rdf = await page.evaluate(() => document.getElementById('output-content').textContent);
@@ -340,16 +340,16 @@ results.blockAnnotation = {
         getComputedStyle(document.getElementById('overlay')).display !== 'none'),
     // edit pre-fill renders the committed typeahead button carrying the IRI
     propertyPrefilled: await page.evaluate(() =>
-        document.querySelector('#overlay .typeahead-field[data-field=property] input[type=hidden]')?.value
+        document.querySelector('#rdfa-editor-overlay .typeahead-field[data-field=property] input[type=hidden]')?.value
             === 'http://purl.org/dc/terms/title'),
     // the value field must not leak the block's chrome (⠿) glyph
     valueClean: await page.evaluate(() =>
-        document.querySelector('#overlay input[name=value]').value === 'Demo document'),
+        document.querySelector('#rdfa-editor-overlay input[name=value]').value === 'Demo document'),
     removeShown: await page.evaluate(() =>
-        getComputedStyle(document.querySelector('#overlay button.remove-action')).display !== 'none'),
+        getComputedStyle(document.querySelector('#rdfa-editor-overlay button.remove-action')).display !== 'none'),
 };
 // Remove strips the RDFa attributes but keeps the heading (does not unwrap it)
-await page.click('#overlay button.remove-action');
+await page.click('#rdfa-editor-overlay button.remove-action');
 await page.waitForTimeout(200);
 results.blockAnnotation.headingKept = await page.evaluate(() =>
     !!document.querySelector('#content > h1') &&

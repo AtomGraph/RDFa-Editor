@@ -114,7 +114,7 @@ await page.evaluate(() => {
 await page.locator('#content > p', { hasText: 'official website' }).click({ button: 'right', position: { x: 25, y: 8 } });
 await page.waitForTimeout(300);
 await pickTerm(page, 'property', 'http://purl.org/dc/terms/description', 'description');
-await page.click('#overlay button.spo-action');
+await page.click('#rdfa-editor-overlay button.spo-action');
 const spanCount = await page.evaluate(() => document.querySelectorAll('#content span[property="http://purl.org/dc/terms/description"]').length);
 await caretInText('#content > p:first-of-type');
 await page.keyboard.press(undoKey);
@@ -254,9 +254,9 @@ await page.waitForTimeout(300);
 // its input is unchanged. This exercises the same surfacing pipeline (badge/squiggle/
 // modal/canonical/undo). Open the advanced disclosure to reach the datatype control.
 await page.evaluate(() => { document.getElementById('advanced-fields').open = true; });
-await page.selectOption('#overlay select[name=datatype]', 'urn:rdfa-editor:custom');
-await page.fill('#overlay input[name=custom-datatype]', 'nmae');
-await page.click('#overlay button.spo-action');
+await page.selectOption('#rdfa-editor-overlay select[name=datatype]', 'urn:rdfa-editor:custom');
+await page.fill('#rdfa-editor-overlay input[name=custom-datatype]', 'nmae');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(200);
 results.lint.badgeShown = await page.evaluate(() =>
     getComputedStyle(document.getElementById('lint-badge')).display !== 'none'

@@ -16,7 +16,7 @@ page.on('dialog', d => d.accept());
 const assert = (name, cond) => { results[name] = cond; if (!cond) errors.push('ASSERT FAILED: ' + name); };
 
 await page.goto(BASE + '/tests/fixture.html');
-await page.waitForSelector('#overlay', { state: 'attached', timeout: 15000 })
+await page.waitForSelector('#rdfa-editor-overlay', { state: 'attached', timeout: 15000 })
     .catch(() => errors.push('overlay never rendered'));
 await page.waitForSelector('#content > * > [data-role=chrome]', { state: 'attached', timeout: 5000 })
     .catch(() => errors.push('chrome never injected'));
@@ -65,9 +65,9 @@ const spanAttrs = (property) => page.evaluate(p => {
 await selectText('Q4 2024');
 await rightClickSelection();
 await typeIri(page, 'property', 'http://purl.org/dc/terms/date');
-await page.selectOption('#overlay select[name=datatype]', XSD + 'date');
-await page.fill('#overlay input[name=value]', '2024-10-01');
-await page.click('#overlay button.spo-action');
+await page.selectOption('#rdfa-editor-overlay select[name=datatype]', XSD + 'date');
+await page.fill('#rdfa-editor-overlay input[name=value]', '2024-10-01');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(150);
 
 const dateSpan = await spanAttrs('http://purl.org/dc/terms/date');
@@ -87,8 +87,8 @@ await page.click('#output-modal .modal-close');
 await selectText('information');
 await rightClickSelection();
 await pickTerm(page, 'property', 'http://purl.org/dc/terms/description', 'description');
-await page.fill('#overlay input[name=lang]', 'fr');
-await page.click('#overlay button.spo-action');
+await page.fill('#rdfa-editor-overlay input[name=lang]', 'fr');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(150);
 
 const langSpan = await spanAttrs('http://purl.org/dc/terms/description');
@@ -105,13 +105,13 @@ await page.click('#output-modal .modal-close');
 // ---- 3. mutual exclusion: a chosen datatype disables the language input --------
 await selectText('graduated');
 await rightClickSelection();
-await page.selectOption('#overlay select[name=datatype]', XSD + 'integer');
+await page.selectOption('#rdfa-editor-overlay select[name=datatype]', XSD + 'integer');
 assert('mutex.langDisabledWithDatatype',
-    await page.evaluate(() => document.querySelector('#overlay input[name=lang]').disabled === true));
-await page.selectOption('#overlay select[name=datatype]', '');
+    await page.evaluate(() => document.querySelector('#rdfa-editor-overlay input[name=lang]').disabled === true));
+await page.selectOption('#rdfa-editor-overlay select[name=datatype]', '');
 assert('mutex.langEnabledWithoutDatatype',
-    await page.evaluate(() => document.querySelector('#overlay input[name=lang]').disabled === false));
-await page.click('#overlay button.cancel-action');
+    await page.evaluate(() => document.querySelector('#rdfa-editor-overlay input[name=lang]').disabled === false));
+await page.click('#rdfa-editor-overlay button.cancel-action');
 await page.waitForTimeout(100);
 
 // ---- 4. edit round-trip: prefill, then clear the datatype ----------------------
@@ -125,10 +125,10 @@ await rightClickSelection();
 assert('edit.detailsAutoOpened',
     await page.evaluate(() => document.getElementById('advanced-fields').open === true));
 assert('edit.datatypePrefilled',
-    await page.evaluate(dt => document.querySelector('#overlay select[name=datatype]').value === dt, XSD + 'date'));
+    await page.evaluate(dt => document.querySelector('#rdfa-editor-overlay select[name=datatype]').value === dt, XSD + 'date'));
 // clear the datatype -> plain literal, keeping @content
-await page.selectOption('#overlay select[name=datatype]', '');
-await page.click('#overlay button.spo-action');
+await page.selectOption('#rdfa-editor-overlay select[name=datatype]', '');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(150);
 const cleared = await spanAttrs('http://purl.org/dc/terms/date');
 assert('edit.datatypeClearedOnRemove', cleared !== null && cleared.datatype === null);
