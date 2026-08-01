@@ -43,7 +43,7 @@ Today: `ldh:RenderRowForm` on `textarea.wymeditor` calls the jQuery plugin
 
 Replacement: an `ldh:RenderRowForm` template on `div.rdfa-editor-content` running the
 editor's per-instance init (per-block-kind `contenteditable`, chrome injection) — the
-M2 equivalent of `local:init-editing` scoped to this container. **No JS assets**: the
+M2 equivalent of `rdfae:init-editing` scoped to this container. **No JS assets**: the
 editor is compiled into the client SEF; only `rdfa-editor.css` is needed.
 
 ### 3. Submit sync — `ldh:FormPreSubmit` (form.xsl:178-198)
@@ -134,7 +134,7 @@ single SEF via `xslt3-he -nogo -ns:##html5 -relocate:on` — no errors, no confl
 Audit results:
 - Extractor entry is a **named template only** (`extract-rdfa`; the unnamed-mode
   `match="/"` was removed; headless tests invoke with `-it:extract-rdfa`). All other
-  editor matching lives in named modes (`rdfa:extract`, `canonical`) or `ixsl:*` event
+  editor matching lives in named modes (`rdfax:extract`, `canonical`) or `ixsl:*` event
   modes.
 - Event templates: LDH has no `contenteditable` usage and no `body` keydown template
   (only `body` onmousemove in navigation.xsl — different mode). No pattern overlap.
@@ -186,7 +186,7 @@ Placement is carried by the XHTML structure, the reference by the name itself; t
 RDFa extraction of an empty `div[@about]` is zero triples, so no scaffolding enters
 the content graph. The fragment rule disambiguates for free: fragment `@about` =
 document part (a defined block or annotated content), absolute non-document `@about`
-on an effectively-empty div = dereference and render (`local:reference-block` in
+on an effectively-empty div = dereference and render (`rdfae:reference-block` in
 src/blocks.xsl). What the wrapper used to pay for — per-embedding metadata such as
 `ac:mode` — has no subject in this idiom; if per-embed rendering modes return, they
 need a typed block again.
@@ -206,18 +206,18 @@ example below works the same way) with the ephemeral rendering div as the contai
 <!-- client.xsl (imports the editor modules, higher import precedence) -->
 <xsl:param name="object-block-types" as="xs:string*"
     select="('&ldh;View', '&ldh;ResultSetChart', '&ldh;GraphChart')"/>
-<!-- reference blocks (embed-by-URI) need no param entry: local:reference-block
+<!-- reference blocks (embed-by-URI) need no param entry: rdfae:reference-block
      recognizes them structurally; client.xsl renders them by dereferencing
      @about into its resource-rendering machinery -->
 
 
 <xsl:template match="div[tokenize(@typeof) = ('&ldh;ResultSetChart', '&ldh;GraphChart')]"
-        mode="local:render-island">
+        mode="rdfae:render-island">
     <xsl:variable name="island" as="element()" select="."/>
     <!-- the container ldh:RenderRow renders into: the ephemeral rendering div
          (canonicalization-stripped, extractor-skipped). Seed it with the LDH
          progress-bar markup; the thunk chain replaces it with the chart -->
-    <xsl:call-template name="local:replace-rendering">
+    <xsl:call-template name="rdfae:replace-rendering">
         <xsl:with-param name="island" select="$island"/>
         <xsl:with-param name="content">
             <div class="progress progress-striped active">
@@ -246,7 +246,7 @@ The existing async pipelines (`ldh:chart-self-thunk` → `ldh:chart-query-thunk`
 container-plus-context-map based, and literal definition values are span text
 content per the v6 format, exactly what their selectors read. One caveat: chart
 canvases don't survive an `innerHTML` undo restore; the editor re-fires
-`local:render-island` only for islands *without* a rendering div, so a
+`rdfae:render-island` only for islands *without* a rendering div, so a
 canvas-bearing bridge should also re-draw from the `LinkedDataHub.contents` cache
 when its canvas is dead (LDH already does this on mode switches).
 

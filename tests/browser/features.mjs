@@ -254,7 +254,7 @@ await page.waitForTimeout(300);
 // its input is unchanged. This exercises the same surfacing pipeline (badge/squiggle/
 // modal/canonical/undo). Open the advanced disclosure to reach the datatype control.
 await page.evaluate(() => { document.getElementById('advanced-fields').open = true; });
-await page.selectOption('#rdfa-editor-overlay select[name=datatype]', 'urn:rdfa-editor:custom');
+await page.selectOption('#rdfa-editor-overlay select[name=datatype]', 'https://w3id.org/atomgraph/rdfa-editor#custom');
 await page.fill('#rdfa-editor-overlay input[name=custom-datatype]', 'nmae');
 await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(200);
