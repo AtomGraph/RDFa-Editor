@@ -427,7 +427,7 @@ results.bodyCtrlA = await page.evaluate(() => {
     };
 });
 
-// the last engaged region wins (local:active-root activeBlock precedence)
+// the last engaged region wins (rdfae:active-root activeBlock precedence)
 await load();
 await page.evaluate(() => {
     const host = [...document.querySelectorAll('#embedded [contenteditable=true]')]

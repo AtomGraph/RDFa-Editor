@@ -1,0 +1,57 @@
+/* RDFa Editor toolbar styles (injected into the host navbar).
+   Host UIs that provide their own button styling (e.g. Bootstrap)
+   should omit this file and style #edit-toolbar themselves. */
+
+#edit-toolbar button:disabled {
+                opacity: 0.4;
+                cursor: default;
+            }
+
+/* Editor toolbar (injected into the navbar) */
+            #edit-toolbar {
+                order: -1;
+                margin-right: auto;
+                display: flex;
+                gap: 6px;
+                align-items: center;
+            }
+
+#edit-toolbar select,
+            #edit-toolbar button {
+                padding: 6px 10px;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                background: white;
+                font-size: 13px;
+                font-family: "Roboto", sans-serif;
+                cursor: pointer;
+            }
+
+#edit-toolbar button:hover {
+                background: #f5f5f5;
+            }
+
+/* Caret-contextual toggle state (aria-pressed toggle buttons) */
+            #edit-toolbar button[aria-pressed="true"] {
+                background: #e3f0ff;
+                border-color: #6aa3e0;
+                color: #1a5fb4;
+            }
+
+/* Functional groups: thin dividers between clusters, no labels */
+            #edit-toolbar .tb-group {
+                display: flex;
+                gap: 6px;
+                align-items: center;
+            }
+
+#edit-toolbar .tb-group + .tb-group {
+                border-left: 1px solid #e0e0e0;
+                padding-left: 6px;
+            }
+
+/* Table-ops cluster switches on when the caret is in a table */
+            #edit-toolbar .tb-group.table-ops.active {
+                background: #e3f0ff;
+                border-radius: 4px;
+            }

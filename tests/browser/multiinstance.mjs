@@ -123,7 +123,7 @@ await page.locator('#content > p', { hasText: 'official website' }).first()
     .click({ button: 'right', position: { x: 30, y: 8 } });
 await page.waitForTimeout(200);
 results.selectionHint = await page.evaluate(() => ({
-    overlayShown: getComputedStyle(document.getElementById('overlay')).display !== 'none',
+    overlayShown: getComputedStyle(document.getElementById('rdfa-editor-overlay')).display !== 'none',
     hintBoxes: document.querySelectorAll('.rdfa-editor-selection-hint').length > 0,
 }));
 await page.keyboard.press('Escape');

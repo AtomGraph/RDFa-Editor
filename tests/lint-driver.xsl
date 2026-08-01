@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet
     xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
-    xmlns:lint="urn:rdfa-editor:lint"
+    xmlns:lint="https://w3id.org/atomgraph/rdfa-editor/lint#"
     version="3.0">
 
 <!--

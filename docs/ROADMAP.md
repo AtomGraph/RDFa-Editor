@@ -19,7 +19,7 @@ The prototype (through commit `b8466cf`) is functionally rich: structured-block 
 - Cross-text-node find matches (currently single-text-node only).
 
 ### A3. Robustness / quality
-- **Multiple editable regions per page**: everything assumes a single `id('content')` (`local:content()`, block-of, undo snapshots, lint, ToC). LDH pages have MANY XHTML blocks. Refactor to instance-scoped editing: editable roots resolved by class/typeof convention or param; undo stack per root (or keyed snapshots); ToC/breadcrumb scoped to the active root.
+- **Multiple editable regions per page**: everything assumes a single `id('content')` (`rdfae:content()`, block-of, undo snapshots, lint, ToC). LDH pages have MANY XHTML blocks. Refactor to instance-scoped editing: editable roots resolved by class/typeof convention or param; undo stack per root (or keyed snapshots); ToC/breadcrumb scoped to the active root.
 - Keyboard/a11y: Escape closes dialogs/overlay; focus trap in dialogs; ARIA roles/labels on toolbar, drawer, dialogs, breadcrumb; keyboard block move (Alt+Arrow) as DnD alternative; `prefers-reduced-motion`.
 - i18n: UI strings hardcoded English — externalize following LDH's translations.rdf pattern.
 - Browser matrix: only Chromium is CI-verified; Firefox + Safari manual/automated passes (Playwright Firefox/WebKit installable).
@@ -33,7 +33,7 @@ The prototype (through commit `b8466cf`) is functionally rich: structured-block 
 ### A5. Engineering hygiene
 - CI: GitHub Actions running `tests/run-tests.sh` + the Playwright suites (currently scratchpad-only — move smoke scripts into `tests/browser/` in-repo).
 - Packaging: CSS lives in the demo `index.html` — extract `rdfa-editor.css`; demo page vs library separation; README/integration docs; versioning.
-- Namespace: `local:`/`urn:rdfa-editor:*` fine internally; consider a stable public namespace for a distributable component.
+- Namespace: done — `rdfae:` = `https://w3id.org/atomgraph/rdfa-editor#` (with `content-model#` and `lint#` sub-namespaces); register the `rdfa-editor` redirect at perma-id/w3id.org.
 
 ## B. LinkedDataHub embedding contract (WYMEditor replacement) — ships as `docs/ldh/MIGRATION.md` in this repo
 
@@ -54,7 +54,7 @@ Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/ato
 
 - **M1 — Hardening (THIS ROUND, implemented)**: sanitization + HTML paste + a11y/keys + undo caret restoration + in-repo tests/CI + CSS extraction + README; migration plan document in `ldh/`.
 - **M2 — Multi-instance component** (DONE): `.rdfa-editor-content` regions, region-keyed undo, scoped ToC/source, `rdfaEditor*` state prefix, `.rdfa-editor-ui` CSS scoping; LDH integration compile-proven (docs/ldh/MIGRATION.md §10).
-- **Tables** (DONE): composite table blocks — rows×cols insert dialog (optional header row + caption), positional row/column operations gated on `local:has-spans`, Tab/Shift+Tab + Enter cell traversal that grows the grid at its bottom edge (`src/tables.xsl`).
+- **Tables** (DONE): composite table blocks — rows×cols insert dialog (optional header row + caption), positional row/column operations gated on `rdfae:has-spans`, Tab/Shift+Tab + Enter cell traversal that grows the grid at its bottom edge (`src/tables.xsl`).
 - **M3 — LDH swap**: the contract above (LDH-side patches + build wiring + e2e in an LDH dev instance).
 - **M4 — Vocabulary UX**: typeahead over ontology terms from `/ns`, schema.org vocab, domain/range-aware ranking.
 - **M5 — Editing completeness**: nested lists, h4–h6, code/sub/sup, image upload via LDH, cross-node find, i18n strings, Firefox/Safari passes, touch fallback.
@@ -78,20 +78,20 @@ Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/ato
 - Wrap stray top-level inline runs: `for-each-group group-adjacent="boolean(self::p|self::h1|…block…)"` → non-block groups wrapped in `<p>`.
 - Re-materialize XDM → live DOM: `serialize()` the fragment → `$stage := createElement('div')` + `innerHTML` (safe post-sanitization).
 - Insert:
-  - **Inline-only** fragment: `range.deleteContents()`; move `$stage` childNodes into a `createDocumentFragment` (counted `firstChild` loop, order preserved); capture `$last` ref before the move; `range.insertNode($frag)`; caret after `$last` via `local:place-caret(parent, count(preceding-sibling)+1)`.
-  - **Blocks into p/h/blockquote host**: push-undo; `local:split-block` at caret; insert pasted blocks after the first half (`xsl:iterate` anchor pattern from section drop); `local:init-block` each (editable + chrome); `local:ensure-placeholder` on halves; caret at end of last inserted block.
+  - **Inline-only** fragment: `range.deleteContents()`; move `$stage` childNodes into a `createDocumentFragment` (counted `firstChild` loop, order preserved); capture `$last` ref before the move; `range.insertNode($frag)`; caret after `$last` via `rdfae:place-caret(parent, count(preceding-sibling)+1)`.
+  - **Blocks into p/h/blockquote host**: push-undo; `rdfae:split-block` at caret; insert pasted blocks after the first half (`xsl:iterate` anchor pattern from section drop); `rdfae:init-block` each (editable + chrome); `rdfae:ensure-placeholder` on halves; caret at end of last inserted block.
   - **Into li/figcaption**: flatten to `string($stage)` through the plain-text path (documented).
 - Single push-undo before, after-mutation after; one Ctrl+Z reverts the paste.
 
 ### D3. A11y + keyboard
-- **Escape** closes: keydown templates on `#overlay` and the three dialogs (input events bubble to the containers) → preventDefault + `local:hide-overlay`/`local:hide-dialogs`.
+- **Escape** closes: keydown templates on `#overlay` and the three dialogs (input events bubble to the containers) → preventDefault + `rdfae:hide-overlay`/`rdfae:hide-dialogs`.
 - **Alt+ArrowUp/Down moves the current block** (keyboard DnD alternative): new dispatcher branch BEFORE the plain-arrow branch (plain arrows must also gain a `not(altKey)` guard); `before(prev)`/`after(next)` sibling move; push-undo + after-mutation; caret survives (node refs move with the block); no sibling → no-op.
 - **ARIA** in render templates: `role="dialog" aria-modal="true" aria-label` on overlay + dialogs; `aria-label` mirroring `@title` on toolbar buttons + `role="toolbar"` on `#edit-toolbar`; `role="navigation" aria-label` on `#toc-drawer` and `#breadcrumb`; lint badge becomes a real `<button class="lint-badge">`.
 - **Focus return**: hide-overlay/hide-dialogs focus the `activeBlock` host when present. Full focus trap out of scope (documented).
 
 ### D4. Undo caret restoration (`src/undo.xsl`)
-- `local:push-undo` (and both apply-undo/redo current-state pushes) capture the caret when the selection anchor is a TEXT node inside content, as data attrs on the stash entry (stash lives outside #content): `data-block` (index among content children), `data-node` (index among the block's chrome-free descendant text nodes), `data-offset`.
-- `local:restore-snapshot` resolves `content/*[$bi]` → chrome-free `text()[$ni]` → `collapse(min(offset, length))`; bare-`[$index]` predicates; fallback = current first-host behavior. Caret stored with a snapshot = caret when that state existed → symmetric for undo and redo.
+- `rdfae:push-undo` (and both apply-undo/redo current-state pushes) capture the caret when the selection anchor is a TEXT node inside content, as data attrs on the stash entry (stash lives outside #content): `data-block` (index among content children), `data-node` (index among the block's chrome-free descendant text nodes), `data-offset`.
+- `rdfae:restore-snapshot` resolves `content/*[$bi]` → chrome-free `text()[$ni]` → `collapse(min(offset, length))`; bare-`[$index]` predicates; fallback = current first-host behavior. Caret stored with a snapshot = caret when that state existed → symmetric for undo and redo.
 
 ### D5. Tests in-repo, CI, packaging
 - `tests/browser/{editor,features,fixes}.mjs` (ported suites; `PORT`/`BASE_URL` env); `package.json` (private; devDep `playwright`; scripts `test` → run-tests.sh, `test:browser`).

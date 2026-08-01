@@ -286,7 +286,7 @@ await page.locator('#content table > tbody > tr:first-child > td').first()
     .click({ button: 'right', position: { x: 8, y: 8 } });
 await page.waitForTimeout(300);
 await pickTerm(page, 'property', 'http://purl.org/dc/terms/description', 'description');
-await page.click('#overlay button.spo-action');
+await page.click('#rdfa-editor-overlay button.spo-action');
 await page.waitForTimeout(120);
 assert('cellAnnotation', await page.evaluate(() =>
     !!document.querySelector('#content table td span[property="http://purl.org/dc/terms/description"]')));
