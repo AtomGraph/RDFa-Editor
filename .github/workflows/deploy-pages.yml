@@ -25,7 +25,7 @@ jobs:
             - name: Assemble static site
               run: |
                   mkdir -p _site
-                  cp index.html rdfa-editor.css _site/
+                  cp index.html rdfa-editor.css overlay.css toolbar.css dialogs.css _site/
                   cp -r lib dist vocabs _site/
                   # core editor only: the LinkedDataHub-extended flavor (demo/ +
                   # its SEF) needs the content-negotiating dev server (serve.mjs)
