@@ -24,7 +24,7 @@
 							return SaxonJS.transform({
 								documentPool: pool,
 								stylesheetLocation: "../dist/index.xsl.sef.json",
-								initialTemplate: "main",
+								initialTemplate: "Q{https://w3id.org/atomgraph/rdfa-editor#}main",
 								logLevel: 10
 							}, "async");
 						})
