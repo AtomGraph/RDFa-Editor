@@ -56,7 +56,7 @@ kept the textarea in sync continuously; the replacement syncs once, declarativel
 ```xml
 <xsl:template match="div[contains-token(@class, 'rdfa-editor-content')]" mode="ldh:FormPreSubmit">
     <xsl:variable name="canonical" as="node()*">
-        <xsl:apply-templates select="node()" mode="canonical"/>
+        <xsl:apply-templates select="node()" mode="cm:canonical"/>
     </xsl:variable>
     <xsl:for-each select="following-sibling::input[@name = 'ol'][1]">
         <ixsl:set-property name="value" select="serialize($canonical, map{ 'method': 'xml' })" object="."/>
@@ -65,7 +65,7 @@ kept the textarea in sync continuously; the replacement syncs once, declarativel
 ```
 
 Key points: serialize the container's **children only** (no wrapper element —
-parse-rdf-post adds the div); `mode="canonical"` guarantees the stored literal is
+parse-rdf-post adds the div); `mode="cm:canonical"` guarantees the stored literal is
 sanitized and free of editing ephemera (chrome, contenteditable, classes, on*
 handlers, unsafe URLs). SaxonJS 3 applies `ixsl:set-property` immediately
 (verified in-browser), so the value is readable by `ldh:parse-rdf-post` within
@@ -132,8 +132,8 @@ The full integration was proven by compiling LDH's `client.xsl` (from the built
 single SEF via `xslt3-he -nogo -ns:##html5 -relocate:on` — no errors, no conflicts.
 
 Audit results:
-- Extractor entry is a **named template only** (`extract-rdfa`; the unnamed-mode
-  `match="/"` was removed; headless tests invoke with `-it:extract-rdfa`). All other
+- Extractor entry is a **named template only** (`rdfax:extract-rdfa`; the unnamed-mode
+  `match="/"` was removed; headless tests invoke with `-it:"Q{https://w3id.org/atomgraph/rdfa-editor/rdfa#}extract-rdfa"`). All other
   editor matching lives in named modes (`rdfax:extract`, `canonical`) or `ixsl:*` event
   modes.
 - Event templates: LDH has no `contenteditable` usage and no `body` keydown template

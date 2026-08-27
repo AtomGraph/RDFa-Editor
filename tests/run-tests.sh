@@ -12,7 +12,7 @@ fail=0
 
 for fixture in tests/fixtures/*.xhtml; do
     name=$(basename "$fixture" .xhtml)
-    if ! npx xslt3-he -xsl:src/RDFa2RDFXML-v3.xsl -s:"$fixture" -it:extract-rdfa -o:"$tmp/$name.rdf" base-uri="$BASE" 2>"$tmp/$name.err"; then
+    if ! npx xslt3-he -xsl:src/RDFa2RDFXML-v3.xsl -s:"$fixture" -it:"Q{https://w3id.org/atomgraph/rdfa-editor/rdfa#}extract-rdfa" -o:"$tmp/$name.rdf" base-uri="$BASE" 2>"$tmp/$name.err"; then
         echo "FAIL $name (extraction error)"
         cat "$tmp/$name.err"
         fail=1
@@ -48,7 +48,7 @@ done
 
 for fixture in tests/fixtures/canonical/*.xhtml; do
     name=$(basename "$fixture" .xhtml)
-    if ! npx xslt3-he -xsl:tests/canonical-driver.xsl -s:"$fixture" -it:canonical-xhtml -o:"$tmp/c-$name.xhtml" 2>"$tmp/c-$name.err"; then
+    if ! npx xslt3-he -xsl:tests/canonical-driver.xsl -s:"$fixture" -it:"Q{https://w3id.org/atomgraph/rdfa-editor/content-model#}canonical-xhtml" -o:"$tmp/c-$name.xhtml" 2>"$tmp/c-$name.err"; then
         echo "FAIL canonical/$name (transform error)"
         cat "$tmp/c-$name.err"
         fail=1

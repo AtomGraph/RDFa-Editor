@@ -11,7 +11,7 @@ The prototype (through commit `b8466cf`) is functionally rich: structured-block 
 - Element allowlist question: canonicalization currently passes unknown elements through (shallow-copy) — decide pass-through vs allowlist for embedded content (iframe/object/embed/form should not survive).
 
 ### A2. Editing completeness
-- **HTML paste** with sanitization: currently plain-text only. We already own the cleanup machinery — parse `clipboardData` `text/html` via `parse-xml`/fragment parsing and run it through `mode="canonical"` + the new sanitization rules; insert clean fragment. (Word/Google-Docs paste is the single biggest prod-usability item.)
+- **HTML paste** with sanitization: currently plain-text only. We already own the cleanup machinery — parse `clipboardData` `text/html` via `parse-xml`/fragment parsing and run it through `mode="cm:canonical"` + the new sanitization rules; insert clean fragment. (Word/Google-Docs paste is the single biggest prod-usability item.)
 - Nested lists (indent/outdent via Tab/Shift+Tab in `li`), `ul`↔`ol` conversion of an existing list.
 - h4–h6 in the block-type select (cheap); `code`/`sub`/`sup` inline toggles (cheap — the `format-inline` machinery is generic).
 - Image upload (LDH has upload flows) — URL-only first; wire LDH upload later.
@@ -47,7 +47,7 @@ Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/ato
 6. **Vocabularies** — `/ns?uri=<vocab>&accept=application/rdf+xml` endpoint (constructor.xsl:203-209 pattern) via `ixsl:promise`; typeahead control (LDH typeahead.xsl precedent) replaces the selects.
 7. **i18n** — strings into `translations.rdf` (`key('resources', id, document(...))` + `ac:label`).
 8. **Feature flag** — decision DEFERRED (user); document options: `lapp:Application` property / XSL param via web.xml / hard cutover.
-9. **Build** — modules pulled into the LDH webapp tree at build time and `xsl:import`ed from `client.xsl`; existing pom `xslt3-he … -relocate:on` step compiles everything (pom.xml:39, 383-391). Conflict audit checklist: our unnamed-mode `match="/"` (extract-rdfa) vs LDH root templates, `body` keydown fallback, host-level event templates, `xsl:output`, `id('content')` assumptions.
+9. **Build** — modules pulled into the LDH webapp tree at build time and `xsl:import`ed from `client.xsl`; existing pom `xslt3-he … -relocate:on` step compiles everything (pom.xml:39, 383-391). Conflict audit checklist: the extractor entry (named-only `rdfax:extract-rdfa` since the unnamed-mode `match="/"` was dropped) vs LDH root templates, `body` keydown fallback, host-level event templates, `xsl:output`, `id('content')` assumptions.
 10. **v6 note** — view mode renders XMLLiteral via identity transform (`imports/default.xsl:1489-1503`); the eventual v6 in-place model (edit the view markup, PUT canonical doc) is the successor to this form-control integration.
 
 ## C. Milestones
@@ -74,7 +74,7 @@ Mapped integration surface (all in `LinkedDataHub/src/main/webapp/static/com/ato
 ### D2. HTML paste (`src/edit.xsl` onpaste)
 - `text/html` non-empty → HTML path; else existing plain-text path.
 - Parse: detached `$carrier := createElement('div')` + `innerHTML :=` clipboard HTML (scripts inert when detached; XPath over detached nodes already proven).
-- Sanitize: `$clean :=` apply-templates `$carrier/node()` in `mode="canonical"` (now incl. D1 rules).
+- Sanitize: `$clean :=` apply-templates `$carrier/node()` in `mode="cm:canonical"` (now incl. D1 rules).
 - Wrap stray top-level inline runs: `for-each-group group-adjacent="boolean(self::p|self::h1|…block…)"` → non-block groups wrapped in `<p>`.
 - Re-materialize XDM → live DOM: `serialize()` the fragment → `$stage := createElement('div')` + `innerHTML` (safe post-sanitization).
 - Insert:

@@ -23,7 +23,7 @@
                         return SaxonJS.transform({
                             documentPool: pool,
                             stylesheetLocation: "../dist/ldh-editor.xsl.sef.json",
-                            initialTemplate: "main",
+                            initialTemplate: "Q{https://w3id.org/atomgraph/rdfa-editor#}main",
                             logLevel: 10
                         }, "async");
                     })
