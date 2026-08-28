@@ -300,7 +300,7 @@ results.drag = await page.evaluate(() => {
     dragged.querySelector('.drag-handle').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     const draggableSet = dragged.getAttribute('draggable') === 'true';
     const dt = new DataTransfer();
-    dt.setData('application/x-rdfa-editor-block', '');
+    dt.setData('application/vnd.atomgraph.rdfa-editor.block', '');
     dragged.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
     const rect = target.getBoundingClientRect();
     target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: rect.bottom - 2 }));

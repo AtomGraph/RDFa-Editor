@@ -89,7 +89,7 @@ await page.evaluate(() => {
     const target = content.querySelector(':scope > blockquote');
     dragged.querySelector('.drag-handle').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     const dt = new DataTransfer();
-    dt.setData('application/x-rdfa-editor-block', '');
+    dt.setData('application/vnd.atomgraph.rdfa-editor.block', '');
     dragged.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
     const rect = target.getBoundingClientRect();
     target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: rect.bottom - 2 }));
@@ -164,7 +164,7 @@ await page.evaluate(() => {
     const byLabel = t => items.find(li => li.querySelector(':scope > .toc-label').textContent === t);
     const source = byLabel('Company'), target = byLabel('Publications');
     const dt = new DataTransfer();
-    dt.setData('application/x-rdfa-editor-section', '');
+    dt.setData('application/vnd.atomgraph.rdfa-editor.section', '');
     source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
     const rect = target.getBoundingClientRect();
     target.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: rect.bottom - 1 }));
@@ -195,7 +195,7 @@ await page.evaluate(() => {
     const byLabel = t => items.find(li => li.querySelector(':scope > .toc-label').textContent === t);
     const source = byLabel('Demo document'), target = byLabel('Queries');
     const dt = new DataTransfer();
-    dt.setData('application/x-rdfa-editor-section', '');
+    dt.setData('application/vnd.atomgraph.rdfa-editor.section', '');
     source.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
     const rect = target.getBoundingClientRect();
     target.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: rect.bottom - 1 }));
