@@ -64,7 +64,7 @@ await page.evaluate(() => {
     const target = document.querySelector('#notes > p');
     block.querySelector('.drag-handle').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     const dt = new DataTransfer();
-    dt.setData('application/x-rdfa-editor-block', '');
+    dt.setData('application/vnd.atomgraph.rdfa-editor.block', '');
     block.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
     const rect = target.getBoundingClientRect();
     for (const type of ['dragover', 'drop']) {
