@@ -5,6 +5,7 @@
     <!-- Word paste junk comment -->
     <p><iframe src="http://evil.example/"></iframe><object data="x"></object>Embedded gone.</p>
     <form action="/steal"><input type="text" name="x"/><button>go</button></form>
+    <p>A standalone <button type="button" class="tab" onclick="evil()">button</button> is inert content and stays, handler-stripped.</p>
     <figure>
         <img src="data:image/png;base64,iVBORw0KGgo=" alt="inline image kept"/>
         <img src="data:text/html;base64,PHNjcmlwdD4=" alt="data html dropped"/>
