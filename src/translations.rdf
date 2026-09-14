@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE rdf:RDF [
-    <!ENTITY rdf            "http://www.w3.org/1999/02/22-rdf-syntax-ns#">
-    <!ENTITY rdfs           "http://www.w3.org/2000/01/rdf-schema#">
-]>
 <!-- Every user-visible string the editor emits, keyed by rdf:nodeID. A host translates the
      editor by pointing rdfae:translations() at its own catalog using these same keys. -->
-<rdf:RDF xmlns:rdf="&rdf;" xmlns:rdfs="&rdfs;">
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
     <rdf:Description rdf:nodeID="add-paragraph">
         <rdfs:label xml:lang="en">Add paragraph</rdfs:label>
     </rdf:Description>

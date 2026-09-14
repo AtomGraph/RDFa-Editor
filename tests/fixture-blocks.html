@@ -13,11 +13,12 @@
                 // point the static placeholder at this server's copy before init
                 const ref = document.querySelector('#content div[about]:not([typeof])');
                 ref.setAttribute('about', new URL('../demo/resources/ada/#this', document.baseURI).href);
-                const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf", "translations.rdf"];
-                Promise.all(vocabs.map(href =>
-                        SaxonJS.getResource({ location: "../" + href, type: "xml" })))
-                    .then(resources => {
+                const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+                Promise.all([SaxonJS.getResource({ location: "../src/translations.rdf", type: "xml" }), ...vocabs.map(href =>
+                        SaxonJS.getResource({ location: "../" + href, type: "xml" }))])
+                    .then(([catalog, ...resources]) => {
                         const pool = {};
+                        pool[new URL("../dist/translations.rdf", document.baseURI).href] = catalog;   // the catalog resolves against the SEF, the vocabularies against this page
                         vocabs.forEach((href, i) =>
                             pool[new URL(href, document.baseURI).href] = resources[i]);
                         return SaxonJS.transform({

@@ -14,11 +14,12 @@
 					// keys stay page-relative (matching the stylesheet's vocab-hrefs,
 					// resolved against this page); the files are fetched from ../vocabs/
 					// since this fixture lives under tests/ and the vocabs at the repo root
-					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf", "translations.rdf"];
-					Promise.all(vocabs.map(href =>
-							SaxonJS.getResource({ location: "../" + href, type: "xml" })))
-						.then(resources => {
+					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+					Promise.all([SaxonJS.getResource({ location: "../src/translations.rdf", type: "xml" }), ...vocabs.map(href =>
+							SaxonJS.getResource({ location: "../" + href, type: "xml" }))])
+						.then(([catalog, ...resources]) => {
 							const pool = {};
+							pool[new URL("../dist/translations.rdf", document.baseURI).href] = catalog;   // the catalog resolves against the SEF, the vocabularies against this page
 							vocabs.forEach((href, i) =>
 								pool[new URL(href, document.baseURI).href] = resources[i]);
 							return SaxonJS.transform({
