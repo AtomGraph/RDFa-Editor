@@ -266,7 +266,7 @@ results.dnd = await page.evaluate(async () => {
     const content = document.getElementById('content');
     const dragged = content.querySelector(':scope > p');
     const target = content.querySelector(':scope > blockquote');
-    const handle = dragged.querySelector('.drag-handle');
+    const handle = dragged.querySelector('.rdfa-editor-drag-handle');
     const firstTag = i => content.children[i].tagName;
     handle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     const draggableSet = dragged.getAttribute('draggable') === 'true';

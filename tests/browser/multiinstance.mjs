@@ -62,7 +62,7 @@ const before = await orders();
 await page.evaluate(() => {
     const block = document.querySelector('#content > p');
     const target = document.querySelector('#notes > p');
-    block.querySelector('.drag-handle').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    block.querySelector('.rdfa-editor-drag-handle').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     const dt = new DataTransfer();
     dt.setData('application/vnd.atomgraph.rdfa-editor.block', '');
     block.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
