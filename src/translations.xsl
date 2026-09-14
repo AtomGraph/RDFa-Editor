@@ -5,6 +5,7 @@ xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
 xmlns:xs="http://www.w3.org/2001/XMLSchema"
 xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
 xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+xmlns:ixsl="http://saxonica.com/ns/interactiveXSLT"
 xmlns:rdfae="https://w3id.org/atomgraph/rdfa-editor#"
 exclude-result-prefixes="#all"
 version="3.0">
@@ -25,9 +26,25 @@ version="3.0">
          page must preload it into the SaxonJS document pool, exactly as $vocab-hrefs does -->
     <xsl:param name="translations-href" as="xs:string" select="'translations.rdf'"/>
 
-    <!-- the language labels are selected in. A host with its own notion of the user's
-         language (a negotiated Accept-Language, a profile setting) redeclares this -->
-    <xsl:param name="translations-lang" as="xs:string" select="'en'"/>
+    <!-- the reader's languages as the browser reports them, reduced to primary subtags so a catalog
+         tagged es-ES answers a browser asking for es-419, deduplicated because es-ES,es yields the same
+         subtag twice, and floored at 'en' when the reader expressed no preference. Two declarations:
+         navigator exists only in the browser, and the editor also compiles under Saxon for its headless
+         tests, where there is no reader to ask -->
+
+    <xsl:function name="rdfae:langs" as="xs:string*" use-when="system-property('xsl:product-name') = 'SaxonJS'">
+        <xsl:variable name="langs" as="xs:string*" select="distinct-values(for $lang in ixsl:get(ixsl:window(), 'navigator.languages') return tokenize($lang, '-')[1])[not(. = ('', '*'))]"/>
+
+        <xsl:sequence select="if (exists($langs)) then $langs else 'en'"/>
+    </xsl:function>
+
+    <xsl:function name="rdfae:langs" as="xs:string*" use-when="not(system-property('xsl:product-name') = 'SaxonJS')">
+        <xsl:sequence select="'en'"/>
+    </xsl:function>
+
+    <!-- the language labels are selected in, defaulting to the reader's own. A host that resolves it
+         from something else - a negotiated Accept-Language, a profile setting - redeclares this -->
+    <xsl:param name="translations-lang" as="xs:string" select="rdfae:langs()[1]"/>
 
     <!-- keyed by rdf:nodeID, the catalog's own identifiers; also matches rdf:about so a
          host catalog that names its terms with IRIs resolves through the same lookup -->
