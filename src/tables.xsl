@@ -121,12 +121,12 @@ version="3.0">
             <input type="number" id="table-rows" name="rows" value="3" min="1" max="50"/>
             <label for="table-cols"><xsl:value-of select="rdfae:label('table-columns')"/></label>
             <input type="number" id="table-cols" name="cols" value="3" min="1" max="20"/>
-            <label class="checkbox-label"><input type="checkbox" name="header-row" checked="checked"/><xsl:text> </xsl:text><xsl:value-of select="rdfae:label('table-header-row')"/></label>
+            <label class="{$checkbox-label-class}"><input type="checkbox" name="header-row" checked="checked"/><xsl:text> </xsl:text><xsl:value-of select="rdfae:label('table-header-row')"/></label>
             <label for="table-caption"><xsl:value-of select="rdfae:label('caption')"/></label>
             <input type="text" id="table-caption" name="caption"/>
             <div class="action-buttons">
-                <button type="button" class="btn-primary table-save"><xsl:value-of select="rdfae:label('insert')"/></button>
-                <button type="button" class="btn-secondary table-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
+                <button type="button" class="{$button-primary-class} table-save"><xsl:value-of select="rdfae:label('insert')"/></button>
+                <button type="button" class="{$button-secondary-class} table-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
             </div>
         </div>
     </xsl:template>

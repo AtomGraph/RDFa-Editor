@@ -47,7 +47,7 @@ version="3.0">
                     <span class="stmt-role" title="{rdfae:label('rdfa-object')}">O</span>
                     <div class="stmt-control">
                         <input type="text" name="value" placeholder="{rdfae:label('rdfa-value-placeholder')}"/>
-                        <span class="helper-text">The selected text; change it to emit a machine-readable content value</span>
+                        <span class="{$helper-text-class}">The selected text; change it to emit a machine-readable content value</span>
                     </div>
                 </div>
 
@@ -56,18 +56,18 @@ version="3.0">
                     <fieldset>
                         <label><xsl:value-of select="rdfae:label('rdfa-type-typeof')"/></label>
                         <xsl:sequence select="rdfae:typeahead-field('typeof')"/>
-                        <span class="helper-text">Types the annotated resource; without a subject the typed
+                        <span class="{$helper-text-class}">Types the annotated resource; without a subject the typed
                             resource becomes the object of the property (chaining)</span>
                     </fieldset>
                     <fieldset>
                         <label><xsl:value-of select="rdfae:label('rdfa-subject-about')"/></label>
                         <input type="text" name="subject" placeholder="{rdfae:label('rdfa-subject-placeholder')}"/>
-                        <span class="helper-text"><xsl:value-of select="rdfae:label('rdfa-subject-help')"/></span>
+                        <span class="{$helper-text-class}"><xsl:value-of select="rdfae:label('rdfa-subject-help')"/></span>
                     </fieldset>
                     <fieldset>
                         <label><xsl:value-of select="rdfae:label('rdfa-object-resource')"/></label>
                         <input type="text" name="object" placeholder="{rdfae:label('rdfa-object-placeholder')}"/>
-                        <span class="helper-text"><xsl:value-of select="rdfae:label('rdfa-object-help')"/></span>
+                        <span class="{$helper-text-class}"><xsl:value-of select="rdfae:label('rdfa-object-help')"/></span>
                     </fieldset>
                     <fieldset>
                         <label><xsl:value-of select="rdfae:label('rdfa-datatype')"/></label>
@@ -81,20 +81,20 @@ version="3.0">
                             <option value="{$rdfae:custom}">-- Custom datatype --</option>
                         </select>
                         <input type="text" name="custom-datatype" placeholder="{rdfae:label('rdfa-datatype-placeholder')}" style="display: none;"/>
-                        <span class="helper-text">Types the literal (e.g. xsd:date, xsd:integer);
+                        <span class="{$helper-text-class}">Types the literal (e.g. xsd:date, xsd:integer);
                             mutually exclusive with a language tag</span>
                     </fieldset>
                     <fieldset>
                         <label><xsl:value-of select="rdfae:label('rdfa-language')"/></label>
                         <input type="text" name="lang" placeholder="{rdfae:label('rdfa-language-placeholder')}"/>
-                        <span class="helper-text"><xsl:value-of select="rdfae:label('rdfa-language-help')"/></span>
+                        <span class="{$helper-text-class}"><xsl:value-of select="rdfae:label('rdfa-language-help')"/></span>
                     </fieldset>
                 </details>
 
                 <div class="action-buttons">
-                    <button type="button" class="btn-danger remove-action" style="display: none;"><xsl:value-of select="rdfae:label('remove')"/></button>
-                    <button type="button" class="btn-primary spo-action"><xsl:value-of select="rdfae:label('annotate')"/></button>
-                    <button type="button" class="btn-secondary cancel-action"><xsl:value-of select="rdfae:label('cancel')"/></button>
+                    <button type="button" class="{$button-danger-class} remove-action" style="display: none;"><xsl:value-of select="rdfae:label('remove')"/></button>
+                    <button type="button" class="{$button-primary-class} spo-action"><xsl:value-of select="rdfae:label('annotate')"/></button>
+                    <button type="button" class="{$button-secondary-class} cancel-action"><xsl:value-of select="rdfae:label('cancel')"/></button>
                 </div>
             </form>
         </div>

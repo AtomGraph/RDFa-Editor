@@ -74,7 +74,7 @@ version="3.0">
                         </xsl:call-template>
                     </xsl:when>
                     <xsl:otherwise>
-                        <p class="helper-text"><xsl:value-of select="rdfae:label('no-headings')"/></p>
+                        <p class="{$helper-text-class}"><xsl:value-of select="rdfae:label('no-headings')"/></p>
                     </xsl:otherwise>
                 </xsl:choose>
             </xsl:result-document>
@@ -378,7 +378,7 @@ version="3.0">
                             </xsl:for-each>
                         </xsl:when>
                         <xsl:otherwise>
-                            <p class="helper-text"><xsl:value-of select="rdfae:label('no-subject-properties')"/></p>
+                            <p class="{$helper-text-class}"><xsl:value-of select="rdfae:label('no-subject-properties')"/></p>
                         </xsl:otherwise>
                     </xsl:choose>
                 </xsl:result-document>
@@ -522,16 +522,16 @@ version="3.0">
             <input type="text" id="find-text" name="find"/>
             <label for="find-replace"><xsl:value-of select="rdfae:label('replace-with')"/></label>
             <input type="text" id="find-replace" name="replace"/>
-            <label class="checkbox-label">
+            <label class="{$checkbox-label-class}">
                 <input type="checkbox" name="match-case"/><xsl:text> </xsl:text><xsl:value-of select="rdfae:label('match-case')"/>
             </label>
             <div class="action-buttons">
-                <button type="button" class="btn-primary find-next"><xsl:value-of select="rdfae:label('find-next')"/></button>
-                <button type="button" class="btn-secondary replace-current"><xsl:value-of select="rdfae:label('replace')"/></button>
-                <button type="button" class="btn-secondary replace-all"><xsl:value-of select="rdfae:label('replace-all')"/></button>
-                <button type="button" class="btn-secondary find-close"><xsl:value-of select="rdfae:label('close')"/></button>
+                <button type="button" class="{$button-primary-class} find-next"><xsl:value-of select="rdfae:label('find-next')"/></button>
+                <button type="button" class="{$button-secondary-class} replace-current"><xsl:value-of select="rdfae:label('replace')"/></button>
+                <button type="button" class="{$button-secondary-class} replace-all"><xsl:value-of select="rdfae:label('replace-all')"/></button>
+                <button type="button" class="{$button-secondary-class} find-close"><xsl:value-of select="rdfae:label('close')"/></button>
             </div>
-            <span id="find-status" class="helper-text"/>
+            <span id="find-status" class="{$helper-text-class}"/>
         </div>
     </xsl:template>
 

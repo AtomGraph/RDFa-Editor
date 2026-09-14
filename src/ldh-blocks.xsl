@@ -325,8 +325,8 @@ version="3.0">
                 <input type="text" name="chart-series"/>
             </div>
             <div class="action-buttons">
-                <button type="button" class="btn-primary ldh-block-save"><xsl:value-of select="rdfae:label('insert')"/></button>
-                <button type="button" class="btn-secondary ldh-block-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
+                <button type="button" class="{$button-primary-class} ldh-block-save"><xsl:value-of select="rdfae:label('insert')"/></button>
+                <button type="button" class="{$button-secondary-class} ldh-block-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
             </div>
         </div>
     </xsl:template>

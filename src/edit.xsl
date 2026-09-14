@@ -2146,9 +2146,9 @@ version="3.0">
             <label for="link-href"><xsl:value-of select="rdfae:label('link-href')"/></label>
             <input type="text" id="link-href" name="href" placeholder="https://..."/>
             <div class="action-buttons">
-                <button type="button" class="btn-danger link-remove" style="display: none;"><xsl:value-of select="rdfae:label('remove-link')"/></button>
-                <button type="button" class="btn-primary link-save"><xsl:value-of select="rdfae:label('save')"/></button>
-                <button type="button" class="btn-secondary link-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
+                <button type="button" class="{$button-danger-class} link-remove" style="display: none;"><xsl:value-of select="rdfae:label('remove-link')"/></button>
+                <button type="button" class="{$button-primary-class} link-save"><xsl:value-of select="rdfae:label('save')"/></button>
+                <button type="button" class="{$button-secondary-class} link-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
             </div>
         </div>
     </xsl:template>
@@ -2284,8 +2284,8 @@ version="3.0">
             <label for="figure-caption"><xsl:value-of select="rdfae:label('caption')"/></label>
             <input type="text" id="figure-caption" name="caption"/>
             <div class="action-buttons">
-                <button type="button" class="btn-primary figure-save"><xsl:value-of select="rdfae:label('insert')"/></button>
-                <button type="button" class="btn-secondary figure-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
+                <button type="button" class="{$button-primary-class} figure-save"><xsl:value-of select="rdfae:label('insert')"/></button>
+                <button type="button" class="{$button-secondary-class} figure-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
             </div>
         </div>
     </xsl:template>

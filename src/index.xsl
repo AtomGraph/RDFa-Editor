@@ -28,8 +28,10 @@ version="3.0">
     - select.xsl           region-scoped select-all and cross-host selection delete
     - input.xsl            input triggers: slash menu and markdown shorthands
     - translations.xsl     the string catalog every emitter reads its labels from
+    - classes.xsl          the presentational classes its chrome wears, for a host to restyle
 -->
 
+    <xsl:include href="classes.xsl"/>
     <xsl:include href="translations.xsl"/>
     <xsl:include href="RDFa2RDFXML-v3.xsl"/>
     <xsl:include href="group-sort-triples.xsl"/>
