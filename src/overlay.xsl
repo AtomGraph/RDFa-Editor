@@ -159,11 +159,10 @@ version="3.0">
             <xsl:for-each select=".//input[@name = 'value']">
                 <ixsl:set-property name="value" select="($value, '')[1]" object="."/>
             </xsl:for-each>
-            <!-- disclose the advanced fields when the annotation carries any of them -->
-            <xsl:for-each select="id('advanced-fields', ixsl:page())">
-                <ixsl:set-property name="open"
-                    select="exists($span/(@about | @resource | @typeof | @datatype | @lang | @xml:lang))" object="."/>
-            </xsl:for-each>
+            <xsl:call-template name="rdfae:reveal-fields">
+                <xsl:with-param name="form" select="$form"/>
+                <xsl:with-param name="span" select="$span"/>
+            </xsl:call-template>
             <!-- datatype and language are mutually exclusive (datatype wins): a datatype
                  on the edited annotation disables the language input -->
             <xsl:for-each select=".//input[@name = 'lang']">
@@ -191,6 +190,24 @@ version="3.0">
             </xsl:for-each>
         </xsl:for-each>
     </xsl:template>
+
+    <!-- reflect the edited annotation's non-value state into the form's chrome: here, the disclosure
+         that holds the type/subject/object overrides. The one shape-dependent step in populate-form,
+         so it is its own template - a host whose overlay groups those fields differently (tabs, a
+         segmented object switch) overrides this and leaves the rest of the prefill alone -->
+    <xsl:template name="rdfae:reveal-fields">
+        <xsl:param name="form" as="element()"/>
+        <xsl:param name="span" as="element()?"/>
+
+        <xsl:for-each select="id('advanced-fields', ixsl:page())">
+            <ixsl:set-property name="open"
+                select="exists($span/(@about | @resource | @typeof | @datatype | @lang | @xml:lang))" object="."/>
+        </xsl:for-each>
+    </xsl:template>
+
+
+
+
 
     <!-- set a select's value via the live property; an IRI absent from the options
          leaves the select empty, so route it to the custom input instead -->
@@ -272,6 +289,9 @@ version="3.0">
         <xsl:for-each select="id('stmt-subject', ixsl:page())">
             <ixsl:set-attribute name="data-inherited-subject" select="($in-scope-subject, '')[1]"/>
             <ixsl:set-property name="textContent" select="($in-scope-subject, '')[1]" object="."/>
+            <!-- the readout is a single line that may be narrower than the IRI; @title is where the whole of it
+                 stays reachable. Written wherever textContent is, so the two cannot say different things -->
+            <ixsl:set-attribute name="title" select="($in-scope-subject, '')[1]"/>
         </xsl:for-each>
     </xsl:template>
 
@@ -332,6 +352,7 @@ version="3.0">
         <xsl:for-each select="id('stmt-subject', ixsl:page())">
             <ixsl:set-property name="textContent"
                 select="($value[. ne ''], string(@data-inherited-subject))[1]" object="."/>
+            <ixsl:set-attribute name="title" select="($value[. ne ''], string(@data-inherited-subject))[1]"/>
         </xsl:for-each>
     </xsl:template>
 
