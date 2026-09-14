@@ -142,7 +142,7 @@ version="3.0">
             <xsl:result-document href="?." method="ixsl:replace-content">
                 <button type="button" class="typeahead-value" title="{$iri}">
                     <span class="typeahead-label"><xsl:value-of select="$label"/></span>
-                    <span class="typeahead-clear" role="button" aria-label="Clear">&#215;</span>
+                    <span class="typeahead-clear" role="button" aria-label="{rdfae:label('clear-facet')}">&#215;</span>
                     <input type="hidden" name="{$field}" value="{$iri}"/>
                 </button>
             </xsl:result-document>

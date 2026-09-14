@@ -9,12 +9,12 @@
 		  <script type="text/javascript" src="../lib/xml-c14n-sync.js"></script>
 		  <script type="text/javascript">
 				window.onload = function() {
-					// preload the vocabulary documents into the SaxonJS document pool,
+					// preload the vocabulary documents and the string catalog into the SaxonJS document pool,
 					// so doc() resolves them synchronously during initialization
 					// keys stay page-relative (matching the stylesheet's vocab-hrefs,
 					// resolved against this page); the files are fetched from ../vocabs/
 					// since this fixture lives under tests/ and the vocabs at the repo root
-					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf", "translations.rdf"];
 					Promise.all(vocabs.map(href =>
 							SaxonJS.getResource({ location: "../" + href, type: "xml" })))
 						.then(resources => {

@@ -13,7 +13,7 @@
                 // point the static placeholder at this server's copy before init
                 const ref = document.querySelector('#content div[about]:not([typeof])');
                 ref.setAttribute('about', new URL('../demo/resources/ada/#this', document.baseURI).href);
-                const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+                const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf", "translations.rdf"];
                 Promise.all(vocabs.map(href =>
                         SaxonJS.getResource({ location: "../" + href, type: "xml" })))
                     .then(resources => {

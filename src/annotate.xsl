@@ -274,8 +274,8 @@ version="3.0">
                 <div id="output-modal" class="rdfa-editor-ui" style="display: none;">
                     <div class="modal-content">
                         <span class="modal-close">&#215;</span>
-                        <h3 id="output-title">Output</h3>
-                        <button id="output-download" type="button" style="display: none;">Download</button>
+                        <h3 id="output-title"><xsl:value-of select="rdfae:label('output')"/></h3>
+                        <button id="output-download" type="button" style="display: none;"><xsl:value-of select="rdfae:label('download')"/></button>
                         <pre id="output-content"/>
                     </div>
                 </div>
@@ -335,7 +335,7 @@ version="3.0">
         </xsl:variable>
 
         <xsl:call-template name="rdfae:show-output">
-            <xsl:with-param name="title" select="'Extracted RDF/XML'"/>
+            <xsl:with-param name="title" select="rdfae:label('extracted-rdfxml')"/>
             <xsl:with-param name="text" select="serialize(rdfae:group-triples($rdf), map{ 'method': 'xml', 'indent': true() })"/>
             <xsl:with-param name="filename" select="'content.rdf'"/>
             <xsl:with-param name="media-type" select="'application/rdf+xml'"/>
