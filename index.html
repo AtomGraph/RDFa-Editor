@@ -1,0 +1,346 @@
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700" type="text/css">
+        <title>RDFa Editor</title>
+		  <script type="text/javascript" src="lib/SaxonJS3.js"></script>
+		  <script type="text/javascript" src="lib/xml-c14n-sync.js"></script>
+		  <script type="text/javascript">
+				window.onload = function() {
+					// preload the vocabulary documents into the SaxonJS document pool,
+					// so doc() resolves them synchronously during initialization
+					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
+					Promise.all(vocabs.map(href =>
+							SaxonJS.getResource({ location: href, type: "xml" })))
+						.then(resources => {
+							const pool = {};
+							vocabs.forEach((href, i) =>
+								pool[new URL(href, document.baseURI).href] = resources[i]);
+							return SaxonJS.transform({
+								documentPool: pool,
+								stylesheetLocation: "dist/index.xsl.sef.json",
+								initialTemplate: "Q{https://w3id.org/atomgraph/rdfa-editor#}main",
+								logLevel: 10
+							}, "async");
+						})
+						.catch(err => console.log("Transformation failed: " + err));
+				}
+		 </script>
+        <link rel="stylesheet" href="rdfa-editor.css" type="text/css"/>
+        <link rel="stylesheet" href="overlay.css" type="text/css"/>
+        <link rel="stylesheet" href="toolbar.css" type="text/css"/>
+        <link rel="stylesheet" href="dialogs.css" type="text/css"/>
+        <style type="text/css">
+            html, body { margin: 0; }
+			body {
+                font-family: "Roboto", sans-serif;
+                padding-top: 70px;    /* account for the fixed navbar */
+                padding-bottom: 56px; /* account for the fixed breadcrumb bar */
+            }
+            /* Fixed Top Navbar */
+            nav {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: white;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                padding: 12px 20px;
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+                gap: 8px;
+                z-index: 1000;
+                border-bottom: 1px solid #e0e0e0;
+            }
+            /* Navbar buttons (Extract RDF, Help) */
+            .nav-btn {
+                padding: 10px 20px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 500;
+                font-family: "Roboto", sans-serif;
+                background-color: #2196f3;
+                color: white;
+            }
+            .nav-btn:hover { background-color: #1976d2; }
+            .nav-btn.secondary { background-color: #607d8b; }
+            .nav-btn.secondary:hover { background-color: #455a64; }
+
+            /* The editor fills the page */
+            .rdfa-editor-content {
+                margin: 0;
+                min-height: calc(100vh - 70px - 56px);
+                padding: 32px 48px 48px 48px; /* left >= 2.5em keeps the drag-handle gutter */
+                border: none;
+                background: white;
+                box-sizing: border-box;
+            }
+
+            /* Site footer — host-page chrome (outside #content), resource/attribution links */
+            .site-footer {
+                padding: 24px 48px;
+                border-top: 1px solid #e0e0e0;
+                background: #fafafa;
+                text-align: center;
+                color: #777;
+                font-size: 13px;
+            }
+            .site-footer-tagline { margin: 0 0 10px 0; }
+            .site-footer ul {
+                list-style: none;
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px 20px;
+                justify-content: center;
+            }
+            .site-footer a { color: #1976d2; text-decoration: none; }
+            .site-footer a:hover { text-decoration: underline; }
+
+            /* Help modal — host-page only; reuses the editor's .modal-content look */
+            #help-modal {
+                position: fixed;
+                z-index: 10001;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                align-items: center;
+                justify-content: center;
+            }
+            #help-modal .modal-content { max-width: 760px; line-height: 1.6; }
+            #help-modal .modal-content h4 { margin: 20px 0 6px 0; color: #333; }
+            #help-modal .modal-content p { margin: 8px 0; }
+            #help-modal .help-close {
+                position: absolute;
+                right: 18px;
+                top: 12px;
+                background: none;
+                border: none;
+                font-size: 30px;
+                font-weight: bold;
+                line-height: 1;
+                color: #999;
+                cursor: pointer;
+            }
+            #help-modal .help-close:hover { color: #333; }
+            #help-modal .legend { list-style: none; padding-left: 0; }
+            #help-modal .legend li { margin: 6px 0; }
+            #help-modal .swatch {
+                display: inline-block;
+                width: 14px;
+                height: 14px;
+                border: 1px dashed;
+                border-radius: 3px;
+                margin-right: 8px;
+                vertical-align: middle;
+            }
+        </style>
+    </head>
+    <body>
+        <nav>
+            <button id="parse-rdf" class="nav-btn">Extract RDF</button>
+            <button id="help-button" class="nav-btn secondary" onclick="openHelp()">Help</button>
+        </nav>
+
+        <div id="content" class="rdfa-editor-content" about="" typeof="http://schema.org/Article">
+            <h1 property="http://purl.org/dc/terms/title">Making Meaning on the Web</h1>
+
+            <p>Every web page is written for <strong>people</strong>. This short guide is about
+                a small, friendly idea: a page can <em>also</em> carry meaning that
+                <strong>computers</strong> understand, using a web standard called
+                <a href="https://www.w3.org/TR/rdfa-primer/" property="http://purl.org/dc/terms/references">RDFa</a>.
+                Everything you see below is editable — just click in and start typing.</p>
+
+            <p>Written by
+                <span property="http://schema.org/author" resource="#author">Ada Lovelace</span>,
+                published
+                <span property="http://purl.org/dc/terms/date" datatype="http://www.w3.org/2001/XMLSchema#date" content="2026-07-07">7 July 2026</span>.
+                The coloured outlines mark the facts a computer can read.</p>
+
+            <p about="#author" typeof="http://schema.org/Person"><span property="http://schema.org/name">Ada Lovelace</span>
+                (<span property="http://schema.org/birthDate" datatype="http://www.w3.org/2001/XMLSchema#date" content="1815-12-10">1815</span>–<span property="http://schema.org/deathDate" datatype="http://www.w3.org/2001/XMLSchema#date" content="1852-11-27">1852</span>) is often called the world's first
+                <span property="http://schema.org/description">computer programmer</span> — a fitting
+                guide to a language that machines can read.</p>
+
+            <h2>What is a fact?</h2>
+            <p>At its heart, a fact is just three parts joined together: <strong>something</strong>,
+                a <strong>relationship</strong>, and a <strong>value</strong>. Once you see facts
+                this way, almost anything can be written down clearly — for a reader and for a
+                machine alike.</p>
+
+            <figure>
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NjAgMjAwIiBmb250LWZhbWlseT0iUm9ib3RvLCBzYW5zLXNlcmlmIj4KICA8cmVjdCB3aWR0aD0iNjYwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2ZmZmZmZiIvPgogIDx0ZXh0IHg9IjMzMCIgeT0iMzAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiMzMzMiPk9uZSBmYWN0LCB0aHJlZSBwYXJ0czwvdGV4dD4KICA8cmVjdCB4PSIyMCIgeT0iNjAiIHdpZHRoPSIxNzAiIGhlaWdodD0iODAiIHJ4PSIxMCIgZmlsbD0iI2UzZjJmZCIgc3Ryb2tlPSIjMjE5NmYzIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8dGV4dCB4PSIxMDUiIHk9Ijk1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE4IiBmb250LXdlaWdodD0iNjAwIiBmaWxsPSIjMTU2NWMwIj5TdWJqZWN0PC90ZXh0PgogIDx0ZXh0IHg9IjEwNSIgeT0iMTIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNTU1Ij5UaGlzIGd1aWRlPC90ZXh0PgogIDxsaW5lIHgxPSIxOTAiIHkxPSIxMDAiIHgyPSIyNDUiIHkyPSIxMDAiIHN0cm9rZT0iIzllOWU5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHBvbHlnb24gcG9pbnRzPSIyNDUsOTQgMjU4LDEwMCAyNDUsMTA2IiBmaWxsPSIjOWU5ZTllIi8+CiAgPHJlY3QgeD0iMjU4IiB5PSI2MCIgd2lkdGg9IjE3MCIgaGVpZ2h0PSI4MCIgcng9IjEwIiBmaWxsPSIjZThmNWU5IiBzdHJva2U9IiM0Y2FmNTAiIHN0cm9rZS13aWR0aD0iMiIvPgogIDx0ZXh0IHg9IjM0MyIgeT0iOTUiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTgiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiMyZTdkMzIiPlByZWRpY2F0ZTwvdGV4dD4KICA8dGV4dCB4PSIzNDMiIHk9IjEyMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzU1NSI+d2FzIHdyaXR0ZW4gYnk8L3RleHQ+CiAgPGxpbmUgeDE9IjQyOCIgeTE9IjEwMCIgeDI9IjQ4MyIgeTI9IjEwMCIgc3Ryb2tlPSIjOWU5ZTllIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8cG9seWdvbiBwb2ludHM9IjQ4Myw5NCA0OTYsMTAwIDQ4MywxMDYiIGZpbGw9IiM5ZTllOWUiLz4KICA8cmVjdCB4PSI0OTYiIHk9IjYwIiB3aWR0aD0iMTUwIiBoZWlnaHQ9IjgwIiByeD0iMTAiIGZpbGw9IiNmZmYzZTAiIHN0cm9rZT0iI2ZmOTgwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHRleHQgeD0iNTcxIiB5PSI5NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxOCIgZm9udC13ZWlnaHQ9IjYwMCIgZmlsbD0iI2U2NTEwMCI+T2JqZWN0PC90ZXh0PgogIDx0ZXh0IHg9IjU3MSIgeT0iMTIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE0IiBmaWxsPSIjNTU1Ij5BZGEgTG92ZWxhY2U8L3RleHQ+Cjwvc3ZnPgo=" alt="A diagram splitting a fact into three parts: Subject, Predicate and Object."/>
+                <figcaption>A single fact, split into its three parts.</figcaption>
+            </figure>
+
+            <p>Here is that same fact written out in plain words:</p>
+
+            <pre>Subject     This guide
+Predicate   was written by
+Object      Ada Lovelace</pre>
+
+            <p>The table below turns a few everyday sentences into these same three parts.</p>
+
+            <table>
+                <caption>Everyday sentences, seen as data</caption>
+                <thead>
+                    <tr>
+                        <th>Sentence</th>
+                        <th>Who or what</th>
+                        <th>Relationship</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>This guide explains RDFa.</td>
+                        <td>This guide</td>
+                        <td>explains</td>
+                        <td>RDFa</td>
+                    </tr>
+                    <tr>
+                        <td>Ada Lovelace wrote it.</td>
+                        <td>Ada Lovelace</td>
+                        <td>wrote</td>
+                        <td>this guide</td>
+                    </tr>
+                    <tr>
+                        <td>It was published in 2026.</td>
+                        <td>This guide</td>
+                        <td>published in</td>
+                        <td>2026</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>One page, two readers</h2>
+            <p>The magic of RDFa is that a single page can serve two audiences at once. A person
+                sees friendly words and pictures; a computer sees the very same page and
+                understands the meaning tucked inside it — with no separate file required.</p>
+
+            <figure>
+                <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NjAgMjIwIiBmb250LWZhbWlseT0iUm9ib3RvLCBzYW5zLXNlcmlmIj4KICA8cmVjdCB3aWR0aD0iNjYwIiBoZWlnaHQ9IjIyMCIgZmlsbD0iI2ZmZmZmZiIvPgogIDx0ZXh0IHg9IjMzMCIgeT0iMjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTYiIGZvbnQtd2VpZ2h0PSI2MDAiIGZpbGw9IiMzMzMiPk9uZSBwYWdlLCB0d28gcmVhZGVyczwvdGV4dD4KICA8cmVjdCB4PSIyODUiIHk9IjY2IiB3aWR0aD0iOTAiIGhlaWdodD0iMTEyIiByeD0iNiIgZmlsbD0iI2Y4ZjlmYSIgc3Ryb2tlPSIjOTBhNGFlIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8bGluZSB4MT0iMzAwIiB5MT0iOTAiIHgyPSIzNjAiIHkyPSI5MCIgc3Ryb2tlPSIjYjBiZWM1IiBzdHJva2Utd2lkdGg9IjQiLz4KICA8bGluZSB4MT0iMzAwIiB5MT0iMTA4IiB4Mj0iMzYwIiB5Mj0iMTA4IiBzdHJva2U9IiNiMGJlYzUiIHN0cm9rZS13aWR0aD0iNCIvPgogIDxsaW5lIHgxPSIzMDAiIHkxPSIxMjYiIHgyPSIzNjAiIHkyPSIxMjYiIHN0cm9rZT0iIzRjYWY1MCIgc3Ryb2tlLXdpZHRoPSI0Ii8+CiAgPGxpbmUgeDE9IjMwMCIgeTE9IjE0NCIgeDI9IjM0NCIgeTI9IjE0NCIgc3Ryb2tlPSIjYjBiZWM1IiBzdHJva2Utd2lkdGg9IjQiLz4KICA8Y2lyY2xlIGN4PSI5NSIgY3k9Ijk2IiByPSIxNSIgZmlsbD0iIzIxOTZmMyIvPgogIDxwYXRoIGQ9Ik03MCAxMzQgYTI1IDIzIDAgMCAxIDUwIDAgeiIgZmlsbD0iIzIxOTZmMyIvPgogIDx0ZXh0IHg9Ijk1IiB5PSIxNjQiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM1NTUiPkEgcGVyc29uIHJlYWRzPC90ZXh0PgogIDx0ZXh0IHg9Ijk1IiB5PSIxODIiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM1NTUiPnRoZSB3b3Jkcy48L3RleHQ+CiAgPHJlY3QgeD0iNTQ1IiB5PSI4MCIgd2lkdGg9IjgwIiBoZWlnaHQ9IjU0IiByeD0iNCIgZmlsbD0iI2YzZTVmNSIgc3Ryb2tlPSIjOWMyN2IwIiBzdHJva2Utd2lkdGg9IjIiLz4KICA8cmVjdCB4PSI1NzYiIHk9IjEzNCIgd2lkdGg9IjE4IiBoZWlnaHQ9IjEwIiBmaWxsPSIjOWMyN2IwIi8+CiAgPHJlY3QgeD0iNTYwIiB5PSIxNDQiIHdpZHRoPSI1MCIgaGVpZ2h0PSI2IiByeD0iMyIgZmlsbD0iIzljMjdiMCIvPgogIDx0ZXh0IHg9IjU4NSIgeT0iMTEyIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjEyIiBmaWxsPSIjN2IxZmEyIj4wMTEwMTwvdGV4dD4KICA8dGV4dCB4PSI1ODUiIHk9IjE3MCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzU1NSI+QSBjb21wdXRlciByZWFkczwvdGV4dD4KICA8dGV4dCB4PSI1ODUiIHk9IjE4OCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzU1NSI+dGhlIG1lYW5pbmcuPC90ZXh0PgogIDxsaW5lIHgxPSIyODMiIHkxPSIxMjAiIHgyPSIxMjgiIHkyPSIxMTIiIHN0cm9rZT0iIzllOWU5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHBvbHlnb24gcG9pbnRzPSIxMjgsMTA1IDExNCwxMTIgMTI5LDExOSIgZmlsbD0iIzllOWU5ZSIvPgogIDxsaW5lIHgxPSIzNzciIHkxPSIxMTIiIHgyPSI1NDAiIHkyPSIxMDYiIHN0cm9rZT0iIzllOWU5ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHBvbHlnb24gcG9pbnRzPSI1NDAsOTkgNTU0LDEwNiA1MzksMTEzIiBmaWxsPSIjOWU5ZTllIi8+Cjwvc3ZnPgo=" alt="A page in the middle, read by a person on one side and a computer on the other."/>
+                <figcaption>One page can be understood by people and machines together.</figcaption>
+            </figure>
+
+            <blockquote>When pages share their meaning, the whole web starts to feel like one
+                big, answerable library.</blockquote>
+
+            <h3>Why it matters</h3>
+            <p>When machines understand pages, everyday things simply work better:</p>
+            <ul>
+                <li>A <strong>recipe</strong> can show its cooking time and ingredients.</li>
+                <li>An <strong>event</strong> can show its date, place and price.</li>
+                <li>A <strong>shop</strong> can show product details, ratings and availability.</li>
+            </ul>
+
+            <h2>Try it yourself</h2>
+            <p>This whole page is a live editor. Here are a few things to try right now:</p>
+            <ol>
+                <li>Type a sentence, then press <strong>Enter</strong> to start a new block.</li>
+                <li>Select a few words, then <strong>right-click</strong> to tag them with meaning.</li>
+                <li>Use the toolbar to add a heading, list, image or table.</li>
+                <li>Hover a block and drag the <strong>⠿</strong> handle to reorder it —
+                    even into a table cell.</li>
+                <li>Hover the quote above: the paragraph <em>inside</em> it has its own
+                    handle, so you can drag it out of the quote.</li>
+            </ol>
+
+            <h2>Learn more</h2>
+            <p>Curious to go further? The
+                <a href="https://www.w3.org/TR/rdfa-primer/">RDFa Primer</a> is a gentle
+                introduction, <a href="https://schema.org/">schema.org</a> offers ready-made
+                vocabularies for common things, and the
+                <a href="https://www.w3.org/">World Wide Web Consortium</a> maintains the
+                standards that hold it all together. This guide is shared by
+                <span property="http://schema.org/publisher" typeof="http://schema.org/Organization"><span property="http://schema.org/name">the open web community</span></span>.</p>
+        </div>
+
+        <footer class="site-footer">
+            <p class="site-footer-tagline">A client-side XHTML+RDFa editor, rendered entirely by XSLT.</p>
+            <ul>
+                <li><a href="https://github.com/AtomGraph">AtomGraph</a></li>
+                <li><a href="https://www.w3.org/TR/xslt-30/">XSLT 3.0</a></li>
+                <li><a href="https://www.saxonica.com/html/saxonjs/index.html">SaxonJS</a></li>
+                <li><a href="https://github.com/AtomGraph/RDFa-Editor">Code</a></li>
+            </ul>
+        </footer>
+
+        <div id="help-modal" class="rdfa-editor-ui" style="display: none;" onclick="if (event.target === this) closeHelp();">
+            <div class="modal-content">
+                <button type="button" class="help-close" onclick="closeHelp()" aria-label="Close help">&#215;</button>
+                <h3>Welcome to the RDFa Editor</h3>
+                <p>This page is a live document you can edit directly, in the spirit of tools
+                    like Notion — with the added power to attach machine-readable meaning
+                    (RDFa) to any words you choose.</p>
+
+                <h4>Editing</h4>
+                <p>Click anywhere and start typing. Press <strong>Enter</strong> to split a
+                    block, and <strong>Backspace</strong> at the start of a block to merge it
+                    with the one above.</p>
+
+                <h4>Selecting and deleting</h4>
+                <p>Press <strong>Ctrl/Cmd+A</strong> to select the current block's text;
+                    press it again to select the whole document (never the surrounding
+                    page). You can also drag a selection across several blocks with the
+                    mouse. <strong>Backspace</strong> or <strong>Delete</strong> removes
+                    whatever is selected — or just start typing to replace it.
+                    <strong>Ctrl/Cmd+C</strong> copies a multi-block selection as clean
+                    XHTML+RDFa, and <strong>Ctrl/Cmd+Z</strong> undoes any change.</p>
+
+                <h4>Quick insert</h4>
+                <p>Type <strong>/</strong> in an empty block to open the insert menu.
+                    Markdown shortcuts work too: <strong># </strong>, <strong>## </strong>
+                    and <strong>### </strong> for headings, <strong>- </strong> or
+                    <strong>1. </strong> for lists, <strong>&gt; </strong> for a quote and
+                    <strong>```</strong> for code.</p>
+
+                <h4>The toolbar</h4>
+                <p>Use the toolbar (top-left) to change a block's type, make text
+                    <strong>bold</strong> or <em>italic</em>, add links, lists, images and
+                    tables, or delete a block.</p>
+
+                <h4>Adding meaning (RDFa)</h4>
+                <p><strong>Right-click</strong> a text selection to tag it with a subject,
+                    relationship and value. <strong>Right-click an existing tag</strong> to
+                    edit or remove it. Tagged text is outlined in colour:</p>
+                <ul class="legend">
+                    <li><span class="swatch" style="border-color:#4caf50;background:rgba(76,175,80,.12)"></span> <strong>Green</strong> — a property (the relationship)</li>
+                    <li><span class="swatch" style="border-color:#9c27b0;background:rgba(156,39,176,.12)"></span> <strong>Purple</strong> — a type (what something is)</li>
+                    <li><span class="swatch" style="border-color:#2196f3;background:rgba(33,150,243,.12)"></span> <strong>Blue</strong> — a subject (what a fact is about)</li>
+                    <li><span class="swatch" style="border-color:#ff9800;background:rgba(255,152,0,.12)"></span> <strong>Orange</strong> — a linked resource (a value given as a link)</li>
+                </ul>
+
+                <h4>Reordering</h4>
+                <p>Hover over a block and drag the <strong>⠿</strong> handle that appears in
+                    the left margin to move it. Blocks nested inside a list item, a quote or
+                    a table cell have handles of their own, at their own indent — a drop
+                    lands wherever the document structure allows it: next to another block,
+                    <strong>into a table cell</strong>, or — dropped in the page's left
+                    gutter — out at the top level.</p>
+
+                <h4>Seeing the result</h4>
+                <p><strong>Source</strong> (in the toolbar) shows the clean, canonical
+                    XHTML+RDFa that would be saved. <strong>Extract RDF</strong> (top-right)
+                    shows the facts a computer reads from this page. Both dialogs have a
+                    <strong>Download</strong> button that saves the output as a file.</p>
+            </div>
+        </div>
+
+        <script type="text/javascript">
+            function openHelp() { document.getElementById('help-modal').style.display = 'flex'; }
+            function closeHelp() { document.getElementById('help-modal').style.display = 'none'; }
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeHelp();
+            });
+        </script>
+    </body>
+</html>
