@@ -12,7 +12,7 @@
 					// preload the vocabulary documents and the string catalog into the SaxonJS
 					// document pool, so doc() resolves them synchronously during initialization
 					const vocabs = ["vocabs/foaf.rdf", "vocabs/dcterms.rdf"];
-					Promise.all([SaxonJS.getResource({ location: "src/translations.rdf", type: "xml" }), ...vocabs.map(href =>
+					Promise.all([SaxonJS.getResource({ location: "dist/translations.rdf", type: "xml" }), ...vocabs.map(href =>
 							SaxonJS.getResource({ location: href, type: "xml" }))])
 						.then(([catalog, ...resources]) => {
 							const pool = {};
