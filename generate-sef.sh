@@ -36,3 +36,6 @@ fi
 mkdir -p dist/vocabs
 cp vocabs/*.rdf dist/vocabs/
 echo "✓ Vocabularies copied to dist/vocabs/"
+
+cp src/translations.rdf dist/
+echo "✓ Translations copied to dist/"

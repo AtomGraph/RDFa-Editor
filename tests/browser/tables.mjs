@@ -297,7 +297,7 @@ results.drag = await page.evaluate(() => {
     const dragged = content.querySelector(':scope > table');
     const target = content.querySelector(':scope > blockquote');
     if (!dragged || !target) return { skipped: true };
-    dragged.querySelector('.drag-handle').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    dragged.querySelector('.rdfa-editor-drag-handle').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     const draggableSet = dragged.getAttribute('draggable') === 'true';
     const dt = new DataTransfer();
     dt.setData('application/vnd.atomgraph.rdfa-editor.block', '');

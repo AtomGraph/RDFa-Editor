@@ -277,7 +277,7 @@ version="3.0">
         <xsl:param name="error" as="item()?"/>
         <xsl:call-template name="rdfae:block-render-error">
             <xsl:with-param name="island" select="$island"/>
-            <xsl:with-param name="message" select="'Failed to load block data'"/>
+            <xsl:with-param name="message" select="rdfae:label('failed-to-load-block-data')"/>
         </xsl:call-template>
     </xsl:function>
 
@@ -285,58 +285,58 @@ version="3.0">
 
     <xsl:template name="rdfae:render-extra-dialogs">
         <div id="ldh-block-dialog" class="rdfa-editor-ui edit-dialog" role="dialog" aria-modal="true"
-                aria-label="Insert block" style="display: none;">
-            <label>Block type</label>
+                aria-label="{rdfae:label('insert-block')}" style="display: none;">
+            <label><xsl:value-of select="rdfae:label('block-type')"/></label>
             <select name="block-type-iri">
-                <option value="https://w3id.org/atomgraph/rdfa-editor#reference">Resource</option>
-                <option value="&ldh;View">View</option>
-                <option value="&ldh;ResultSetChart">Result set chart</option>
+                <option value="https://w3id.org/atomgraph/rdfa-editor#reference"><xsl:value-of select="rdfae:label('resource')"/></option>
+                <option value="&ldh;View"><xsl:value-of select="rdfae:label('view')"/></option>
+                <option value="&ldh;ResultSetChart"><xsl:value-of select="rdfae:label('result-set-chart')"/></option>
             </select>
             <!-- a reference block IS the referenced resource: its absolute URI
                  goes straight into @about, no fragment id and no wrapper node -->
             <div class="ldh-fields ldh-fields-reference">
-                <label>Resource URI</label>
+                <label><xsl:value-of select="rdfae:label('resource-uri')"/></label>
                 <input type="text" name="reference-uri" placeholder="http://dbpedia.org/resource/Ada_Lovelace"/>
             </div>
             <!-- defined blocks are document parts: fragment @about + @typeof -->
             <div class="ldh-fields ldh-fields-frag" style="display: none;">
-                <label>Fragment id</label>
+                <label><xsl:value-of select="rdfae:label('fragment-id')"/></label>
                 <input type="text" name="about" placeholder="#chart-1"/>
             </div>
             <div class="ldh-fields ldh-fields-view" style="display: none;">
-                <label>Query URI</label>
+                <label><xsl:value-of select="rdfae:label('query-uri')"/></label>
                 <input type="text" name="view-query"/>
-                <label>Mode URI (optional)</label>
+                <label><xsl:value-of select="rdfae:label('mode-uri-optional')"/></label>
                 <input type="text" name="view-mode"/>
             </div>
             <div class="ldh-fields ldh-fields-chart" style="display: none;">
-                <label>Query URI</label>
+                <label><xsl:value-of select="rdfae:label('query-uri')"/></label>
                 <input type="text" name="chart-query"/>
-                <label>Chart type</label>
+                <label><xsl:value-of select="rdfae:label('chart-type')"/></label>
                 <select name="chart-type">
-                    <option value="&ac;Table">Table</option>
-                    <option value="&ac;BarChart">Bar chart</option>
-                    <option value="&ac;LineChart">Line chart</option>
-                    <option value="&ac;ScatterChart">Scatter chart</option>
+                    <option value="&ac;Table"><xsl:value-of select="rdfae:label('chart-table')"/></option>
+                    <option value="&ac;BarChart"><xsl:value-of select="rdfae:label('chart-bar')"/></option>
+                    <option value="&ac;LineChart"><xsl:value-of select="rdfae:label('chart-line')"/></option>
+                    <option value="&ac;ScatterChart"><xsl:value-of select="rdfae:label('chart-scatter')"/></option>
                 </select>
-                <label>Category variable</label>
+                <label><xsl:value-of select="rdfae:label('chart-category-var')"/></label>
                 <input type="text" name="chart-category"/>
-                <label>Series variable</label>
+                <label><xsl:value-of select="rdfae:label('chart-series-var')"/></label>
                 <input type="text" name="chart-series"/>
             </div>
             <div class="action-buttons">
-                <button type="button" class="btn-primary ldh-block-save">Insert</button>
-                <button type="button" class="btn-secondary ldh-block-cancel">Cancel</button>
+                <button type="button" class="{$button-primary-class} ldh-block-save"><xsl:value-of select="rdfae:label('insert')"/></button>
+                <button type="button" class="{$button-secondary-class} ldh-block-cancel"><xsl:value-of select="rdfae:label('cancel')"/></button>
             </div>
         </div>
     </xsl:template>
 
     <xsl:template name="rdfae:render-extra-insert-buttons">
-        <button type="button" class="insert-ldh-block" title="Insert block" aria-label="Insert LinkedDataHub block">&#x25A6;</button>
+        <button type="button" class="insert-ldh-block" title="{rdfae:label('insert-block')}" aria-label="{rdfae:label('insert-block')}">&#x25A6;</button>
     </xsl:template>
 
     <xsl:template name="rdfae:render-extra-slash-items">
-        <li class="slash-item" data-command="ldh-block" role="option">Block&#x2026;</li>
+        <li class="slash-item" data-command="ldh-block" role="option"><xsl:value-of select="rdfae:label('block-ellipsis')"/></li>
     </xsl:template>
 
     <!-- reset to the reference defaults (mirrors the figure/table openers) -->
