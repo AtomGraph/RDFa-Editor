@@ -65,4 +65,22 @@ for fixture in tests/fixtures/canonical/*.xhtml; do
     fi
 done
 
+# exclusive c14n: byte-exact against libxml2's output (xmlstarlet c14n --exc-without-comments)
+for fixture in tests/fixtures/c14n/*.xml; do
+    name=$(basename "$fixture" .xml)
+    if ! npx xslt3-he -xsl:tests/c14n-driver.xsl -s:"$fixture" -it:c14n -o:"$tmp/x-$name.actual" 2>"$tmp/x-$name.err"; then
+        echo "FAIL c14n/$name (transform error)"
+        cat "$tmp/x-$name.err"
+        fail=1
+        continue
+    fi
+    if cmp -s "tests/expected/c14n/$name.xml" "$tmp/x-$name.actual"; then
+        echo "PASS c14n/$name"
+    else
+        echo "FAIL c14n/$name"
+        diff -u "tests/expected/c14n/$name.xml" "$tmp/x-$name.actual"
+        fail=1
+    fi
+done
+
 exit $fail

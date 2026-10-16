@@ -1,0 +1,2 @@
+<?xml-stylesheet href="x.xsl" type="text/xsl"?>
+<div xmlns="http://www.w3.org/1999/xhtml" xmlns:unused="http://example.org/unused" xmlns:ex="http://example.org/ex#" xmlns:a="http://example.org/a#"><p ex:z="1" a:y="2" title="t" id="i">text</p><ex:thing b:attr="v" xmlns:b="http://example.org/b#"><ex:inner/></ex:thing><span xmlns="">no namespace<i xmlns="http://www.w3.org/1999/xhtml">back</i></span><?pi some data?></div>
