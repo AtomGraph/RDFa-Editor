@@ -16,8 +16,8 @@ RDFa extraction and the document canonicalization are all XSLT.
   to edit or remove it.
 - **Strictly W3C-conformant RDFa 1.1 extraction** to RDF/XML ("Extract RDF"), a
   **canonical serialization** stripping all editing ephemera and emitting
-  [Exclusive XML Canonicalization](https://www.w3.org/TR/xml-exc-c14n/) — the
-  `rdf:XMLLiteral` value space ("Source"), and
+  [Exclusive XML Canonicalization](https://www.w3.org/TR/xml-exc-c14n/) in pure XSLT
+  (`cm:c14n`) — the `rdf:XMLLiteral` lexical form ("Source"), and
   **RDFa lint** (unresolvable terms, unsafe markup, step-11 conflicts) surfaced as
   wavy underlines + a breadcrumb badge.
 - **Navigation**: ToC drawer (outline with section drag-reorder), breadcrumb bar with
@@ -60,9 +60,8 @@ See `CLAUDE.md` for the module map and conventions. The load-bearing pieces:
 `src/lint-rdfa.xsl` (pure), and the IXSL modules `edit.xsl` / `annotate.xsl` /
 `overlay.xsl` / `navigate.xsl` / `undo.xsl` / `vocab.xsl`. The editor's stylesheet is
 self-contained: a host page provides one or more `.rdfa-editor-content` regions, `rdfa-editor.css`,
-loads `lib/xml-c14n-sync.js` (the exclusive-c14n serializer the "Source" view uses — the same lib
-LinkedDataHub canonicalizes `rdf:XMLLiteral`s with), and preloads the vocabulary documents into the
-SaxonJS document pool (see `index.html`).
+loads `lib/SaxonJS3.js`, and preloads the vocabulary documents into the SaxonJS document pool
+(see `index.html`).
 
 ## Embedding in LinkedDataHub
 
